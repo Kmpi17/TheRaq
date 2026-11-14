@@ -182,7 +182,8 @@ Tipos de fila:
   - tapiada (`BoardUpWindows`), con contrachapado sobre cada ventana de la textura.
 
   Detrás tiene valla de madera (`WoodFenceLine`), garaje si caben 14 m de fondo (`Garage`), cubos con ruedas en el borde del callejón (`TrashCart`) y maleza.
-- `Apartment`: 9 m de alto, con miradores, zócalo con bloque de vidrio, portal de piedra, valla baja, porches traseros de 3 alturas con escaleras en zigzag (`BackPorch`, `Slab`) y patio de hormigón con contenedor y coche (`ParkedCar`).
+- `Apartment`: 9 m de alto, con miradores, zócalo con bloque de vidrio, portal de piedra, valla baja, porches traseros (`BackPorch`) y patio de hormigón con contenedor y coche (`ParkedCar`). Deja 6.5 m detrás del edificio para el porche y el patio.
+- `BackPorch` (marco local: fachada en z = 0, porche hacia +Z): 3 terrazas de 5.4 × 2 m a 1.07, 4.07 y 7.07 m (`PorchDeckTops`, los pisos de 3 m de la textura) con **puerta trasera** en `PorchDoorX`, y una torre de escalera de dos bandas (z 2.0–3.1 y 3.1–4.2) con tramos de medio piso (`PorchFlight`: 1.5 m en 2.4 m, 32°) que van y vuelven entre rellanos en x ±1.2…2.2; el rellano derecho a la altura de cada terraza es su entrada. Se sube a pie: rampa invisible bajo los peldaños, paredes invisibles a los lados de cada tramo y barandillas de balaustres con colisión (`PorchRail`, textura `PorchRail` con alfa). `Apartment` coloca cada porche para que su puerta caiga en el centro de un vano de la fachada, así tapa la ventana de ese vano en los tres pisos. Lo comprueba `BackPorchPlayTests`.
 - `VacantLot`: malla metálica (a veces con un tramo caído), maleza, colchón, neumáticos y nieve.
 - `CornerStore`: tienda en el quiebro de la calle C.
 - `BuildHousesStreetLife`:
@@ -340,6 +341,7 @@ Genera las texturas del barrio en código (no se copian assets de ningún juego)
 - Tren elevado: `Ties(name, seed)`, con 4 traviesas cada `TiesTile` = 2.4 m y huecos transparentes.
 - Barrio de casas: `WoodFence(name, seed)`, `Alley(name, seed)` y `Shingles(name, tint, seed)`. Las constantes `WoodFenceWidth/Height`, `AlleyTile` y `ShingleTile` dan los metros por repetición.
 - Vegetación: `Foliage(name, leaf, accent, seed)`, `Snow(name, seed)` y `TallGrass(name, dry, green, seedHeads, seed)` (briznas curvadas con alfa, sin repetir).
+- Porches: `PorchRail(name, wood, seed)` (barandilla de balaustres con alfa, 1 × 1 m).
 - Negocios: `Sign(name, text, background, ink, seed)` (letrero de caja de luz con una fuente de píxeles 5×7 propia: mayúsculas, `&` y espacio; ancho según el texto), `Shutter(name, seed)` (persiana de lamas, 1 m por repetición) y `BarberPole(name)` (espiral roja, blanca y azul).
 - Detalle callejero: `IronFence`, `ChainLink`, `Court(name, width, length, margin, seed)`, `Bush`, `Grime` (blanco con alfa: el color lo pone el material) y `Graffiti(name, seed)` (256×128, abstracto: no son letras ni nombres reales).
 - Las texturas con alfa se importan con `alphaIsTransparency` y `mipMapsPreserveCoverage`, para que las vallas no desaparezcan de lejos. Las que no se repiten (manchas, grafitis) usan wrap *Clamp*.

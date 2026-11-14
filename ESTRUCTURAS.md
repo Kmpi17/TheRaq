@@ -16,6 +16,7 @@ Cuaderno del mundo del juego. Aquí se anota **todo lo que se decide sobre el mu
 - **Armonía entre zonas vecinas:** una zona nueva usa los mismos materiales que la de al lado (ladrillo con ventanas, acera de losas, césped seco, valla baja de hierro, farolas de sodio), aunque sus edificios sean de otro tipo. Las alturas cambian poco a poco entre zonas.
 - **Coches de la época, sin marcas:** modelos genéricos de finales de los 90 y los 2000 (sedán grande, coupé, todoterreno, furgoneta), con matrículas en blanco y sin logotipos. Muchos llevan llantas cromadas. Los aparcados en invierno tienen a veces nieve encima, óxido, una puerta de otro color o una ventana tapada con plástico.
 - **Calles de negocios con aire:** los locales (barbería, tienda de comida y licores, lavandería, pollo frito, cambio de cheques, iglesia de local…) van **sueltos**, de 1–2 plantas, con huecos, solares o un aparcamiento pequeño entre ellos; nunca una fila continua de fachadas pegadas. Los letreros dicen lo que se vende con palabras genéricas (BARBER SHOP, FOOD & LIQUOR), sin nombres propios ni marcas.
+- **Escaleras que llevan a algún sitio:** toda escalera, porche o rellano acaba en una puerta (nunca delante de una ventana de la textura), y lo que parece transitable se puede subir a pie.
 - **Ambiente callejero:** las zonas de barrio tienen que sentirse vividas y descuidadas, con basura, manchas, grafitis, vallas, muebles tirados y cables. Ninguna zona transitable debe quedar vacía.
 - **Cómo se trabaja este archivo:** antes de hablar o tocar cualquier estructura se leen este archivo y los README relacionados (sobre todo `Assets/_Project/Editor/README.md`) y se miran el plano `mapa/mapa.png` y las imágenes de `img/estructures/` (y `img/`). Cada imagen nueva se añade a la tabla de *Referencias visuales*. Toda regla nueva que salga se apunta en esta sección.
 
@@ -145,7 +146,7 @@ Casas bajas y apartamentos de 3 pisos, con calles que no forman cuadrícula y mu
   - alguna casa está **tapiada**, con contrachapado en las ventanas y maleza.
 - **Apartamentos de 3 pisos** (9 m), en la calle C (al sur del tramo oeste) y a lo largo de B por el este:
   - ladrillo con miradores de arriba abajo, cornisa de piedra, zócalo con ventanas de bloque de vidrio, portal de piedra y valla baja;
-  - detrás, **porches de madera de 3 alturas con escaleras en zigzag**, y un patio de hormigón con contenedor, bolsas y algún coche.
+  - detrás, **porches de madera de 3 alturas con escalera en zigzag por la que se sube a pie**: una terraza por piso con su **puerta trasera** (la escalera siempre llega a una puerta, nunca a una ventana), barandillas de balaustres y una torre de escalera de tramos de medio piso con rellanos; detrás, un patio de hormigón con contenedor, bolsas y algún coche.
 - **Solares vacíos** con malla metálica (a veces caída), maleza alta, un colchón, neumáticos y nieve. Uno grande está entre los bloques del este.
 - **Tienda de esquina** (182, 190), en el quiebro de la calle C: ladrillo amarillo, escaparate con rejas, letrero rojo sin texto y un grafiti en el lateral.
 - **Otros:**
@@ -217,6 +218,7 @@ Registro de lo que se ha pedido sobre el mundo, del más antiguo al más recient
 - **2026-11-14**: «Mejorar los assets de los coches». → Los coches dejaron de ser dos cajas: hay 4 modelos low-poly con silueta (sedán, coupé, todoterreno, furgoneta), ruedas con llanta y desgaste de invierno (`PrototypeSceneBuilder.Cars.cs`). El coche que se conduce es el sedán, con llantas cromadas y faros encendidos. *Regla que sale de aquí:* coches de la época, sin marcas.
 - **2026-11-14**: «Continuar el barrio de casas al otro lado de la vía, con la misma estructura, pero que la parte que da al conjunto de torres sean negocios (barber, market, etc.) que no estén muy apiñados». → Se construyó la copia oeste del barrio de casas (el mismo trazado girado 180°) y, delante, una franja de 6 negocios sueltos con un aparcamiento y un solar entre ellos (`PrototypeSceneBuilder.Shops.cs`). También se puso la acera oeste de la avenida y se quitaron los two-flats que había en ese sitio. *Regla que sale de aquí:* calles de negocios con aire.
 - **2026-11-14**: «Permite subir a la estación de tren». → Las escaleras de la estación pasaron de decorativas a transitables (rampa invisible bajo los peldaños, 32° de pendiente, barandillas con colisión) y el andén tiene un límite en el borde de las vías.
+- **2026-11-14**: «Mejorar el apartamento de 3 plantas con escaleras: que se pueda subir por las escaleras y que cada escalera dé a una puerta, no a una ventana». → El porche trasero se rehízo: terraza por piso con puerta (colocada sobre un vano de la fachada, así tapa su ventana), barandilla de balaustres y escalera en zigzag de dos bandas con rellanos, transitable (rampas y barandillas con colisión). *Regla que sale de aquí:* toda escalera o porche lleva a una puerta, y lo que parece transitable se puede pisar.
 
 ## Pendiente e ideas
 

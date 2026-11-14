@@ -310,6 +310,29 @@ namespace GTAChiraq.Editor
             return Save(name, S, S, px, alpha: true);
         }
 
+        /// <summary>
+        /// Barandilla de porche de madera (apartaments.jfif): pasamanos arriba, listón abajo y balaustres cuadrados cada
+        /// 12.5 cm, con alfa entre ellos. 128 px = 1 m de ancho × 1 m de alto.
+        /// </summary>
+        public static Texture2D PorchRail(string name, Color wood, int seed)
+        {
+            const int S = 128;
+            var px = new Color[S * S];
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                bool top = y >= 116;
+                bool bottom = y >= 6 && y < 14;
+                bool spindle = x % 16 >= 6 && x % 16 < 11 && y >= 6 && y < 116;
+                float grain = 0.85f + 0.2f * Hash01(x / 2, y / 6, seed) + 0.1f * Fbm((float)x / S, (float)y / S, 4, 2, seed + 1);
+                var c = wood * grain;
+                if (top && y < 119) c *= 0.75f; // sombra bajo el pasamanos
+                c.a = top || bottom || spindle ? 1f : 0f;
+                px[y * S + x] = c;
+            }
+            return Save(name, S, S, px, alpha: true);
+        }
+
         /// <summary>Malla metálica de rombos (chain-link), galvanizada con algo de óxido. 128 px = 1 m.</summary>
         public static Texture2D ChainLink(string name, int seed)
         {

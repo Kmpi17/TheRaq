@@ -41,6 +41,7 @@ namespace GTAChiraq.Editor
             ("barrio_viviendas", "02_torre", new Vector3(148f, 2f, 9f), new Vector3(156f, 12f, 62f)),
             ("barrio_casas", "01_calle_a", new Vector3(124f, 2f, 121f), new Vector3(200f, 4f, 124f)),
             ("barrio_casas", "02_callejon", new Vector3(124f, 2f, 149.5f), new Vector3(200f, 3f, 149.5f)),
+            ("barrio_casas", "04_porches_traseros", new Vector3(244.5f, 2f, 99f), new Vector3(228f, 5f, 112f)),
             ("barrio_casas", "03_calle_b", new Vector3(212f, 2f, 196f), new Vector3(212f, 3f, 110f)),
             ("negocios", "01_calle_norte", new Vector3(-28f, 2.2f, 78f), new Vector3(40f, 3f, 95f)),
             ("negocios", "02_barberia", new Vector3(22f, 1.9f, 84f), new Vector3(36f, 3f, 93f)),

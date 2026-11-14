@@ -77,6 +77,7 @@ namespace GTAChiraq.Editor
         static Material greystone, aptFacadeA, aptFacadeB, shingles, tarRoof, stoneTrim, woodFence, alleyMat, sidewalkMat, lawnMat,
             doorMat, plywood, porchWood, ironFence, chainLink, ironMat, concreteMat, garageDoor, glassBlock, darkGlass;
         static Material[] garageWalls, binColors, carPaints, graffitiMats;
+        static Material porchRail, backDoor;
 
         static readonly List<Rect> housesOccupied = new();
         static readonly List<(string kind, Vector2[] corners, float height)> housesFootprints = new();
@@ -156,6 +157,8 @@ namespace GTAChiraq.Editor
             doorMat = Mat("PuertaCasa", new Color(0.25f, 0.17f, 0.12f));
             plywood = Mat("Contrachapado", new Color(0.58f, 0.48f, 0.33f));
             porchWood = Mat("MaderaPorche", new Color(0.4f, 0.33f, 0.25f));
+            porchRail = CutoutMat("BarandaPorche", ProceduralTextures.PorchRail("BarandaPorche", new Color(0.42f, 0.35f, 0.27f), 20));
+            backDoor = Mat("PuertaTrasera", new Color(0.3f, 0.22f, 0.15f));
             ironFence = LoadMat("VallaHierro");
             chainLink = LoadMat("MallaMetalica");
             ironMat = Mat("Hierro", new Color(0.07f, 0.07f, 0.08f));
@@ -460,7 +463,7 @@ namespace GTAChiraq.Editor
             root.SetParent(row, false);
             const float h = 9f;
             float s = Range(rng, 3f, 4.5f);
-            float d = Mathf.Min(13f, depth - s - 5.5f);
+            float d = Mathf.Min(13f, depth - s - 6.5f); // detrás: porche con escalera (4.2 m) y patio
             float back = s + d;
             var facade = rng.NextDouble() < 0.6 ? aptFacadeA : aptFacadeB;
             var facadeTile = new Vector2(ProceduralTextures.FacadeBay, ProceduralTextures.FacadeFloor);
@@ -495,53 +498,159 @@ namespace GTAChiraq.Editor
             FenceSegment(root, new Vector3(cx - w / 2f, LawnTop, 0.5f), new Vector3(cx - 1.1f, LawnTop, 0.5f), 1.1f, ironFence, tile, ironMat, 2.5f, 0.05f, topRail: false);
             FenceSegment(root, new Vector3(cx + 1.1f, LawnTop, 0.5f), new Vector3(cx + w / 2f, LawnTop, 0.5f), 1.1f, ironFence, tile, ironMat, 2.5f, 0.05f, topRail: false);
 
-            // Porches traseros de madera con escaleras en zigzag (apartaments.jfif).
+            // Porches traseros de madera con escalera en zigzag (apartaments.jfif). Cada porche se coloca para que su
+            // puerta caiga justo en el centro de un vano de la textura de fachada: así la puerta tapa la ventana de ese
+            // vano en cada piso y la escalera nunca da a una ventana.
+            int facadeBays = Mathf.Max(1, Mathf.RoundToInt(w / ProceduralTextures.FacadeBay));
+            float bayW = w / facadeBays, wallX0 = cx - w / 2f;
             foreach (float k in w >= 18f ? new[] { -0.25f, 0.25f } : new[] { 0f })
-                BackPorch(root, new Vector3(cx + k * w, 0f, back), rng);
-
-            // Patio trasero de hormigón: contenedor, algún coche y cubos junto al callejón.
-            float yard = depth - back - 2.6f;
-            if (yard > 2f)
             {
-                Box("Patio", root, new Vector3(cx, 0.11f, back + 2.6f + yard / 2f), new Vector3(w, 0.04f, yard), concreteMat, collider: false);
-                Dumpster(root, new Vector3(cx - w / 2f + 1.6f, 0.13f, depth - 1f), 0f, lidOpen: rng.NextDouble() < 0.5);
-                for (int i = 0; i < 2; i++) GarbageBag(root, new Vector3(cx - w / 2f + 3.2f + i * 0.5f, 0.13f, depth - 0.8f), rng);
+                // Vanos cuya puerta deja el porche entero dentro de la fachada; el más cercano al sitio buscado.
+                float want = cx + k * w + PorchDoorX, best = float.MaxValue, doorAt = want;
+                for (int bay = 0; bay < facadeBays; bay++)
+                {
+                    float c = wallX0 + (bay + 0.5f) * bayW, porchX = c - PorchDoorX;
+                    if (porchX - PorchHalfWidth < wallX0 - 0.01f || porchX + PorchHalfWidth > wallX0 + w + 0.01f) continue;
+                    if (Mathf.Abs(c - want) < best) { best = Mathf.Abs(c - want); doorAt = c; }
+                }
+                BackPorch(root, new Vector3(doorAt - PorchDoorX, 0f, back), rng);
+            }
+
+            // Patio trasero de hormigón detrás de la escalera: contenedor, algún coche y cubos junto al callejón.
+            float yardStart = back + PorchDepth + 0.2f, yard = depth - yardStart;
+            if (yard > 1.5f)
+            {
+                Box("Patio", root, new Vector3(cx, 0.11f, yardStart + yard / 2f), new Vector3(w, 0.04f, yard), concreteMat, collider: false);
+                Dumpster(root, new Vector3(cx - w / 2f + 1.6f, 0.13f, depth - 0.8f), 0f, lidOpen: rng.NextDouble() < 0.5);
+                for (int i = 0; i < 2; i++) GarbageBag(root, new Vector3(cx - w / 2f + 3.2f + i * 0.5f, 0.13f, depth - 0.6f), rng);
                 if (yard > 5f && rng.NextDouble() < 0.6)
-                    ParkedCar(root, new Vector3(cx + Range(rng, 0f, w / 3f), 0.13f, back + 2.6f + yard / 2f), 90f + Range(rng, -10f, 10f), rng);
+                    ParkedCar(root, new Vector3(cx + Range(rng, 0f, w / 3f), 0.13f, yardStart + yard / 2f), 90f + Range(rng, -10f, 10f), rng);
             }
             for (int i = 0; i < 3; i++)
                 TrashCart(root, new Vector3(cx + w / 2f - 1f - i * 0.8f, AlleyTop, depth + 0.5f), 180f, binColors[rng.Next(binColors.Length)], false);
 
             RecordFootprint(row, "apartamentos", cx - w / 2f, s - 0.9f, cx + w / 2f, back, h + 0.6f);
-            RecordFootprint(row, "porche", cx - w / 2f, back, cx + w / 2f, back + 2.6f, 10.4f);
+            RecordFootprint(row, "porche", cx - w / 2f, back, cx + w / 2f, back + PorchDepth, 10.4f);
         }
 
-        /// <summary>Porche trasero de 3 alturas (tablero, postes, barandilla y tramos de escalera en zigzag), pegado a la fachada en +Z local.</summary>
+        // Porche trasero (marco local: la fachada en z = 0 y el porche hacia +Z). Tres terrazas de 5.4 × 2 m, una por piso
+        // y cada una con su puerta trasera, y delante una torre de escalera en zigzag de dos bandas (A: z 2.0–3.1,
+        // B: z 3.1–4.2). Cada tramo sube medio piso (1.5 m en 2.4 m, 32°) entre dos rellanos (x −2.2…−1.2 y 1.2…2.2);
+        // el rellano derecho a la altura de cada terraza es la entrada a ella. Sobre cada tramo quedan ~3 m libres, así
+        // que se puede subir a pie: se pisan rampas invisibles bajo los peldaños, y los lados de los tramos y las
+        // barandillas tienen colisión.
+        const float PorchHalfWidth = 2.7f, PorchDeckDepth = 2f, PorchDepth = 4.2f, PorchBandSplit = 3.1f;
+        const float PorchStairX = 1.2f, PorchLandingX = 2.2f; // tramos en |x| < 1.2; rellanos de 1.2 a 2.2
+        const float PorchDoorX = -0.6f;                         // puerta de cada piso, en el centro de un vano de la fachada
+        static readonly float[] PorchDeckTops = { 1.07f, 4.07f, 7.07f }; // los pisos de la textura de fachada son de 3 m
+
+        /// <summary>Porche trasero de 3 alturas con escalera transitable y una puerta por piso, pegado a la fachada en +Z local.</summary>
         static void BackPorch(Transform parent, Vector3 basePoint, System.Random rng)
         {
             var root = new GameObject("PorcheTrasero").transform;
             root.SetParent(parent, false);
             root.localPosition = basePoint;
-            const float pw = 5.4f, pd = 2.4f;
-            for (int f = 0; f < 3; f++)
+            const float hw = PorchHalfWidth, dd = PorchDeckDepth, pd = PorchDepth, railH = 1f;
+            float bandA = (dd + PorchBandSplit) / 2f, bandB = (PorchBandSplit + pd) / 2f, bandW = PorchBandSplit - dd;
+
+            // Terrazas: puerta (tapa la ventana de ese vano de la textura) y barandilla, abierta solo hacia el rellano derecho.
+            foreach (float top in PorchDeckTops)
             {
-                float y = 1f + f * 3f;
-                Box("Suelo", root, new Vector3(0f, y, pd / 2f), new Vector3(pw, 0.14f, pd), porchWood);
-                Box("Baranda", root, new Vector3(0f, y + 1f, pd - 0.05f), new Vector3(pw, 0.08f, 0.06f), porchWood, collider: false);
-                Box("BarandaLado", root, new Vector3(pw / 2f - 0.05f, y + 1f, pd / 2f), new Vector3(0.06f, 0.08f, pd), porchWood, collider: false);
-                // Tramo de escalera desde el nivel de abajo, alternando el sentido.
-                float dir = f % 2 == 0 ? 1f : -1f;
-                float yLow = f == 0 ? 0.1f : y - 3f;
-                var a = new Vector3(-dir * (pw / 2f - 0.5f), yLow, pd + 0.5f);
-                var b = new Vector3(dir * 0.6f, y, pd + 0.5f);
-                Slab(root, a, b, 0.9f, 0.12f, porchWood);
+                Box("Suelo", root, new Vector3(0f, top - 0.07f, (0.07f + dd) / 2f), new Vector3(2f * hw, 0.14f, dd - 0.07f), porchWood);
+                Box("PuertaTrasera", root, new Vector3(PorchDoorX, top + 0.9f, 0.05f), new Vector3(1.05f, 2.5f, 0.06f), backDoor, collider: false);
+                Box("MarcoPuerta", root, new Vector3(PorchDoorX, top + 2.2f, 0.07f), new Vector3(1.4f, 0.14f, 0.08f), porchWood, collider: false);
+                foreach (float side in new[] { -1f, 1f })
+                    Box("MarcoPuerta", root, new Vector3(PorchDoorX + side * 0.62f, top + 1.05f, 0.07f), new Vector3(0.14f, 2.3f, 0.08f), porchWood, collider: false);
+                Box("Pomo", root, new Vector3(PorchDoorX + 0.38f, top + 1f, 0.1f), new Vector3(0.06f, 0.06f, 0.06f), ironMat, collider: false);
+                PorchRail(root, new Vector3(-hw, top, dd), new Vector3(PorchStairX, top, dd), railH);
+                PorchRail(root, new Vector3(PorchLandingX, top, dd), new Vector3(hw, top, dd), railH);
+                PorchRail(root, new Vector3(-hw, top, 0.07f), new Vector3(-hw, top, dd), railH);
+                PorchRail(root, new Vector3(hw, top, 0.07f), new Vector3(hw, top, dd), railH);
             }
-            Box("Techo", root, new Vector3(0f, 10.2f, pd / 2f + 0.3f), new Vector3(pw + 0.3f, 0.12f, pd + 1.2f), porchWood, collider: false);
-            foreach (float x in new[] { -pw / 2f + 0.1f, pw / 2f - 0.1f })
-            foreach (float z in new[] { 0.1f, pd + 1f })
-                Box("Poste", root, new Vector3(x, 5.1f, z), new Vector3(0.14f, 10.2f, 0.14f), porchWood, collider: z > 1f);
-            if (rng.NextDouble() < 0.5) // ropa tendida o una silla vieja: un trasto en el primer piso
-                Box("Silla", root, new Vector3(Range(rng, -1.5f, 1.5f), 4.35f, 1f), new Vector3(0.5f, 0.6f, 0.5f), garageWalls[rng.Next(garageWalls.Length)], collider: false);
+
+            // Alturas de los rellanos: suelo → terraza 1 → medio piso → terraza 2 → medio piso → terraza 3.
+            var heights = new[]
+            {
+                LawnTop, PorchDeckTops[0], (PorchDeckTops[0] + PorchDeckTops[1]) / 2f,
+                PorchDeckTops[1], (PorchDeckTops[1] + PorchDeckTops[2]) / 2f, PorchDeckTops[2],
+            };
+            for (int i = 0; i + 1 < heights.Length; i++)
+            {
+                bool rightward = i % 2 == 0; // los pares suben hacia +X por la banda A; los impares vuelven por la B
+                float z = rightward ? bandA : bandB;
+                float x0 = rightward ? -PorchStairX : PorchStairX;
+                PorchFlight(root, new Vector3(x0, heights[i], z), new Vector3(-x0, heights[i + 1], z), bandW);
+
+                // Rellano al final del tramo, ocupando las dos bandas.
+                float h = heights[i + 1], side = rightward ? 1f : -1f;
+                float innerX = side * PorchStairX, outerX = side * PorchLandingX;
+                Box("Rellano", root, new Vector3((innerX + outerX) / 2f, h - 0.07f, (dd + pd) / 2f), new Vector3(PorchLandingX - PorchStairX, 0.14f, pd - dd), porchWood);
+                PorchRail(root, new Vector3(innerX, h, pd), new Vector3(outerX, h, pd), railH);
+                PorchRail(root, new Vector3(outerX, h, dd), new Vector3(outerX, h, pd), railH);
+                if (!rightward) PorchRail(root, new Vector3(outerX, h, dd), new Vector3(innerX, h, dd), railH); // rellano de medio piso
+            }
+            // Por debajo del primer tramo de vuelta no se pasa (hay poca altura).
+            ColliderBox(root, "LimiteBajoEscalera", new Vector3(-PorchStairX, 1f, bandB), new Vector3(0.1f, 2f, bandW));
+
+            // Postes, tejadillo y algún trasto.
+            Box("Techo", root, new Vector3(0f, 10.2f, pd / 2f + 0.1f), new Vector3(2f * hw + 0.3f, 0.12f, pd + 0.5f), porchWood, collider: false);
+            foreach (var (x, z) in new[] { (-hw, 0.12f), (hw, 0.12f), (-hw, dd), (hw, dd), (-PorchLandingX, pd), (PorchLandingX, pd) })
+                Box("Poste", root, new Vector3(x, 5.1f, z), new Vector3(0.14f, 10.2f, 0.14f), porchWood);
+            if (rng.NextDouble() < 0.5)
+                Box("Silla", root, new Vector3(Range(rng, 0.4f, 2.2f), PorchDeckTops[1] + 0.3f, 1f), new Vector3(0.5f, 0.6f, 0.5f), garageWalls[rng.Next(garageWalls.Length)], collider: false);
+            if (rng.NextDouble() < 0.4)
+                GarbageBag(root, new Vector3(Range(rng, -2.3f, -1.4f), PorchDeckTops[0], Range(rng, 0.5f, 1.5f)), rng);
+        }
+
+        /// <summary>
+        /// Tramo de escalera de madera de <paramref name="from"/> a <paramref name="to"/> (a lo largo de X), con peldaños
+        /// abiertos, zancas, pasamanos y balaustres. Se pisa una rampa invisible que pasa por las aristas de los
+        /// peldaños, y los dos lados llevan pared invisible.
+        /// </summary>
+        static void PorchFlight(Transform root, Vector3 from, Vector3 to, float width)
+        {
+            var along = (to - from).normalized;
+            var across = Vector3.Cross(Vector3.up, along).normalized;
+            var normal = Vector3.Cross(along, across).normalized;
+            if (normal.y < 0f) normal = -normal;
+            var tilt = Quaternion.LookRotation(along, normal);
+            var mid = (from + to) / 2f;
+            float length = Vector3.Distance(from, to), rise = to.y - from.y, run = Mathf.Abs(to.x - from.x);
+
+            ColliderBox(root, "RampaEscalera", mid - normal * 0.15f, new Vector3(width, 0.3f, length + 0.3f)).transform.localRotation = tilt;
+
+            // Peldaños: el k sube hasta from.y + (k + 1)·subida; el último es el propio rellano.
+            int steps = Mathf.Max(3, Mathf.RoundToInt(rise / 0.19f));
+            float stepRise = rise / steps, stepRun = run / steps, dir = Mathf.Sign(to.x - from.x);
+            for (int k = 0; k < steps - 1; k++)
+            {
+                float x = from.x + dir * (k + 0.5f) * stepRun, y = from.y + (k + 1) * stepRise;
+                Box("Peldano", root, new Vector3(x, y - 0.025f, from.z), new Vector3(stepRun + 0.04f, 0.05f, width - 0.12f), porchWood, collider: false);
+            }
+
+            foreach (float side in new[] { -1f, 1f })
+            {
+                var offset = new Vector3(0f, 0f, side * (width / 2f - 0.03f));
+                Box("Zanca", root, mid + offset - normal * 0.12f, new Vector3(0.06f, 0.28f, length), porchWood, collider: false).transform.localRotation = tilt;
+                Strut("Pasamanos", root, from + offset + Vector3.up * 0.95f, to + offset + Vector3.up * 0.95f, 0.06f, porchWood);
+                ColliderBox(root, "LimiteTramo", mid + offset + Vector3.up * 0.9f, new Vector3(0.08f, 1.8f, length)).transform.localRotation =
+                    Quaternion.LookRotation(along, Vector3.up);
+                for (float t = 0.12f; t < 0.95f; t += 0.16f)
+                {
+                    var p = Vector3.Lerp(from, to, t) + offset;
+                    Box("Balaustre", root, p + Vector3.up * 0.48f, new Vector3(0.04f, 0.94f, 0.04f), porchWood, collider: false);
+                }
+            }
+        }
+
+        /// <summary>Barandilla de balaustres (textura con alfa) de a a b, de <paramref name="height"/> de alto desde a.y, con colisión.</summary>
+        static void PorchRail(Transform root, Vector3 a, Vector3 b, float height)
+        {
+            var d = b - a;
+            float length = d.magnitude;
+            if (length < 0.05f) return;
+            var rail = TexturedBox("Baranda", root, (a + b) / 2f + Vector3.up * (height / 2f), new Vector3(length, height, 0.04f), porchRail, new Vector2(1f, height), sidesOnly: true);
+            rail.transform.localRotation = Quaternion.Euler(0f, -Mathf.Atan2(d.z, d.x) * Mathf.Rad2Deg, 0f);
         }
 
         /// <summary>Losa (tramo de escalera, tablón...) de a a b con ancho y grosor dados.</summary>
