@@ -52,4 +52,12 @@ $unity = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 
 En el editor: *Window > General > Test Runner*.
 
+Capturas de las zonas del juego (en `ingame/`), con el editor cerrado; regenera la escena antes de capturar:
+
+```powershell
+& $unity -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -quit -logFile capturas.log
+```
+
+En el editor: *GTAChiraq > Capturas in-game*. Si cambia el mundo, añade o ajusta las vistas en `IngameScreenshots.Views`.
+
 `Packages/manifest.json` marca `com.unity.inputsystem` como `testable`. Hace falta para `InputTestFixture` en los tests PlayMode.

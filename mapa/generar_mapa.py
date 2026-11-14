@@ -433,6 +433,16 @@ for a, b in cuts:
     box(100, z_prev, 103, a, C["sidewalk"])
     z_prev = b
 box(100, z_prev, 103, Z1, C["sidewalk"])
+# Las huellas del oeste (y de los negocios) se vuelven a dibujar encima del suelo de la copia.
+if footprints.exists():
+    for e in json.loads(footprints.read_text(encoding="utf-8"))["edificios"]:
+        if max(x for x, _ in e["esquinas"]) > 101:
+            continue
+        pts = [px(x, z) for x, z in e["esquinas"]]
+        if e["tipo"] == "solar":
+            d.polygon(pts, fill=C["weeds"] + (110,), outline=C["weeds"])
+        elif e["tipo"] != "aparcamiento":
+            d.polygon(pts, fill=kind_color.get(e["tipo"], C["house"]), outline=(40, 20, 15))
 if footprints.exists() and not any(min(x for x, _ in e["esquinas"]) < 100 and min(z for _, z in e["esquinas"]) > 102
                                    for e in json.loads(footprints.read_text(encoding="utf-8"))["edificios"]):
     label(62, 150, "casas oeste: construye la escena en Unity" + chr(10) + "y vuelve a ejecutar este script", F_M)

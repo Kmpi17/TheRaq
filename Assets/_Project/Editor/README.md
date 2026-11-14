@@ -322,6 +322,13 @@ Coches low-poly genéricos de finales de los 90 y los 2000, **sin marcas ni logo
 | `AndenHormigon`, `BordeAnden`, `MarquesinaEstacion`, `LuzAnden` (emisivo) | Estación. |
 | `AceroTren` (metálico), `BajosTren`, `VentanasTren` y `FaroTren` (emisivos), `PuertasTren`, `FranjaTren` | Trenes. |
 
+## Capturas in-game: `IngameScreenshots.cs`
+Saca capturas de 1920×1080 de las distintas zonas y las guarda en `ingame/` (raíz del proyecto). Usa una cámara temporal con los ajustes de la `Main Camera` (niebla, fondo, 60° de FOV) y `Camera.Render()` sobre un RenderTexture; los trenes salen donde los deja el generador, porque no se entra en Play.
+
+- Las vistas están en la tabla `Views` (archivo, posición de la cámara, punto al que mira): 15 a pie (~2 m de alto, como la cámara en tercera persona) y 2 aéreas. Para añadir una zona, añade una fila.
+- Menú *GTAChiraq > Capturas in-game*: captura la escena guardada.
+- Terminal (editor cerrado): `Unity.exe -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -quit` regenera la escena y luego captura. `Capture` solo captura.
+
 ## `ProceduralTextures.cs`
 Genera las texturas del barrio en código (no se copian assets de ningún juego) y las guarda como PNG en `Assets/_Project/Textures/` con wrap *Repeat*, bilinear y mipmaps. Se regeneran en cada build.
 
