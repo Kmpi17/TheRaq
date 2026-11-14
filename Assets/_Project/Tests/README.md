@@ -26,6 +26,7 @@
 
 **PlayMode**
 - `PlayerMovementPlayTests` (`InputTestFixture`): se crea un teclado virtual, se mantiene W 0.5 s y se comprueba que el jugador avanza más de 1 m.
+- `StationStairsPlayTests`: carga la escena generada `Prototype` (hay que haberla regenerado), lleva al jugador al pie de cada escalera de la estación y lo mueve con su CharacterController (sin input) hasta el andén; comprueba que llega a 9.6 m. Si cambian las medidas de la estación en `PrototypeSceneBuilder.Train.cs`, actualiza sus constantes.
   - Requiere que `com.unity.inputsystem` esté en `testables` de `Packages/manifest.json`.
   - Hay que llamar a `GameInput.Reset()` en Setup y en TearDown.
 

@@ -52,12 +52,14 @@ $unity = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 
 En el editor: *Window > General > Test Runner*.
 
-Capturas de las zonas del juego (en `ingame/`), con el editor cerrado; regenera la escena antes de capturar:
+Capturas de las zonas del juego, con el editor cerrado (regenera la escena antes de capturar). Van **versionadas por elemento**: `ingame/<elemento>/vNN_<cambio>/`. Cada vez que se cambia un elemento, se capturan solo los elementos afectados en una versión nueva, con una descripción corta del cambio:
 
 ```powershell
-& $unity -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -quit -logFile capturas.log
+& $unity -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -capturar estacion -cambio "escaleras transitables" -quit -logFile capturas.log
 ```
 
-En el editor: *GTAChiraq > Capturas in-game*. Si cambia el mundo, añade o ajusta las vistas en `IngameScreenshots.Views`.
+En el editor: *GTAChiraq > Capturas in-game (todas)*. Si cambia el mundo, añade o ajusta las vistas en `IngameScreenshots.Views`.
+
+**Unity abierto:** no pidas al usuario que cierre Unity para lanzar batchmode (build, tests o capturas). Deja el trabajo compilado (comprobación con Roslyn) y di qué queda pendiente; el usuario avisa de cuándo ejecutarlo.
 
 `Packages/manifest.json` marca `com.unity.inputsystem` como `testable`. Hace falta para `InputTestFixture` en los tests PlayMode.

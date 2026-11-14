@@ -1,62 +1,89 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace GTAChiraq.Editor
 {
     /// <summary>
     /// Capturas de las distintas zonas del mundo, vistas como en el juego (cámara a la altura de la cámara del jugador,
-    /// misma niebla y luces), guardadas en <c>ingame/</c> en la raíz del proyecto.
-    /// Menú: <i>GTAChiraq &gt; Capturas in-game</i>. Desde la terminal (con el editor cerrado):
-    /// <c>Unity.exe -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -quit</c>.
+    /// misma niebla y luces). Se agrupan por elemento y por versión: cada vez que cambia un elemento se capturan sus
+    /// vistas en una carpeta nueva <c>ingame/&lt;elemento&gt;/vNN_&lt;etiqueta&gt;/</c>, junto a las versiones anteriores,
+    /// para poder compararlas. Cada versión lleva un <c>cambio.txt</c> con la fecha y lo que cambió.
+    ///
+    /// Menú: <i>GTAChiraq &gt; Capturas in-game (todas)</i>. Desde la terminal (con el editor cerrado):
+    /// <c>Unity.exe -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture
+    /// -capturar estacion,negocios -cambio "escaleras transitables" -quit</c>. Sin <c>-capturar</c> se capturan todos.
     /// </summary>
     public static class IngameScreenshots
     {
         const int Width = 1920, Height = 1080;
+        static string RootDir => Path.Combine(Path.GetDirectoryName(Application.dataPath), "ingame");
 
-        // (archivo, posición de la cámara, punto al que mira). Las vistas a pie van a ~2 m, como la cámara en tercera persona.
-        static readonly (string name, Vector3 from, Vector3 to)[] Views =
+        // (elemento, archivo, posición de la cámara, punto al que mira). Las vistas a pie van a ~2 m, como la cámara en
+        // tercera persona. El elemento es la carpeta de ingame/; para un elemento nuevo basta con usar otro nombre.
+        static readonly (string element, string name, Vector3 from, Vector3 to)[] Views =
         {
-            ("01_inicio_jugador", new Vector3(-10f, 2.4f, -78f), new Vector3(-6f, 4f, -40f)),
-            ("02_torres_eje_peatonal", new Vector3(-40f, 1.9f, -7f), new Vector3(0f, 8f, 2f)),
-            ("03_torres_aparcamiento", new Vector3(-24f, 2.2f, -72f), new Vector3(0f, 6f, -30f)),
-            ("04_adosadas_patio", new Vector3(-88f, 1.9f, 22f), new Vector3(-50f, 5f, 30f)),
-            ("05_avenida_tren", new Vector3(104.5f, 1.9f, -45f), new Vector3(110f, 6f, 30f)),
-            ("06_estacion", new Vector3(96f, 2.2f, -5f), new Vector3(112f, 9f, 40f)),
-            ("07_barrio_viviendas_calle", new Vector3(124f, 2f, -3f), new Vector3(220f, 4f, 2f)),
-            ("08_barrio_viviendas_torre", new Vector3(148f, 2f, 9f), new Vector3(156f, 12f, 62f)),
-            ("09_casas_calle_a", new Vector3(124f, 2f, 121f), new Vector3(200f, 4f, 124f)),
-            ("10_casas_callejon", new Vector3(124f, 2f, 149.5f), new Vector3(200f, 3f, 149.5f)),
-            ("11_casas_calle_b", new Vector3(212f, 2f, 196f), new Vector3(212f, 3f, 110f)),
-            ("12_negocios_calle_norte", new Vector3(-28f, 2.2f, 78f), new Vector3(40f, 3f, 95f)),
-            ("13_negocios_barberia", new Vector3(22f, 1.9f, 84f), new Vector3(36f, 3f, 93f)),
-            ("14_negocios_licores_esquina", new Vector3(108f, 2.2f, 80f), new Vector3(86f, 3f, 95f)),
-            ("15_casas_oeste_calle_a", new Vector3(98f, 2f, 194f), new Vector3(20f, 4f, 192f)),
-            ("16_aerea_manzana_central", new Vector3(-60f, 70f, -150f), new Vector3(10f, 0f, 0f)),
-            ("17_aerea_barrios_norte", new Vector3(110f, 85f, 20f), new Vector3(110f, 0f, 150f)),
+            ("manzana_central", "01_inicio_jugador", new Vector3(-10f, 2.4f, -78f), new Vector3(-6f, 4f, -40f)),
+            ("manzana_central", "02_torres_eje_peatonal", new Vector3(-40f, 1.9f, -7f), new Vector3(0f, 8f, 2f)),
+            ("manzana_central", "03_torres_aparcamiento", new Vector3(-24f, 2.2f, -72f), new Vector3(0f, 6f, -30f)),
+            ("manzana_central", "04_adosadas_patio", new Vector3(-88f, 1.9f, 22f), new Vector3(-50f, 5f, 30f)),
+            ("avenida_tren", "01_avenida_bajo_el_tren", new Vector3(104.5f, 1.9f, -45f), new Vector3(110f, 6f, 30f)),
+            ("estacion", "01_estacion_desde_la_acera", new Vector3(96f, 2.2f, -5f), new Vector3(112f, 9f, 40f)),
+            ("estacion", "02_escalera", new Vector3(102.2f, 1.9f, 31f), new Vector3(100.4f, 5.5f, 15f)),
+            ("estacion", "03_anden", new Vector3(103.2f, 11.4f, 62f), new Vector3(103.5f, 10.2f, 8f)),
+            ("barrio_viviendas", "01_calle", new Vector3(124f, 2f, -3f), new Vector3(220f, 4f, 2f)),
+            ("barrio_viviendas", "02_torre", new Vector3(148f, 2f, 9f), new Vector3(156f, 12f, 62f)),
+            ("barrio_casas", "01_calle_a", new Vector3(124f, 2f, 121f), new Vector3(200f, 4f, 124f)),
+            ("barrio_casas", "02_callejon", new Vector3(124f, 2f, 149.5f), new Vector3(200f, 3f, 149.5f)),
+            ("barrio_casas", "03_calle_b", new Vector3(212f, 2f, 196f), new Vector3(212f, 3f, 110f)),
+            ("negocios", "01_calle_norte", new Vector3(-28f, 2.2f, 78f), new Vector3(40f, 3f, 95f)),
+            ("negocios", "02_barberia", new Vector3(22f, 1.9f, 84f), new Vector3(36f, 3f, 93f)),
+            ("negocios", "03_licores_esquina", new Vector3(108f, 2.2f, 80f), new Vector3(86f, 3f, 95f)),
+            ("barrio_casas_oeste", "01_calle_a", new Vector3(98f, 2f, 194f), new Vector3(20f, 4f, 192f)),
+            ("aereas", "01_manzana_central", new Vector3(-60f, 70f, -150f), new Vector3(10f, 0f, 0f)),
+            ("aereas", "02_barrios_norte", new Vector3(110f, 85f, 20f), new Vector3(110f, 0f, 150f)),
         };
 
-        [MenuItem("GTAChiraq/Capturas in-game")]
+        public static IEnumerable<string> Elements => Views.Select(v => v.element).Distinct();
+
+        [MenuItem("GTAChiraq/Capturas in-game (todas)")]
         public static void CaptureMenu()
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-            Capture();
+            Capture(null, "desde el editor");
         }
 
-        /// <summary>Para batchmode: regenera la escena con el generador actual y saca las capturas.</summary>
+        /// <summary>Batchmode: regenera la escena con el generador actual y captura (lee -capturar y -cambio).</summary>
         public static void BuildAndCapture()
         {
             PrototypeSceneBuilder.Build();
-            Capture();
+            CaptureFromCommandLine();
         }
 
-        /// <summary>Para batchmode: solo las capturas, con la escena tal como está guardada.</summary>
-        public static void Capture()
+        /// <summary>Batchmode: solo captura, con la escena tal como está guardada (lee -capturar y -cambio).</summary>
+        public static void CaptureFromCommandLine()
         {
+            string elements = Argument("-capturar"), change = Argument("-cambio");
+            Capture(string.IsNullOrEmpty(elements) ? null : elements.Split(',').Select(e => e.Trim()).ToArray(), change ?? "");
+        }
+
+        /// <summary>
+        /// Captura las vistas de <paramref name="elements"/> (null: todos) en una versión nueva de cada uno.
+        /// <paramref name="change"/> describe el cambio: va en el nombre de la carpeta y en cambio.txt.
+        /// </summary>
+        public static void Capture(string[] elements, string change)
+        {
+            var selected = elements == null ? Elements.ToList() : elements.ToList();
+            foreach (var e in selected)
+                if (!Elements.Contains(e)) throw new ArgumentException($"Elemento desconocido '{e}'. Hay: {string.Join(", ", Elements)}");
+
             EditorSceneManager.OpenScene("Assets/_Project/Scenes/Prototype.unity", OpenSceneMode.Single);
-            string dir = Path.Combine(Path.GetDirectoryName(Application.dataPath), "ingame");
-            Directory.CreateDirectory(dir);
 
             var go = new GameObject("CamaraCapturas") { hideFlags = HideFlags.HideAndDontSave };
             var camera = go.AddComponent<Camera>();
@@ -74,16 +101,23 @@ namespace GTAChiraq.Editor
             camera.targetTexture = target;
             try
             {
-                foreach (var (name, from, to) in Views)
+                foreach (var element in selected)
                 {
-                    go.transform.SetPositionAndRotation(from, Quaternion.LookRotation(to - from, Vector3.up));
-                    camera.Render();
-                    RenderTexture.active = target;
-                    readback.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
-                    readback.Apply();
-                    File.WriteAllBytes(Path.Combine(dir, name + ".png"), readback.EncodeToPNG());
+                    string dir = NextVersionDir(element, change);
+                    Directory.CreateDirectory(dir);
+                    File.WriteAllText(Path.Combine(dir, "cambio.txt"),
+                        $"Fecha: {DateTime.Now:yyyy-MM-dd HH:mm}\nCambio: {(string.IsNullOrWhiteSpace(change) ? "(sin descripción)" : change)}\n");
+                    foreach (var (_, name, from, to) in Views.Where(v => v.element == element))
+                    {
+                        go.transform.SetPositionAndRotation(from, Quaternion.LookRotation(to - from, Vector3.up));
+                        camera.Render();
+                        RenderTexture.active = target;
+                        readback.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
+                        readback.Apply();
+                        File.WriteAllBytes(Path.Combine(dir, name + ".png"), readback.EncodeToPNG());
+                    }
+                    Debug.Log($"[GTAChiraq] Capturas de '{element}' en {dir}");
                 }
-                Debug.Log($"[GTAChiraq] {Views.Length} capturas guardadas en {dir}");
             }
             finally
             {
@@ -93,6 +127,31 @@ namespace GTAChiraq.Editor
                 Object.DestroyImmediate(readback);
                 Object.DestroyImmediate(go);
             }
+        }
+
+        /// <summary>ingame/&lt;elemento&gt;/vNN_&lt;etiqueta&gt;, con NN = la última versión de ese elemento + 1.</summary>
+        static string NextVersionDir(string element, string change)
+        {
+            string elementDir = Path.Combine(RootDir, element);
+            int last = 0;
+            if (Directory.Exists(elementDir))
+                foreach (var d in Directory.GetDirectories(elementDir))
+                {
+                    var m = Regex.Match(Path.GetFileName(d), @"^v(\d+)");
+                    if (m.Success) last = Math.Max(last, int.Parse(m.Groups[1].Value));
+                }
+            string slug = Regex.Replace((change ?? "").ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD), @"\p{Mn}", "");
+            slug = Regex.Replace(slug, @"[^a-z0-9]+", "_").Trim('_');
+            if (slug.Length > 40) slug = slug.Substring(0, 40).TrimEnd('_');
+            return Path.Combine(elementDir, $"v{last + 1:00}" + (slug.Length > 0 ? "_" + slug : ""));
+        }
+
+        static string Argument(string name)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (int i = 0; i + 1 < args.Length; i++)
+                if (args[i] == name) return args[i + 1];
+            return null;
         }
     }
 }

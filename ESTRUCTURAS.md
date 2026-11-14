@@ -68,7 +68,7 @@ La avenida que separa la manzana central de los barrios es la avenida principal.
 - **Tablero:** vigas de acero, traviesas de madera con huecos (se ve el cielo a través de ellas), dos vías, pasarelas de rejilla y barandillas.
 - **Estación** entre z = 4 y z = 68, junto a la entrada del barrio de viviendas:
   - un andén a cada lado, con borde amarillo, marquesina, fluorescentes, bancos, cartel sin texto y papelera;
-  - una escalera de acero que baja a cada acera.
+  - una escalera de acero que baja a cada acera (z 10 → 25), **por la que se sube a pie**: pendiente suave, barandillas a los dos lados y rellano arriba. Desde el andén no se puede bajar a las vías.
 - **Trenes:** dos trenes de 4 vagones de acero plateado con franja granate y sin logotipos.
   - Uno va hacia el norte por la vía este y el otro hacia el sur por la vía oeste.
   - Cada uno se para unos 10 s en la estación, sigue hasta perderse en la niebla y vuelve a pasar al rato.
@@ -216,6 +216,7 @@ Registro de lo que se ha pedido sobre el mundo, del más antiguo al más recient
 - **2026-11-14**: «En la manzana central, un bloque parecido a las imágenes de The Towers, pero en armonía con el de al lado, y en algunos huecos aparcamientos». → La manzana central pasó a ser un conjunto de 3 torres con filas de casas adosadas, patios y 3 aparcamientos (`PrototypeSceneBuilder.Towers.cs`), con los materiales del barrio de viviendas. *Regla que sale de aquí:* una zona nueva comparte materiales con la vecina.
 - **2026-11-14**: «Mejorar los assets de los coches». → Los coches dejaron de ser dos cajas: hay 4 modelos low-poly con silueta (sedán, coupé, todoterreno, furgoneta), ruedas con llanta y desgaste de invierno (`PrototypeSceneBuilder.Cars.cs`). El coche que se conduce es el sedán, con llantas cromadas y faros encendidos. *Regla que sale de aquí:* coches de la época, sin marcas.
 - **2026-11-14**: «Continuar el barrio de casas al otro lado de la vía, con la misma estructura, pero que la parte que da al conjunto de torres sean negocios (barber, market, etc.) que no estén muy apiñados». → Se construyó la copia oeste del barrio de casas (el mismo trazado girado 180°) y, delante, una franja de 6 negocios sueltos con un aparcamiento y un solar entre ellos (`PrototypeSceneBuilder.Shops.cs`). También se puso la acera oeste de la avenida y se quitaron los two-flats que había en ese sitio. *Regla que sale de aquí:* calles de negocios con aire.
+- **2026-11-14**: «Permite subir a la estación de tren». → Las escaleras de la estación pasaron de decorativas a transitables (rampa invisible bajo los peldaños, 32° de pendiente, barandillas con colisión) y el andén tiene un límite en el borde de las vías.
 
 ## Pendiente e ideas
 

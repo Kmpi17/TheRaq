@@ -136,22 +136,87 @@ namespace GTAChiraq.Editor
                 Box("Cartel", root, new Vector3(px, PlatformTop + 2.3f, cz + 6f), new Vector3(0.08f, 0.7f, 2.2f), sign, collider: false);
                 TrashCan(root, new Vector3(outer - side * 0.6f, PlatformTop, cz + 18f), 0f, false);
 
-                // Escalera hasta la acera, por fuera del andén, bajando hacia el norte.
-                float stairX = outer + side * 0.65f;
-                var top = new Vector3(stairX, PlatformTop, StationZ0 + 6f);
-                var bottom = new Vector3(stairX, SidewalkTop, StationZ0 + 6f + (PlatformTop - SidewalkTop) * 1.25f);
-                Box("Rellano", root, top + new Vector3(0f, -0.2f, -1f), new Vector3(1.3f, 0.4f, 2.4f), platformMat);
-                Slab(root, top, bottom, 1.2f, 0.3f, steel);
-                int steps = Mathf.RoundToInt((PlatformTop - SidewalkTop) / 0.2f);
-                for (int k = 0; k < steps; k++)
-                {
-                    var p = Vector3.Lerp(top, bottom, (k + 0.5f) / steps);
-                    Box("Peldano", root, p + Vector3.up * 0.12f, new Vector3(1.2f, 0.06f, 0.28f), platformMat, collider: false);
-                }
-                foreach (float dx in new[] { -0.62f, 0.62f })
-                    Strut("Pasamanos", root, top + new Vector3(dx, 1f, 0f), bottom + new Vector3(dx, 1f, 0f), 0.05f, steel, cylinder: true);
-                Box("PieEscalera", root, bottom + new Vector3(0f, 0.9f, 0.3f), new Vector3(0.25f, 1.8f, 0.25f), steel);
+                // Pared invisible en el borde de las vías: desde el andén no se puede bajar al tablero (no tiene colisión).
+                ColliderBox(root, "LimiteVias", new Vector3(inner - side * 0.05f, PlatformTop + 1f, cz), new Vector3(0.1f, 2f, len));
+
+                StationStairs(root, outer, side, steel, platformMat, fence);
             }
+        }
+
+        // Escalera: 1.4 m de ancho, pendiente de 32° (1.6 m de huella por metro de subida, por debajo del slopeLimit de
+        // 45° del CharacterController). Bajo los peldaños hay una rampa invisible con colisión, que es lo que pisa el
+        // jugador; los laterales tienen barandilla con colisión.
+        const float StairWidth = 1.4f, StairRunPerRise = 1.6f;
+
+        /// <summary>
+        /// Escalera de acero hasta la acera, por fuera del andén y bajando hacia el norte, con rellano arriba (se entra
+        /// por el hueco de la barandilla del andén, z StationZ0 + 3.9 … + 6.1). Se puede subir a pie.
+        /// </summary>
+        static void StationStairs(Transform root, float outer, float side, Material steel, Material platformMat, Material fence)
+        {
+            float stairX = outer + side * (StairWidth / 2f + 0.05f);
+            float rise = PlatformTop - SidewalkTop;
+            var top = new Vector3(stairX, PlatformTop, StationZ0 + 6f);
+            var bottom = new Vector3(stairX, SidewalkTop, top.z + rise * StairRunPerRise);
+            var along = (bottom - top).normalized;
+            var normal = Vector3.Cross(along, Vector3.Cross(Vector3.up, along)).normalized; // perpendicular a la rampa, hacia arriba
+            if (normal.y < 0f) normal = -normal;
+            var tilt = Quaternion.LookRotation(along, normal);
+            float length = Vector3.Distance(top, bottom);
+
+            // Rellano con barandilla por fuera y por el sur.
+            float edgeX = stairX + side * StairWidth / 2f;
+            float landX0 = Mathf.Min(outer, edgeX), landX1 = Mathf.Max(outer, edgeX);
+            var landing = new Vector3((landX0 + landX1) / 2f, PlatformTop - 0.2f, top.z - 1.1f);
+            Box("Rellano", root, landing, new Vector3(landX1 - landX0, 0.4f, 2.2f), platformMat);
+            float farX = stairX + side * (StairWidth / 2f - 0.02f);
+            TexturedBox("BarandillaRellano", root, new Vector3(farX, PlatformTop + 0.55f, top.z - 1.1f), new Vector3(0.03f, 1.1f, 2.2f),
+                fence, new Vector2(ProceduralTextures.IronFenceWidth, ProceduralTextures.IronFenceHeight), sidesOnly: true);
+            TexturedBox("BarandillaRellano", root, new Vector3(landing.x, PlatformTop + 0.55f, top.z - 2.18f), new Vector3(landX1 - landX0, 1.1f, 0.03f),
+                fence, new Vector2(ProceduralTextures.IronFenceWidth, ProceduralTextures.IronFenceHeight), sidesOnly: true);
+
+            // Zanca de acero bajo los peldaños y rampa invisible que se pisa (su cara de arriba va por la mitad de los peldaños).
+            Box("Zanca", root, (top + bottom) / 2f - normal * 0.25f, new Vector3(StairWidth, 0.3f, length), steel, collider: false).transform.localRotation = tilt;
+            ColliderBox(root, "RampaEscalera", (top + bottom) / 2f - normal * 0.15f - Vector3.up * 0.1f, new Vector3(StairWidth, 0.3f, length + 0.4f)).transform.localRotation = tilt;
+
+            // Peldaños: huella de 0.2 m de alto cada una, con la arista en la línea de la rampa.
+            int steps = Mathf.RoundToInt(rise / 0.2f);
+            float stepRise = rise / steps, stepRun = stepRise * StairRunPerRise;
+            for (int k = 0; k < steps; k++)
+            {
+                float y = PlatformTop - (k + 1) * stepRise;
+                float z = top.z + k * stepRun + stepRun / 2f;
+                Box("Peldano", root, new Vector3(stairX, y + stepRise / 2f - 0.02f, z), new Vector3(StairWidth, stepRise - 0.04f, stepRun), platformMat, collider: false);
+            }
+
+            // Barandillas laterales (con colisión, para no caerse) y pasamanos.
+            foreach (float dx in new[] { -1f, 1f })
+            {
+                var offset = new Vector3(dx * (StairWidth / 2f + 0.02f), 0f, 0f);
+                var rail = TexturedBox("BarandillaEscalera", root, (top + bottom) / 2f + offset + Vector3.up * 0.55f, new Vector3(0.03f, 1.1f, length),
+                    fence, new Vector2(ProceduralTextures.IronFenceWidth, ProceduralTextures.IronFenceHeight), collider: false, sidesOnly: true);
+                rail.transform.localRotation = Quaternion.LookRotation(along, Vector3.up);
+                ColliderBox(root, "LimiteEscalera", (top + bottom) / 2f + offset + Vector3.up * 0.9f, new Vector3(0.1f, 1.8f, length)).transform.localRotation = Quaternion.LookRotation(along, Vector3.up);
+                Strut("Pasamanos", root, top + offset + Vector3.up * 1.05f, bottom + offset + Vector3.up * 1.05f, 0.05f, steel, cylinder: true);
+            }
+
+            // Pies de la escalera a los lados (no en el paso).
+            foreach (float dx in new[] { -1f, 1f })
+            {
+                var foot = Vector3.Lerp(top, bottom, 0.55f);
+                float h = foot.y - SidewalkTop;
+                Box("PieEscalera", root, new Vector3(stairX + dx * (StairWidth / 2f - 0.15f), SidewalkTop + h / 2f - 0.3f, foot.z), new Vector3(0.2f, h - 0.6f, 0.2f), steel);
+            }
+        }
+
+        /// <summary>Caja solo de colisión (sin malla), para límites y rampas que no se ven.</summary>
+        static GameObject ColliderBox(Transform parent, string name, Vector3 position, Vector3 size)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = position;
+            go.AddComponent<BoxCollider>().size = size;
+            return go;
         }
 
         // ---------- Trenes ----------

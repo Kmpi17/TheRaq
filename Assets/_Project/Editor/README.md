@@ -310,7 +310,7 @@ Coches low-poly genéricos de finales de los 90 y los 2000, **sin marcas ni logo
   - marquesina con fluorescentes emisivos, 3 bancos, cartel sin texto y papelera;
   - una escalera hasta la acera, por fuera del andén y bajando hacia el norte.
 
-  Las escaleras y los peldaños son decorativos y no tienen colisión.
+  Las escaleras se pueden subir a pie (`StationStairs`): 1.4 m de ancho y 32° de pendiente (`StairRunPerRise` = 1.6), por debajo del `slopeLimit` de 45° del CharacterController. Lo que se pisa es una rampa invisible (`ColliderBox`) bajo los peldaños; las barandillas de los lados y del rellano tienen colisión, y una pared invisible en el borde de cada andén impide bajar a las vías. Lo comprueba `StationStairsPlayTests`.
 - **Trenes** (`BuildTrains`, `Train`): 2 trenes de 4 vagones de 14.6 m. Cada vagón tiene caja de acero, ventanas emisivas, franja granate, 4 puertas, bajos y bogies; en los extremos del tren van la luna y los faros, y entre vagones, fuelles.
   - Se crean en la raíz de la escena, **fuera de `Mundo`**, porque se mueven y no pueden ser estáticos.
   - Llevan `ElevatedTrain` (`Scripts/World/`), configurado para que paren con el centro en la estación. El del norte empieza en la distancia 120, para desincronizarlo del otro.
@@ -323,11 +323,13 @@ Coches low-poly genéricos de finales de los 90 y los 2000, **sin marcas ni logo
 | `AceroTren` (metálico), `BajosTren`, `VentanasTren` y `FaroTren` (emisivos), `PuertasTren`, `FranjaTren` | Trenes. |
 
 ## Capturas in-game: `IngameScreenshots.cs`
-Saca capturas de 1920×1080 de las distintas zonas y las guarda en `ingame/` (raíz del proyecto). Usa una cámara temporal con los ajustes de la `Main Camera` (niebla, fondo, 60° de FOV) y `Camera.Render()` sobre un RenderTexture; los trenes salen donde los deja el generador, porque no se entra en Play.
+Saca capturas de 1920×1080 de las distintas zonas, **agrupadas por elemento y por versión**. Usa una cámara temporal con los ajustes de la `Main Camera` (niebla, fondo, 60° de FOV) y `Camera.Render()` sobre un RenderTexture; los trenes salen donde los deja el generador, porque no se entra en Play.
 
-- Las vistas están en la tabla `Views` (archivo, posición de la cámara, punto al que mira): 15 a pie (~2 m de alto, como la cámara en tercera persona) y 2 aéreas. Para añadir una zona, añade una fila.
-- Menú *GTAChiraq > Capturas in-game*: captura la escena guardada.
-- Terminal (editor cerrado): `Unity.exe -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -quit` regenera la escena y luego captura. `Capture` solo captura.
+- **Carpetas:** `ingame/<elemento>/vNN_<cambio>/`, con las imágenes y un `cambio.txt` (fecha y descripción). Cada vez que se cambia un elemento se capturan sus vistas en una versión nueva (NN = la última + 1), sin tocar las anteriores, para poder compararlas.
+- **Elementos** (los define la primera columna de `Views`): `manzana_central`, `avenida_tren`, `estacion`, `barrio_viviendas`, `barrio_casas`, `negocios`, `barrio_casas_oeste` y `aereas`. Para una zona nueva basta con añadir filas con otro nombre de elemento.
+- Las vistas a pie van a ~2 m de alto, como la cámara en tercera persona.
+- Menú *GTAChiraq > Capturas in-game (todas)*: una versión nueva de todos los elementos, con la escena guardada.
+- Terminal (editor cerrado): `Unity.exe -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -capturar estacion,negocios -cambio "escaleras transitables" -quit` regenera la escena y captura solo esos elementos. Sin `-capturar`, todos. `CaptureFromCommandLine` hace lo mismo sin regenerar.
 
 ## `ProceduralTextures.cs`
 Genera las texturas del barrio en código (no se copian assets de ningún juego) y las guarda como PNG en `Assets/_Project/Textures/` con wrap *Repeat*, bilinear y mipmaps. Se regeneran en cada build.
