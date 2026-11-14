@@ -617,7 +617,7 @@ namespace GTAChiraq.Editor
             var mid = (from + to) / 2f;
             float length = Vector3.Distance(from, to), rise = to.y - from.y, run = Mathf.Abs(to.x - from.x);
 
-            ColliderBox(root, "RampaEscalera", mid - normal * 0.15f, new Vector3(width, 0.3f, length + 0.3f)).transform.localRotation = tilt;
+            ColliderBox(root, "RampaEscalera", mid - normal * 0.15f, new Vector3(width, 0.3f, length + 0.02f)).transform.localRotation = tilt;
 
             // Peldaños: el k sube hasta from.y + (k + 1)·subida; el último es el propio rellano.
             int steps = Mathf.Max(3, Mathf.RoundToInt(rise / 0.19f));
@@ -633,8 +633,7 @@ namespace GTAChiraq.Editor
                 var offset = new Vector3(0f, 0f, side * (width / 2f - 0.03f));
                 Box("Zanca", root, mid + offset - normal * 0.12f, new Vector3(0.06f, 0.28f, length), porchWood, collider: false).transform.localRotation = tilt;
                 Strut("Pasamanos", root, from + offset + Vector3.up * 0.95f, to + offset + Vector3.up * 0.95f, 0.06f, porchWood);
-                ColliderBox(root, "LimiteTramo", mid + offset + Vector3.up * 0.9f, new Vector3(0.08f, 1.8f, length)).transform.localRotation =
-                    Quaternion.LookRotation(along, Vector3.up);
+                StairSideWall(root, from + offset, to + offset, 1.4f);
                 for (float t = 0.12f; t < 0.95f; t += 0.16f)
                 {
                     var p = Vector3.Lerp(from, to, t) + offset;

@@ -177,7 +177,7 @@ namespace GTAChiraq.Editor
 
             // Zanca de acero bajo los peldaños y rampa invisible que se pisa (su cara de arriba va por la mitad de los peldaños).
             Box("Zanca", root, (top + bottom) / 2f - normal * 0.25f, new Vector3(StairWidth, 0.3f, length), steel, collider: false).transform.localRotation = tilt;
-            ColliderBox(root, "RampaEscalera", (top + bottom) / 2f - normal * 0.15f - Vector3.up * 0.1f, new Vector3(StairWidth, 0.3f, length + 0.4f)).transform.localRotation = tilt;
+            ColliderBox(root, "RampaEscalera", (top + bottom) / 2f - normal * 0.15f - Vector3.up * 0.1f, new Vector3(StairWidth, 0.3f, length + 0.1f)).transform.localRotation = tilt;
 
             // Peldaños: huella de 0.2 m de alto cada una, con la arista en la línea de la rampa.
             int steps = Mathf.RoundToInt(rise / 0.2f);
@@ -196,7 +196,7 @@ namespace GTAChiraq.Editor
                 var rail = TexturedBox("BarandillaEscalera", root, (top + bottom) / 2f + offset + Vector3.up * 0.55f, new Vector3(0.03f, 1.1f, length),
                     fence, new Vector2(ProceduralTextures.IronFenceWidth, ProceduralTextures.IronFenceHeight), collider: false, sidesOnly: true);
                 rail.transform.localRotation = Quaternion.LookRotation(along, Vector3.up);
-                ColliderBox(root, "LimiteEscalera", (top + bottom) / 2f + offset + Vector3.up * 0.9f, new Vector3(0.1f, 1.8f, length)).transform.localRotation = Quaternion.LookRotation(along, Vector3.up);
+                StairSideWall(root, top + offset, bottom + offset, 1.4f);
                 Strut("Pasamanos", root, top + offset + Vector3.up * 1.05f, bottom + offset + Vector3.up * 1.05f, 0.05f, steel, cylinder: true);
             }
 
@@ -206,6 +206,30 @@ namespace GTAChiraq.Editor
                 var foot = Vector3.Lerp(top, bottom, 0.55f);
                 float h = foot.y - SidewalkTop;
                 Box("PieEscalera", root, new Vector3(stairX + dx * (StairWidth / 2f - 0.15f), SidewalkTop + h / 2f - 0.3f, foot.z), new Vector3(0.2f, h - 0.6f, 0.2f), steel);
+            }
+        }
+
+        /// <summary>
+        /// Pared invisible a un lado de un tramo de escalera recto (a lo largo de X o de Z), hecha de cajas verticales
+        /// escalonadas de 0.3 m que siguen la pendiente y acaban justo en los extremos del tramo. Una caja inclinada no
+        /// sirve: sus esquinas se meten en los rellanos y el jugador se queda enganchado al girar.
+        /// </summary>
+        static void StairSideWall(Transform root, Vector3 from, Vector3 to, float height)
+        {
+            var flat = to - from;
+            flat.y = 0f;
+            float run = flat.magnitude;
+            var dir = flat / run;
+            var across = Vector3.Cross(Vector3.up, dir);
+            int n = Mathf.Max(1, Mathf.CeilToInt(run / 0.3f));
+            for (int i = 0; i < n; i++)
+            {
+                var p0 = Vector3.Lerp(from, to, (float)i / n);
+                var p1 = Vector3.Lerp(from, to, (float)(i + 1) / n);
+                float yLow = Mathf.Min(p0.y, p1.y), yHigh = Mathf.Max(p0.y, p1.y) + height;
+                var center = (p0 + p1) / 2f;
+                center.y = (yLow + yHigh) / 2f;
+                ColliderBox(root, "LimiteTramo", center, Abs(dir) * (run / n) + Abs(across) * 0.08f + Vector3.up * (yHigh - yLow));
             }
         }
 
