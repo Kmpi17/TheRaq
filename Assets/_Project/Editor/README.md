@@ -5,6 +5,10 @@
 - `PrototypeSceneBuilder.StreetProps.cs`: detalle callejero del barrio de viviendas.
 - `PrototypeSceneBuilder.Vegetation.cs`: árboles, restos de nieve y maleza del barrio de viviendas.
 - `PrototypeSceneBuilder.Houses.cs`: barrio de casas, al norte del barrio de viviendas.
+- `PrototypeSceneBuilder.HousesWestExt.cs`: ampliación de la copia oeste del barrio de casas hasta la calle x = −110.
+- `PrototypeSceneBuilder.HousesNorth.cs`: ampliación de los barrios de casas hacia el norte (z hasta 298), a los dos lados de la avenida.
+- `PrototypeSceneBuilder.FarWest.cs`: oeste lejano, al otro lado de la calle x = −110 (casas, gasolinera, negocios, cancha y descampado).
+- `PrototypeSceneBuilder.MainRoads.cs`: calzadas texturizadas de las cuatro calles grandes (z = ±80, x = ±110), cruces, pasos de cebra y su detalle.
 - `PrototypeSceneBuilder.Towers.cs`: manzana central (conjunto de torres, adosadas y aparcamientos).
 - `PrototypeSceneBuilder.Train.cs`: tren elevado sobre la avenida principal.
 - `PrototypeSceneBuilder.Cars.cs`: modelos de coche (aparcados, el que se conduce y el abandonado).
@@ -18,14 +22,15 @@ Menú **GTAChiraq > Construir escena prototipo**. Genera `Assets/_Project/Scenes
 1. **`EnsureUrp()`**: si `GraphicsSettings.defaultRenderPipeline` no es URP, crea `Settings/URP_Renderer.asset` y `Settings/URP_Pipeline.asset` y los asigna.
 2. **`SetupLighting()`**: luz direccional fría y suave (cielo nublado), ambiente plano gris, niebla lineal de 25 a 260 m y sin skybox.
 3. **Mundo** (todo bajo el objeto `Mundo` y marcado como estático):
-   - `BuildStreets`: suelo de asfalto, aceras de enfrente y líneas amarillas. La acera norte se corta en la entrada del aparcamiento de los negocios y en el pasaje al callejón (`ShopsLotDriveway`, `ShopsAlleyLink`). El césped y la acera de la manzana central los pone `BuildTowersBlock`.
-   - `BuildSurroundings`: filas de casas de 2 plantas al otro lado de las calles norte y sur, una tienda de esquina con letrero y coches aparcados estáticos.
+   - `BuildStreets`: suelo de asfalto liso, aceras de enfrente y, con `BuildMainRoads`, las calzadas texturizadas de las calles grandes (ver *Calles grandes*). La acera norte se corta en la entrada del aparcamiento de los negocios y en el pasaje al callejón (`ShopsLotDriveway`, `ShopsAlleyLink`). El césped y la acera de la manzana central los pone `BuildTowersBlock`.
+   - `BuildSurroundings`: filas de casas de 2 plantas al otro lado de la calle sur (al norte ya no: está el oeste lejano), una tienda de esquina con letrero y coches aparcados estáticos.
    - `BuildProjectsDistrict`: barrio de viviendas **texturizado** al este de la avenida (ver abajo). Al final llama a `BuildDistrictProps` (detalle callejero).
-   - `BuildHousesDistrict`: los dos barrios de casas (el del este y su copia oeste, girada 180°) y la franja de negocios (ver abajo).
+   - `BuildHousesDistrict`: los dos barrios de casas (el del este y su copia oeste, girada 180°), la ampliación oeste, la ampliación norte y la franja de negocios (ver abajo).
    - `BuildTowersBlock`: manzana central (ver abajo). Va después de los dos barrios porque reutiliza sus materiales.
    - `BuildElevatedTrain`: tren elevado y estación (ver abajo).
    - `BuildStreetLights`: farolas cada 30 m con luz puntual de sodio naranja, sin sombras.
    - `BuildSnow`: montones de nieve sucia junto al bordillo (salvo en las entradas de los aparcamientos).
+   - `BuildMainRoadDetails`: alcantarillas, sumideros, nieve apartada y manchas en las calles grandes (va al final porque usa `Charco`, `Aceite` y `Suciedad`).
 4. **`BuildPlayer`**: crea el objeto `Jugador` (tag `Player`, capa 2) con CharacterController, PlayerMovement, VehicleEntry, una cápsula y una visera que marca hacia dónde mira.
 5. **`BuildCar`**: crea `Coche_Sedan` (capa 2) con Rigidbody de 1400 kg, el modelo de sedán de `Cars.cs` (pintura `CarroceriaJugador`, llantas cromadas, faros encendidos y dos focos), 4 WheelColliders con ruedas `CarWheel` y un `PuntoSalida` a la izquierda. El modelo se baja para que su suelo coincida con el apoyo de las ruedas en reposo (`0.4 − 0.25·(1 − 0.5) − radio`).
 6. **`BuildCamera`**: crea `Main Camera` con ThirdPersonCamera y conecta las referencias con `SerializedObject`.
@@ -46,7 +51,7 @@ Los materiales se crean con `Mat(name, color)` (URP/Lit) en `Assets/_Project/Mat
 | Elementos | Materiales |
 |---|---|
 | Edificios | `Ladrillo`, `LadrilloOscuro`, `FachadaGris`, `FranjaVentanas`, `Cornisa` |
-| Suelo | `Asfalto`, `Hormigon`, `NieveSucia`, `LineaAmarilla` |
+| Suelo | `Asfalto`, `Hormigon`, `NieveSucia`; calles grandes: `CalleGrande1`–`3`, `CalleGrandeLlegada`, `CalleGrandeCruce` (texturizados), `Hierro`, `RejillaSumidero` |
 | Farolas | `Poste`, `LuzSodio` (emisiva), `LuzFarolaParque` y `LuzAzulCamara` (emisivas, en los accesos a las torres) |
 | Jugador | `Sudadera`, `Gorra` |
 | Coches | `Pintura*`, `CristalTintado`, `Neumatico` |
@@ -155,7 +160,18 @@ Solo en el barrio de viviendas.
 - `Barrio_Casas`: en su sitio (origen 0, semilla 1999).
 - `Barrio_Casas_Oeste`: el mismo trazado girado 180° con origen `HousesWestOrigin` = (220, 0, 316), así que mundo = (220 − x, 316 − z). Queda en x ∈ [−30, 100], z ∈ [102, 226], con la entrada en la acera oeste de la avenida. Semilla 2001.
 
-Todo lo de abajo (tablas, filas, `BuildHousesWeather`) está en coordenadas **locales** del barrio; el giro lo pone el objeto padre. Con `west`, `BuildHousesStreetLife` abre la valla del callejón de atrás de los negocios en el callejón a5 y cierra entera la del otro extremo. Después se llama a `BuildShopsStrip` y, al final, a `ExportHousesFootprints` una sola vez.
+Todo lo de abajo (tablas, filas, `BuildHousesWeather`) está en coordenadas **locales** del barrio; el giro lo pone el objeto padre. Con `west`, `BuildHousesStreetLife` abre la valla del callejón de atrás de los negocios en el callejón a5 y cierra entera la del otro extremo, y abre la valla este (local) en `WestExtFenceGapsLocal`, donde entran los callejones de la ampliación. Después se llaman `BuildHousesWestExtension` y `BuildShopsStrip` y, al final, `ExportHousesFootprints` una sola vez.
+
+`BuildHousesGround(parent, roads, alleys, sidewalks, lawns)` y `BuildHousesWeather(parent, rng, roads, alleys, sidewalks, lawns)` reciben las tablas, así sirven para las copias y para la ampliación.
+
+**Ampliación norte** (`PrototypeSceneBuilder.HousesNorth.cs`, `BuildHousesNorth`, objeto `Barrio_Casas_Norte`). En coordenadas del mundo, hasta `HousesNorthMaxZ` = 298. Calles rectas que siguen las existentes: F/Fe (z 248–258) y H (z 288–298) de la calle x = −110 a G cruzando la avenida, B' prolongada de z 224 a F y B prolongada como G de z 202 a H. Dos trozos hechos con `BuildHousesPatch(parent, name, seed, roads, alleys, sidewalks, lawns, rowSpecs, streetLife)`, que pone suelo, filas (tuplas nombre, fachada, yaw, largo, fondo, tipo), vida de calle y tiempo:
+- `Este` (semilla 2005): `NorthEastRoads` (Fe, G = x 207–217 de z 202 a 298, y el tramo este de H), el callejón del este (sigue a a5 hasta z 285.5), aceras de G cortadas en el callejón a4 y `NorthEastRows` (apartamentos y casas al sur de Fe hasta a4, casas y solar al norte de Fe hasta la acera de H, apartamentos y solar a lo largo de G).
+- `Oeste` (semilla 2007): `NorthWestRoads` (F, la prolongación de B' en x 3–13 y el tramo oeste de H), el pasaje x −42…−37 entre F y H y `NorthWestRows` (al sur de F, fondos hasta los callejones a1'/n3; al norte, hasta la acera de H).
+- `NorthAvenueRoadsEast`/`NorthAvenueRoadsWest`: F/Fe y H, que cortan las aceras de la avenida (`BuildStreets`, `BuildShopsStrip`); `TrainCrossings` incluye z 253 y 293.
+- En `BuildHousesVariant`, el barrio del este no pone el césped del final de B (`HousesLawnBNorth`) y `BuildHousesStreetLife` solo pone barrera en el extremo de B que no sigue: el sur en el este y el sur del mundo (local 201.4) en la copia oeste.
+- El barrio del este ya no pone valla en su borde norte (z 213.8), ni la copia oeste en el suyo (local z 91.2), ni la ampliación oeste en z 225.8: las parcelas nuevas tienen su valla trasera al otro lado del callejón.
+
+**Ampliación oeste** (`PrototypeSceneBuilder.HousesWestExt.cs`, `BuildHousesWestExtension`, semilla 2003). En coordenadas del **mundo** (`housesFrame` = null): x ∈ [`WestExtMinX` = −103, −30], z ∈ [90, 226]. Tablas `WestExtRoads` (calles D y E, sin salida en `WestExtStreetEnd` = −36), `WestExtAlleys` (n1–n3, que llegan a x = −26 para unirse al callejón a5 de la copia), `WestExtSidewalks` (incluye la del lado este de la calle x = −110) y `WestExtLawns`. Filas: `CalleNorte` (frente a la calle norte, 12.5 m de fondo), `D_Sur`, `D_Norte_Solar` + `D_Norte`, `E_Sur_O` + `E_Sur_Solar` + `E_Sur_E`, `E_Norte_Apart` (37 m de apartamentos) y `E_Norte`. `BuildWestExtStreetLife`: farolas, postes con cables por los callejones, coches y barreras con pilonas al fondo de D y E.
 
 **Trazado.** Lo definen cuatro tablas de rectángulos `Rect.MinMaxRect(x0, z0, x1, z1)`:
 - `HousesRoads`: calzadas de 10 m. Son A, B (sin salida), C1, C2 y el quiebro Cq.
@@ -171,21 +187,23 @@ Todo lo de abajo (tablas, filas, `BuildHousesWeather`) está en coordenadas **lo
 - `depth` es la distancia hasta el callejón de atrás.
 
 Tipos de fila:
-- `Houses`: casas de 6.5–8.5 m con pasillos de 1.4–3.4 m entre ellas y un 12 % de solares.
+- `Houses`: casas de 6.5–8.5 m con pasillos de 1.4–3.4 m entre ellas y un 12 % de solares (la mitad `OvergrownLot`, la otra mitad `VacantLot`).
 - `Apartments`: uno o dos bloques de 3 pisos.
-- `Vacant`: un solar.
+- `Vacant`: un solar vallado (`VacantLot`).
+- `Overgrown`: un solar comido por la vegetación (`OvergrownLot`).
 
 **Piezas:**
-- `House`: casita de ladrillo con `GableRoof` o greystone (tejado plano, cornisa y escalinata con barandilla). Lleva escalones, puerta, camino y, a veces:
+- `House`: casita de ladrillo con `GableRoof` (hastial de ladrillo liso con ventana de desván) o greystone (tejado plano, cornisa e imposta a 2.8 m, escalinata de 0.6 m con barandilla de hierro con postes sobre el borde de los escalones). La puerta va en el vano de una esquina (`FacadeBayCenter`) con `FacadeDoor`, por debajo de la imposta. Lleva escalones, camino y, a veces:
   - valla baja de hierro;
   - árbol (`DistrictTree`);
-  - tapiada (`BoardUpWindows`), con contrachapado sobre cada ventana de la textura.
+  - tapiada (`BoardUpWindows`), con contrachapado sobre cada ventana de la textura menos la del vano de la puerta.
 
   Detrás tiene valla de madera (`WoodFenceLine`), garaje si caben 14 m de fondo (`Garage`), cubos con ruedas en el borde del callejón (`TrashCart`) y maleza.
-- `Apartment`: 9 m de alto, con miradores, zócalo con bloque de vidrio, portal de piedra, valla baja, porches traseros (`BackPorch`) y patio de hormigón con contenedor y coche (`ParkedCar`). Deja 6.5 m detrás del edificio para el porche y el patio.
-- `BackPorch` (marco local: fachada en z = 0, porche hacia +Z): 3 terrazas de 5.4 × 2 m a 1.07, 4.07 y 7.07 m (`PorchDeckTops`, los pisos de 3 m de la textura) con **puerta trasera** en `PorchDoorX`, y una torre de escalera de dos bandas (z 2.0–3.1 y 3.1–4.2) con tramos de medio piso (`PorchFlight`: 1.5 m en 2.4 m, 32°) que van y vuelven entre rellanos en x ±1.2…2.2; el rellano derecho a la altura de cada terraza es su entrada. Se sube a pie: rampa invisible bajo los peldaños, paredes invisibles a los lados de cada tramo (`StairSideWall`: cajas verticales escalonadas que acaban justo en los extremos del tramo; con una caja inclinada sus esquinas se metían en los rellanos y el jugador se quedaba enganchado al girar) y barandillas de balaustres con colisión (`PorchRail`, textura `PorchRail` con alfa). `Apartment` coloca cada porche para que su puerta caiga en el centro de un vano de la fachada, así tapa la ventana de ese vano en los tres pisos. Lo comprueba `BackPorchPlayTests`.
+- `Apartment`: 9 m de fachada con ventanas (3 pisos) más un antepecho de ladrillo liso de 0.75 m (`AptParapetHeight`, textura `PlainBrick`; sin él la puerta trasera del 3.er piso asomaba por encima del muro), con miradores (cada uno centrado en un vano), zócalo con bloque de vidrio, portal de piedra (en el vano más cercano al centro que no choca con un mirador; dintel a 3.3 m, por debajo del alféizar del primer piso), valla baja, porches traseros (`BackPorch`) y patio de hormigón con contenedor y coche (`ParkedCar`). Deja 6.5 m detrás del edificio para el porche y el patio.
+- `BackPorch` (marco local: fachada en z = 0, porche hacia +Z): 3 terrazas de 5.4 × 2 m a 1.07, 4.07 y 7.07 m (`PorchDeckTops`, los pisos de 3 m de la textura) con **puerta trasera** en `PorchDoorX`, y una torre de escalera de dos bandas (z 2.0–3.1 y 3.1–4.2) con tramos de medio piso (`PorchFlight`: 1.5 m en 2.4 m, 32°) que van y vuelven entre rellanos en x ±1.2…2.2; el rellano derecho a la altura de cada terraza es su entrada; en el último rellano, que no tiene tramo de salida, una barandilla cierra el hueco sobre la escalera de abajo. Se sube a pie: rampa invisible bajo los peldaños, paredes invisibles a los lados de cada tramo (`StairSideWall`: cajas verticales escalonadas que acaban justo en los extremos del tramo; con una caja inclinada sus esquinas se metían en los rellanos y el jugador se quedaba enganchado al girar) y barandillas de balaustres con colisión (`PorchRail`, textura `PorchRail` con alfa). `Apartment` coloca cada porche para que su puerta caiga en el centro de un vano de la fachada, así tapa la ventana de ese vano en los tres pisos. Lo comprueba `BackPorchPlayTests`.
 - `VacantLot`: malla metálica (a veces con un tramo caído), maleza, colchón, neumáticos y nieve.
-- `CornerStore`: tienda en el quiebro de la calle C.
+- `OvergrownLot`: solar abandonado con vegetación (`abandonedParcelVegetacion.png`): abierto a la acera, hierba alta densa (más baja en los 2.5 m de delante), un `DistrictTree` grande (escala 1.1–1.5) cada ~6 m en la mitad del fondo, a veces un `BareTree` seco, matorral (`Arbusto`/`ArbustoSeco`) a lo largo del fondo, losas rotas del camino de la casa que hubo, un atajo de `Barro` en diagonal (`DesirePath`), un poste de cartel torcido, bolsas y nieve. Se registra como `solar`.
+- `CornerStore`: tienda en el quiebro de la calle C. Un frente pintado (`FrenteTienda`) tapa hasta 3.2 m las ventanas de la textura, que aquí va estirada a 4.6 m de alto.
 - `BuildHousesStreetLife`:
   - farolas de sodio;
   - `PoleLine`: postes de madera con cruceta y 3 cables por los callejones;
@@ -193,7 +211,11 @@ Tipos de fila:
   - barreras, pilonas y nieve en los dos extremos de B;
   - vallas de madera que cierran el barrio.
 - `BuildHousesWeather`: maleza en los bordes de los callejones, charcos, barro, bolsas y nieve en ellos, montones en el bordillo, placas en el césped y basura en las aceras.
-- `GableRoof(parent, wallTop, width, depth, rise, overhang, roof, wall, ridgeAlongX)`: malla de tejado a dos aguas. Los faldones tienen cara por abajo y los hastiales usan el material del muro. Por defecto la cumbrera va a lo largo de Z, así que el hastial mira a la calle.
+- `GableRoof(parent, wallTop, width, depth, rise, overhang, roof, wall, ridgeAlongX)`: malla de tejado a dos aguas. Los faldones tienen cara por abajo. Los hastiales usan el material del muro, salvo si es una fachada de ladrillo con ventanas: entonces usan su versión lisa (`plainBrick`), porque la textura de ventanas salía cortada por los faldones. Por defecto la cumbrera va a lo largo de Z, así que el hastial mira a la calle.
+- **Puertas y vanos de la fachada.** La textura `BrickFacade` tiene una ventana por vano de `FacadeBay` (3 m, que `TexturedBox` redondea a un número entero de vanos por pared). Una puerta puesta a ojo deja medias ventanas asomando, así que toda puerta de planta baja sobre fachada de ladrillo se coloca con:
+  - `BayWidth(width)` y `FacadeBayCenter(wallCx, width, want, margin)`: ancho de vano y centro del vano más cercano a `want`;
+  - `FacadeDoor(root, x, bottom, faceZ, outward, bayW, doorW, doorH, leaf, frame, maxTop)`: marco que tapa entera la ventana del vano (47 % del ancho del vano, del alféizar a 2.48 m) y la hoja delante. Se usa en casas, adosadas (delante y detrás) y en la puerta trasera de los locales.
+- **Ladrillo liso.** `PrepareHouses` crea, para cada fachada de ladrillo, un material `<Fachada>Liso` con `ProceduralTextures.PlainBrick` (256 × 64 px = 3 × `PlainBrickHeight` m, mismas hiladas, sin ventanas) y lo guarda en `plainBrick`. Lo usan los hastiales y el antepecho de los apartamentos.
 
 **Huellas.** `RecordFootprint` guarda cada edificio en coordenadas del mundo. Sirve para dos cosas:
 - `housesOccupied`, para no poner nieve encima. Este se guarda en el marco del barrio que se está construyendo (`housesFrame`), que es el de las tablas; con `housesFrame` = null, en el mundo;
@@ -215,7 +237,7 @@ Con color liso: `PiedraCornisa`, `PuertaCasa`, `Contrachapado`, `MaderaPorche`, 
 `BuildShopsStrip(world)`, llamado desde `BuildHousesDistrict` después de las dos copias (usa sus materiales). Zona: x ∈ [−30, 100], z ∈ [90, 102], entre la acera norte y el callejón de atrás de la copia oeste.
 
 - **Suelo** (`BuildShopsGround`): acera ancha hasta la fachada (`ShopsFront` = 93), césped seco detrás, patio de servicio de `Callejon` tras cada local, el pasaje `ShopsAlleyLink` (x −26…−21) que une el callejón a5 de la copia oeste con la calle, y la **acera oeste de la avenida** (`AvenueWestSidewalk`, x 100–103, z 90–300), cortada con `StripMinus` donde entran A' y C1' (`HousesWestRect` pasa un rectángulo local de la copia al mundo).
-- **Locales** (`Shops`, de oeste a este: tipo, x0, x1, plantas). `Storefront(parent, kind, x0, x1, floors, rng)`: caja de ladrillo de 7.5 m de fondo (4.6 o 7.4 m de alto) con pretil; en la planta baja un panel pintado tapa las ventanas de la textura y lleva escaparate (`EscaparateLuz`, emisivo), zócalo, puerta, caja de persiana, rejas o persiana bajada (`PersianaMetalica`), letrero luminoso y cartel OPEN de neón. Detalles por tipo: cruz y cartel de horario (iglesia), toldo (lavandería, barbería, pollo), poste de barbería con textura en espiral, extractor, grasa y mural (pollo), cartel de móviles (cheques), letrero lateral "GROCERY", carteles de ofertas y arcón de hielo (tienda). Detrás: puerta de chapa, contenedor o cubo y bolsas.
+- **Locales** (`Shops`, de oeste a este: tipo, x0, x1, plantas). `Storefront(parent, kind, x0, x1, floors, rng)`: caja de ladrillo de 7.5 m de fondo (4.6 o 7.4 m de alto) con pretil; en la planta baja un panel pintado tapa las ventanas de la textura y lleva escaparate (`EscaparateLuz`, emisivo), zócalo, puerta, caja de persiana, rejas o persiana bajada (`PersianaMetalica`), letrero luminoso y cartel OPEN de neón. Detalles por tipo: cruz y cartel de horario (iglesia), toldo (lavandería, barbería, pollo), poste de barbería con textura en espiral, extractor, grasa y mural (pollo), cartel de móviles (cheques), letrero lateral "GROCERY", carteles de ofertas y arcón de hielo (tienda). Detrás: puerta de chapa en un vano (`FacadeDoor`), contenedor o cubo y bolsas.
 - **Letreros**: `SignMat(name, text, bg, ink, seed, glow)` crea un material con `ProceduralTextures.Sign` como textura y mapa de emisión; `SignQuad(parent, center, normal, width, height, mat)` lo pone en un quad que se lee bien desde el lado de `normal`. El alto sale del ancho del local y de la proporción de la textura.
 - **Aparcamiento** (`BuildShopsLot`): `ShopsLot` (x 10–26) con entrada `ShopsLotDriveway` desde la calle norte, 6 plazas al fondo con topes, coches o nieve, malla, cartel y farola.
 - **Solar**: `VacantLot` del barrio de casas en `ShopsVacant` (x 54–64).
@@ -248,7 +270,7 @@ Semilla: `System.Random(2010)`. Materiales nuevos: `EscaparateLuz`, `PersianaMet
 - **Adosadas** (`Rowhouses`):
   - El origen está en el centro de la fachada y el +Z local va hacia dentro. Tienen 9 m de fondo, 2 plantas, `n = round(largo / 6.5)` casas y `GableRoof` con `ridgeAlongX`.
   - El tono del ladrillo cambia por parejas y los portales van juntos en la medianera.
-  - Cada casa tiene rellano, escalón, puerta de color o tapiada (12 %), tejadillo, camino de `yard` m, bajante, a veces aire acondicionado o parabólica, puerta trasera, patio de hormigón y un `TrashCart`.
+  - Cada casa tiene rellano, escalón, puerta de color o tapiada (12 %) en el vano de la casa más cercano a la medianera (`FacadeDoor`), tejadillo, camino de `yard` m, bajante, a veces aire acondicionado o parabólica, puerta trasera, patio de hormigón y un `TrashCart`.
   - Con `frontFence`, llevan valla baja propia; solo la tienen las que dan al eje, porque las demás ya tienen la del perímetro.
   - Las filas son:
     - (−65, 8) yaw 0 y (−65, −22) yaw 180, de 46 m, con jardín de 13.8 m hasta el eje;
@@ -323,6 +345,25 @@ Coches low-poly genéricos de finales de los 90 y los 2000, **sin marcas ni logo
 | `AndenHormigon`, `BordeAnden`, `MarquesinaEstacion`, `LuzAnden` (emisivo) | Estación. |
 | `AceroTren` (metálico), `BajosTren`, `VentanasTren` y `FaroTren` (emisivos), `PuertasTren`, `FranjaTren` | Trenes. |
 
+## Oeste lejano: `PrototypeSceneBuilder.FarWest.cs`
+`BuildFarWest` (objeto `Barrio_Oeste_Lejano`), llamado al final de `BuildHousesDistrict`, **después de `BuildShopsStrip`** (usa `Storefront` y sus materiales). x de `FarWestMinX` (−300) a `FarWestMaxX` (−120), z 90–298, en coordenadas del mundo con `BuildHousesPatch` (semilla 2011):
+- `FarWestRoads`: J (`FarWestJ`, x −262…−252, z 87–298) y D, E, F, H de x −252 a −117 (siguen las de la ampliación oeste y la norte). `FarWestAlleys` siguen n2 y n3. `FarWestSidewalks`, `FarWestLawns` y `FarWestRows` (al oeste de J, filas con yaw 270: la parcela hacia −X).
+- `FarWestStreetLife`: negocios (`FarWestShopsStrip`: `FarWestShops` con `Storefront` en la misma línea de fachada `ShopsFront`, solar `FarWestShopsVacant`), gasolinera (`GasStation`), cancha (`Court` en `FarWestCourtCenter`, puerta hacia D), descampado (`Wasteland` en `FarWestWasteland`), farolas, postes con cables, coches y valla del borde del mundo.
+- `GasStation`: `GasLot` (x −160…−120, z 90–124) a `LotTop`, entradas `GasDriveways`, marquesina con colisión, islas, surtidores, tienda (`ShopKind.GasMart` en un marco desplazado para que la fachada quede en z 113 mirando a −Z), poste de precios girado −45° hacia el cruce.
+- `BuildStreets` corta las aceras de enfrente con `FarWestNorthSidewalkCuts` (J y las entradas de la gasolinera) y `FarWestWestSidewalkCuts` (D, E, F, H y la entrada desde x = −110); `MainRoadMouths` incluye `FarWestRoads` y `GasDriveways`.
+- `ShopKind` tiene los tipos nuevos `Wings`, `Pawn`, `Beauty`, `Tires` y `GasMart` (letreros, toldos, rejas y detalles propios en `Storefront`).
+- `Court(parent, center, gateSide)` y `Wreck(parent, ground, yaw, rng)` (StreetProps.cs) son la cancha y el coche abandonado del barrio de viviendas, ahora con posición como parámetro.
+- Huellas para el plano: `cancha`, `gasolinera`, `tienda` y `solar` (el descampado). Capturas: elemento `oeste_lejano`.
+
+## Calles grandes: `PrototypeSceneBuilder.MainRoads.cs`
+Las cuatro calles de 14 m alrededor de la manzana central (norte y sur en z = ±80, avenida y calle del oeste en x = ±110), de borde a borde del mundo (`MainRoadHalfLength` = 300). `MainRoadsList()` las da con su eje y dónde las cruzan las otras; `MainRoadPoint(alongX, center, t, across, y)` pasa de coordenadas de calle a mundo.
+- **`BuildMainRoads`** (objeto `CallesGrandes`): cajas finas sin colisión (arriba en `MainRoadTop` = 0.01, por debajo de las calles de barrio, a 0.02, que tapan la boca) encima del `Suelo` liso. Por cada calle: tramos normales partidos en trozos de 42 m con una de las tres variantes `CalleGrande1`–`3` al azar (`MainRoadStretch`, para que los parches no se repitan cada 14 m), una **llegada** de 14 m a cada lado de cada cruce (`CalleGrandeLlegada`, girada para que la V de la textura apunte al cruce) y el cuadrado del **cruce** (`CalleGrandeCruce`, sin pintura).
+- **`BuildMainRoadDetails`** (objeto `CallesGrandes_Detalle`, semilla 808): tapas de alcantarilla en el centro de un carril cada 40–60 m (fuera de los cruces), sumideros junto a los dos bordillos cada 35–50 m, nieve sucia apartada contra el bordillo, charcos junto al bordillo y manchas de aceite (más donde paran los coches antes del cruce).
+- Circulación por la derecha: en la llegada, la línea de stop va solo en los carriles que entran al cruce.
+- Las calles norte y sur **acaban en la avenida** (`end` en `MainRoadsList`): al este está el barrio de viviendas, así que (110, ±80) son cruces en T sin llegada al este. `MainRoadMouths()` da las bocas de calles y entradas (ensanchadas 1.5 m) donde no van sumideros ni nieve.
+- En `BuildStreets`, las aceras de enfrente norte y sur se cortan donde pasan la avenida y la calle x = −110, y la del oeste donde pasan z = ±80 (antes eran tiras de 600 m que dejaban un bordillo atravesando la calzada).
+- Capturas: elemento `calles_grandes` en `IngameScreenshots`.
+
 ## Capturas in-game: `IngameScreenshots.cs`
 Saca capturas de 1920×1080 de las distintas zonas, **agrupadas por elemento y por versión**. Usa una cámara temporal con los ajustes de la `Main Camera` (niebla, fondo, 60° de FOV) y `Camera.Render()` sobre un RenderTexture; los trenes salen donde los deja el generador, porque no se entra en Play.
 
@@ -337,6 +378,7 @@ Genera las texturas del barrio en código (no se copian assets de ningún juego)
 
 - `BrickFacade(name, brickColor, airConditioner, seed)`: 256 px = un vano de 3 m × una planta de 3 m. Ladrillo a soga (32 hiladas), hilada a sardinel sobre la ventana, alféizar de hormigón, marco blanco, cristal con reflejo, persiana y chorretones.
 - `Road(name, roadWidth, seed)`: 512 px; U = ancho completo de la calle.
+- `MainRoad(name, roadWidth, seed, MainRoadPaint)`: 512 px = ancho × ancho (14 × 14 m) de las calles grandes. U cruza la calle y V va a lo largo. Asfalto con rodadas pulidas, sal de invierno, grietas selladas con alquitrán, un parche de obras, a veces una zanja y baches; la pintura se borra con el ruido y donde pisan las ruedas, y no va sobre los parches. `Lanes`: bordes blancos, doble amarilla y separadores de carril discontinuos (trazos de 3 m cada 7). `Approach` (V = 1 hacia el cruce): separadores continuos, línea de stop en los carriles de la derecha (u > 0.5) y paso de cebra de barras anchas. `None`: el cruce, solo asfalto.
 - `Sidewalk`, `DeadGrass`, `Roof`.
 - Tren elevado: `Ties(name, seed)`, con 4 traviesas cada `TiesTile` = 2.4 m y huecos transparentes.
 - Barrio de casas: `WoodFence(name, seed)`, `Alley(name, seed)` y `Shingles(name, tint, seed)`. Las constantes `WoodFenceWidth/Height`, `AlleyTile` y `ShingleTile` dan los metros por repetición.

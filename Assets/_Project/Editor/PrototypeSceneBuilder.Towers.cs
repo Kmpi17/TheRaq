@@ -333,20 +333,20 @@ namespace GTAChiraq.Editor
                 var facade = tones[(tone0 + i / 2) % tones.Length];
                 TexturedBox("Muros", root, new Vector3(cx, H / 2f, D / 2f), new Vector3(u, H, D), facade, facadeTile, sidesOnly: true);
 
-                // Portales por parejas, juntos en la medianera.
+                // Portales por parejas, hacia la medianera, cada uno en un vano: su marco tapa la ventana de ese vano.
                 bool boarded = rng.NextDouble() < 0.12;
                 float sideSign = i % 2 == 0 ? 1f : -1f;
-                float doorX = cx + sideSign * (u / 2f - 1.1f);
+                float doorX = FacadeBayCenter(cx, u, cx + sideSign * u / 2f, 0.9f), bayU = BayWidth(u);
                 Box("Rellano", root, new Vector3(doorX, 0.2f, -0.55f), new Vector3(1.6f, 0.3f, 1.1f), concreteMat);
                 Box("Escalon", root, new Vector3(doorX, 0.14f, -1.3f), new Vector3(1.3f, 0.18f, 0.4f), concreteMat);
-                Box("Puerta", root, new Vector3(doorX, 1.45f, -0.05f), new Vector3(1f, 2.2f, 0.1f), boarded ? plywood : doors[rng.Next(doors.Length)], collider: false);
+                FacadeDoor(root, doorX, 0.35f, 0f, -1f, bayU, 1f, 2.2f, boarded ? plywood : doors[rng.Next(doors.Length)], stoneTrim, 2.78f);
                 Box("Tejadillo", root, new Vector3(doorX, 2.85f, -0.45f), new Vector3(1.6f, 0.1f, 0.9f), stoneTrim, collider: false);
                 float walkLength = yard - 1.5f;
                 TexturedBox("Camino", root, new Vector3(doorX, WalkTop / 2f, -1.5f - walkLength / 2f), new Vector3(1.2f, WalkTop, walkLength),
                     sidewalkMat, Vector2.one * ProceduralTextures.SidewalkTile, collider: false);
                 towersGates.Add((root.TransformPoint(new Vector3(doorX, 0f, -yard)), 0.6f));
 
-                if (boarded) BoardUpWindows(root, cx, u, H, 0f, rng);
+                if (boarded) BoardUpWindows(root, cx, u, H, 0f, rng, doorX);
                 if (i + 1 < n) Box("Bajante", root, new Vector3(cx + u / 2f, H / 2f, -0.08f), new Vector3(0.1f, H, 0.1f), garageWalls[0], collider: false);
                 if (!boarded && rng.NextDouble() < 0.3)
                     Box("AparatoAire", root, new Vector3(cx - sideSign * Range(rng, 0.5f, 1.8f), F + 1f, -0.3f), new Vector3(0.7f, 0.45f, 0.55f), acUnit, collider: false);
@@ -367,7 +367,7 @@ namespace GTAChiraq.Editor
                         Clump(root, rng, new Vector3(Range(rng, cx - u / 2f + 0.3f, cx + u / 2f - 0.3f), LawnTop, Range(rng, -yard + 1f, -1.6f)), 0.5f, 1.3f);
 
                 // Detrás: puerta, patio de hormigón y un cubo de basura.
-                Box("PuertaTrasera", root, new Vector3(doorX, 1.2f, D + 0.05f), new Vector3(0.95f, 2.1f, 0.1f), doorMat, collider: false);
+                FacadeDoor(root, doorX, 0.14f, D, 1f, bayU, 0.95f, 2.1f, doorMat, stoneTrim).name = "PuertaTrasera";
                 Box("PatioTrasero", root, new Vector3(cx, 0.12f, D + 1.4f), new Vector3(u - 0.4f, 0.04f, 2.6f), concreteMat, collider: false);
                 TrashCart(root, new Vector3(cx + Range(rng, -u / 3f, u / 3f), 0.14f, D + 2.2f), Range(rng, -20f, 20f), binColors[rng.Next(binColors.Length)], rng.NextDouble() < 0.1);
             }

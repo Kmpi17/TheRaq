@@ -29,7 +29,9 @@ namespace GTAChiraq.Editor
         // Acera oeste de la avenida, al norte de la calle norte (se corta donde entran las calles de la copia oeste).
         static readonly Rect AvenueWestSidewalk = Rect.MinMaxRect(100f, 90f, 103f, 300f);
 
-        enum ShopKind { Church, Laundry, Barber, Chicken, Checks, Market }
+        // Los últimos son de la zona del oeste lejano (PrototypeSceneBuilder.FarWest.cs): alitas, casa de empeños,
+        // tienda de belleza, neumáticos y la tienda de la gasolinera.
+        enum ShopKind { Church, Laundry, Barber, Chicken, Checks, Market, Wings, Pawn, Beauty, Tires, GasMart }
 
         // De oeste a este. floors: 1 o 2 plantas.
         static readonly (ShopKind kind, float x0, float x1, int floors)[] Shops =
@@ -104,6 +106,7 @@ namespace GTAChiraq.Editor
             var cutters = new List<Rect>();
             foreach (var r in HousesRoads)
                 if (r.xMin < 118f) cutters.Add(HousesWestRect(r)); // las que salen de la avenida
+            cutters.AddRange(NorthAvenueRoadsWest);                 // y la F2 de la ampliación norte
             var concrete = Mat("Hormigon", new Color(0.6f, 0.59f, 0.56f));
             foreach (var piece in StripMinus(AvenueWestSidewalk, cutters))
                 Box("AceraAvenida_O", group, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
@@ -130,6 +133,8 @@ namespace GTAChiraq.Editor
                 ShopKind.Barber => greystone,
                 ShopKind.Checks => aptFacadeB,
                 ShopKind.Market => houseFacades[2],
+                ShopKind.Pawn => greystone,
+                ShopKind.Tires or ShopKind.GasMart => aptFacadeB,
                 _ => houseFacades[rng.Next(2)],
             };
             TexturedBox("Muros", root, new Vector3(0f, h / 2f, d / 2f), new Vector3(w, h, d), facade, new Vector2(ProceduralTextures.FacadeBay, ProceduralTextures.FacadeFloor), sidesOnly: true);
@@ -145,6 +150,11 @@ namespace GTAChiraq.Editor
                 ShopKind.Barber => (Mat("FrenteBarberia", new Color(0.1f, 0.1f, 0.12f)), "BARBER SHOP", new Color(0.08f, 0.08f, 0.1f), new Color(0.95f, 0.85f, 0.35f)),
                 ShopKind.Chicken => (Mat("FrentePollo", new Color(0.55f, 0.12f, 0.08f)), "CHICKEN & FISH", new Color(0.95f, 0.8f, 0.2f), new Color(0.7f, 0.08f, 0.05f)),
                 ShopKind.Checks => (Mat("FrenteCheques", new Color(0.12f, 0.2f, 0.4f)), "CHECKS CASHED", new Color(0.95f, 0.85f, 0.15f), new Color(0.1f, 0.15f, 0.45f)),
+                ShopKind.Wings => (Mat("FrenteAlitas", new Color(0.62f, 0.32f, 0.08f)), "WINGS & FRIES", new Color(0.12f, 0.1f, 0.08f), new Color(1f, 0.7f, 0.15f)),
+                ShopKind.Pawn => (Mat("FrenteEmpenos", new Color(0.2f, 0.2f, 0.22f)), "PAWN SHOP", new Color(0.95f, 0.8f, 0.15f), new Color(0.08f, 0.08f, 0.1f)),
+                ShopKind.Beauty => (Mat("FrenteBelleza", new Color(0.55f, 0.2f, 0.38f)), "BEAUTY SUPPLY", new Color(0.95f, 0.85f, 0.92f), new Color(0.6f, 0.1f, 0.4f)),
+                ShopKind.Tires => (Mat("FrenteNeumaticos", new Color(0.22f, 0.22f, 0.24f)), "TIRE SHOP", new Color(0.92f, 0.9f, 0.85f), new Color(0.1f, 0.1f, 0.12f)),
+                ShopKind.GasMart => (Mat("FrenteGasolinera", new Color(0.75f, 0.74f, 0.7f)), "FOOD MART", new Color(0.7f, 0.08f, 0.06f), new Color(0.97f, 0.95f, 0.9f)),
                 _ => (Mat("FrenteTienda", new Color(0.15f, 0.3f, 0.18f)), "FOOD & LIQUOR", new Color(0.95f, 0.93f, 0.85f), new Color(0.72f, 0.08f, 0.06f)),
             };
             Box("Frente", root, new Vector3(0f, 2.05f, -0.04f), new Vector3(w, 4.1f, 0.08f), paint, collider: false);
@@ -161,7 +171,7 @@ namespace GTAChiraq.Editor
             Box("MarcoPuerta", root, new Vector3(doorX, 2.45f, f - 0.05f), new Vector3(1.3f, 0.1f, 0.1f), ironMat, collider: false);
 
             // Rejas delante del cristal (cambio de cheques, tienda, pollo) o persiana medio bajada (barbería, lavandería).
-            if (kind is ShopKind.Checks or ShopKind.Market or ShopKind.Chicken)
+            if (kind is ShopKind.Checks or ShopKind.Market or ShopKind.Chicken or ShopKind.Pawn or ShopKind.Wings or ShopKind.GasMart)
             {
                 for (float x = winX0 + 0.15f; x < winX1; x += 0.3f)
                     Box("Reja", root, new Vector3(x, 1.75f, f - 0.12f), new Vector3(0.03f, 2.3f, 0.03f), ironMat, collider: false);
@@ -170,7 +180,7 @@ namespace GTAChiraq.Editor
             }
             // Caja de la persiana encima del escaparate.
             Box("CajaPersiana", root, new Vector3(winC, 3.05f, f - 0.12f), new Vector3(winW + 0.3f, 0.32f, 0.26f), shopShutter, collider: false);
-            if ((kind is ShopKind.Barber or ShopKind.Laundry) && rng.NextDouble() < 0.7)
+            if ((kind is ShopKind.Barber or ShopKind.Laundry or ShopKind.Tires) && rng.NextDouble() < 0.7)
             {
                 float down = Range(rng, 0.3f, 0.7f);
                 var shutter = TexturedBox("Persiana", root, new Vector3(winC, 2.9f - down / 2f, f - 0.1f), new Vector3(winW, down, 0.03f), shopShutter, new Vector2(winW, 1f), collider: false);
@@ -194,12 +204,14 @@ namespace GTAChiraq.Editor
             }
 
             // Toldo inclinado.
-            if (kind is ShopKind.Laundry or ShopKind.Barber or ShopKind.Chicken)
+            if (kind is ShopKind.Laundry or ShopKind.Barber or ShopKind.Chicken or ShopKind.Beauty or ShopKind.Wings)
             {
                 var awningMat = kind switch
                 {
                     ShopKind.Laundry => Mat("ToldoAzul", new Color(0.12f, 0.25f, 0.5f)),
                     ShopKind.Barber => Mat("ToldoNegro", new Color(0.08f, 0.08f, 0.09f)),
+                    ShopKind.Beauty => Mat("ToldoRosa", new Color(0.6f, 0.22f, 0.42f)),
+                    ShopKind.Wings => Mat("ToldoNaranja", new Color(0.7f, 0.35f, 0.08f)),
                     _ => Mat("ToldoRojo", new Color(0.5f, 0.08f, 0.06f)),
                 };
                 var awning = Box("Toldo", root, new Vector3(winC, 3.08f, f - 0.65f), new Vector3(winW + 0.4f, 0.06f, 1.3f), awningMat, collider: false);
@@ -265,6 +277,50 @@ namespace GTAChiraq.Editor
                     SignQuad(root, new Vector3(winC, 1.3f, f - 0.05f), Vector3.back, pw, pw / ((float)phones.mainTexture.width / phones.mainTexture.height), phones);
                     break;
 
+                case ShopKind.Pawn:
+                    // Cartel de "GOLD" en el escaparate y otro de "WE BUY".
+                    var gold = SignMat("Letrero_Oro", "WE BUY GOLD", new Color(0.08f, 0.08f, 0.1f), new Color(1f, 0.8f, 0.2f), 81, 1.4f);
+                    float gw2 = Mathf.Min(2.6f, winW - 1.8f);
+                    SignQuad(root, new Vector3(winC, 1.4f, f - 0.05f), Vector3.back, gw2, gw2 / ((float)gold.mainTexture.width / gold.mainTexture.height), gold);
+                    break;
+
+                case ShopKind.Beauty:
+                case ShopKind.Wings:
+                    // Carteles de ofertas pegados en el cristal.
+                    var flyers = new[] { Mat("CartelAmarillo", new Color(0.9f, 0.8f, 0.2f)), Mat("CartelRojo", new Color(0.75f, 0.12f, 0.1f)), Mat("CartelBlanco", new Color(0.9f, 0.9f, 0.86f)) };
+                    for (float x = winX0 + 0.7f; x < winX1 - 0.7f; x += Range(rng, 1.6f, 2.6f))
+                        Box("Cartel", root, new Vector3(x, Range(rng, 1.3f, 2.3f), f - 0.05f), new Vector3(Range(rng, 0.5f, 0.8f), Range(rng, 0.6f, 0.9f), 0.01f), flyers[rng.Next(flyers.Length)], collider: false);
+                    break;
+
+                case ShopKind.Tires:
+                    // Pilas de neumáticos usados en la acera, junto a la puerta, y un cartel de "USED TIRES".
+                    var rubber = Mat("Neumatico", new Color(0.06f, 0.06f, 0.06f));
+                    for (int stack = 0; stack < 3; stack++)
+                    {
+                        float sx = (doorLeft ? doorX + 1.6f : doorX - 1.6f) + (doorLeft ? 1f : -1f) * stack * 0.9f;
+                        int n = 2 + rng.Next(4);
+                        for (int k = 0; k < n; k++)
+                            Primitive(PrimitiveType.Cylinder, "Neumatico", root, new Vector3(sx + Range(rng, -0.05f, 0.05f), SidewalkTop + 0.11f + k * 0.22f, -0.7f), new Vector3(0.68f, 0.11f, 0.68f), rubber, keepCollider: false);
+                    }
+                    var used = SignMat("Letrero_Usados", "USED TIRES", new Color(0.95f, 0.85f, 0.15f), new Color(0.1f, 0.1f, 0.12f), 82, 0.3f);
+                    SignQuad(root, new Vector3(winC, 2.4f, f - 0.05f), Vector3.back, 2f, 2f / ((float)used.mainTexture.width / used.mainTexture.height), used);
+                    break;
+
+                case ShopKind.GasMart:
+                    // Arcón de hielo y jaula de bombonas de propano junto a la puerta; cartel de cajero.
+                    var iceMart = SignMat("Letrero_Ice", "ICE", new Color(0.15f, 0.4f, 0.8f), new Color(0.95f, 0.97f, 1f), 75, 0.4f);
+                    float iceMx = doorLeft ? hw - 1.6f : -hw + 1.6f;
+                    Box("ArconHielo", root, new Vector3(iceMx, SidewalkTop + 0.65f, -0.6f), new Vector3(1.8f, 1.3f, 0.8f), Mat("ArconBlanco", new Color(0.85f, 0.86f, 0.86f)));
+                    SignQuad(root, new Vector3(iceMx, SidewalkTop + 0.8f, -1.01f), Vector3.back, 1.2f, 1.2f / ((float)iceMart.mainTexture.width / iceMart.mainTexture.height), iceMart);
+                    float cageX = doorLeft ? doorX + 2.6f : doorX - 2.6f;
+                    var cage = Box("JaulaPropano", root, new Vector3(cageX, SidewalkTop + 0.8f, -0.55f), new Vector3(1.4f, 1.6f, 0.7f), chainLink ? chainLink : ironMat, collider: true);
+                    var tank = Mat("BombonaPropano", new Color(0.82f, 0.82f, 0.8f));
+                    for (int k = 0; k < 4; k++)
+                        Primitive(PrimitiveType.Cylinder, "Bombona", root, new Vector3(cageX - 0.45f + k * 0.3f, SidewalkTop + 0.3f, -0.55f), new Vector3(0.28f, 0.25f, 0.28f), tank, keepCollider: false);
+                    var atm = SignMat("Letrero_Cajero", "ATM INSIDE", new Color(0.1f, 0.3f, 0.6f), new Color(0.95f, 0.95f, 0.95f), 83, 0.6f);
+                    SignQuad(root, new Vector3(winC, 2.5f, f - 0.05f), Vector3.back, 1.6f, 1.6f / ((float)atm.mainTexture.width / atm.mainTexture.height), atm);
+                    break;
+
                 case ShopKind.Market:
                     // Segundo letrero hacia la avenida, carteles de ofertas en el cristal y arcón de hielo en la acera.
                     var grocery = SignMat("Letrero_Grocery", "GROCERY", new Color(0.95f, 0.93f, 0.85f), new Color(0.72f, 0.08f, 0.06f), 76, 0.9f);
@@ -282,7 +338,9 @@ namespace GTAChiraq.Editor
             }
 
             // Detrás: puerta de chapa, cubos y contenedor en el patio de servicio.
-            Box("PuertaTrasera", root, new Vector3(Range(rng, -hw + 1f, hw - 1f), 1.1f, d + 0.04f), new Vector3(1f, 2.2f, 0.06f), Mat("PuertaMetal", new Color(0.22f, 0.2f, 0.18f)), collider: false);
+            // En el centro de un vano: el marco tapa la ventana de la textura que quedaba medio detrás de la puerta.
+            FacadeDoor(root, FacadeBayCenter(0f, w, Range(rng, -hw + 1f, hw - 1f), 0.9f), 0f, d, 1f, BayWidth(w), 1f, 2.2f,
+                Mat("PuertaMetal", new Color(0.22f, 0.2f, 0.18f)), concreteMat).name = "PuertaTrasera";
             if (w >= 11f) Dumpster(root, new Vector3(hw - 1.6f, AlleyTop, d + 0.8f), 0f, rng.NextDouble() < 0.4);
             else TrashCart(root, new Vector3(-hw + 0.8f, AlleyTop, d + 0.8f), Range(rng, -15f, 15f), binColors[rng.Next(binColors.Length)], false);
             for (int i = 0; i < rng.Next(1, 4); i++) GarbageBag(root, new Vector3(Range(rng, -hw + 0.5f, hw - 0.5f), AlleyTop, d + Range(rng, 0.5f, 1.3f)), rng);

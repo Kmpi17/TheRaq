@@ -25,7 +25,7 @@ namespace GTAChiraq.Editor
         static float StationCenterZ => (StationZ0 + StationZ1) / 2f;
 
         // Calles que pasan por debajo (centro z, media anchura): ahí no se ponen pórticos.
-        static readonly (float z, float half)[] TrainCrossings = { (80f, 7f), (-80f, 7f), (0f, 6f), (122f, 5f), (188f, 5f), (128f, 5f), (194f, 5f) }; // las dos últimas: calles C1 y A de la copia oeste del barrio de casas
+        static readonly (float z, float half)[] TrainCrossings = { (80f, 7f), (-80f, 7f), (0f, 6f), (122f, 5f), (188f, 5f), (128f, 5f), (194f, 5f), (253f, 5f), (293f, 5f) }; // 128 y 194: calles C1 y A de la copia oeste; 253 y 293: F/Fe y H de la ampliación norte
 
         static void BuildElevatedTrain(Transform world)
         {

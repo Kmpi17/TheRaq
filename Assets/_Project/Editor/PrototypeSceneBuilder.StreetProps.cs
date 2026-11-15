@@ -160,11 +160,18 @@ namespace GTAChiraq.Editor
 
         // ---------- Cancha de baloncesto ----------
 
-        static void BuildCourt(Transform parent)
+        static void BuildCourt(Transform parent) => Court(parent, CourtCenter, -Mathf.Sign(CourtCenter.z));
+
+        /// <summary>
+        /// Cancha de baloncesto de barrio (CourtSize, a lo largo de Z) sobre el césped en <paramref name="center"/>:
+        /// pista, dos canastas con red de cadenas, malla de 3.5 m con la puerta en el lado <paramref name="gateSide"/>
+        /// (+1 norte, −1 sur) y bancos fuera.
+        /// </summary>
+        static void Court(Transform parent, Vector3 center, float gateSide)
         {
             var root = new GameObject("CanchaBaloncesto").transform;
             root.SetParent(parent, false);
-            root.localPosition = new Vector3(CourtCenter.x, LawnTop, CourtCenter.z);
+            root.localPosition = new Vector3(center.x, LawnTop, center.z);
 
             var size = CourtSize + Vector2.one * (2f * CourtMargin);
             var court = TexturedMat("PistaBaloncesto", ProceduralTextures.Court("PistaBaloncesto", CourtSize.x, CourtSize.y, CourtMargin, 31));
@@ -181,7 +188,7 @@ namespace GTAChiraq.Editor
             var mesh = CutoutMat("MallaMetalica", ProceduralTextures.ChainLink("MallaMetalica", 41));
             var galvanized = Mat("PosteGalvanizado", new Color(0.5f, 0.52f, 0.53f));
             float hx = size.x / 2f + 0.5f, hz = size.y / 2f + 0.5f, h = 3.5f;
-            float toStreet = -Mathf.Sign(CourtCenter.z);
+            float toStreet = gateSide;
             var tile = Vector2.one * ProceduralTextures.ChainLinkTile;
             Vector3 P(float x, float z) => new(x, 0f, z);
             FenceSegment(root, P(-hx, -hz), P(-hx, hz), h, mesh, tile, galvanized, 3f, 0.07f, true);
@@ -261,13 +268,15 @@ namespace GTAChiraq.Editor
             TrashCan(root, new Vector3(-6f, 0.06f, -6f), 30f, tipped: true);
         }
 
-        static void BuildWreck(Transform parent, System.Random rng)
+        static void BuildWreck(Transform parent, System.Random rng) => Wreck(parent, new Vector3(WreckPosition.x, LawnTop, WreckPosition.z), 25f, rng);
+
+        /// <summary>Coche abandonado sin ruedas, sobre bloques de hormigón, con neumáticos tirados alrededor.</summary>
+        static void Wreck(Transform parent, Vector3 ground, float yaw, System.Random rng)
         {
-            // Coche abandonado sin ruedas, sobre bloques de hormigón.
             var root = new GameObject("CocheAbandonado").transform;
             root.SetParent(parent, false);
-            root.localPosition = new Vector3(WreckPosition.x, LawnTop, WreckPosition.z);
-            root.localRotation = Quaternion.Euler(0f, 25f, 0f);
+            root.localPosition = ground;
+            root.localRotation = Quaternion.Euler(0f, yaw, 0f);
 
             var rust = Mat("PinturaOxido", new Color(0.38f, 0.2f, 0.12f));
             var concrete = Mat("Hormigon", new Color(0.6f, 0.59f, 0.56f));

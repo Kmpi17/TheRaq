@@ -21,7 +21,8 @@ namespace GTAChiraq.Editor
         const float HousesMinX = 120f, HousesMaxX = 250f, HousesMinZ = 90f, HousesMaxZ = 214f;
         const float HousesRoadWidth = 10f, HousesSidewalk = 2.5f, AlleyTop = 0.12f;
 
-        // Calzadas (x0, z0, x1, z1). A: entrada desde la avenida. B: norte–sur, sin salida por los dos lados.
+        // Calzadas (x0, z0, x1, z1). A: entrada desde la avenida. B: norte–sur; sin salida por el sur y, por el norte,
+        // sigue en la ampliación norte (G en el este, B' hasta F en la copia oeste).
         // C1 y C2: la misma calle con un quiebro de 10 m (Cq une las dos).
         static readonly Rect[] HousesRoads =
         {
@@ -58,6 +59,9 @@ namespace GTAChiraq.Editor
             Rect.MinMaxRect(160.5f, 168.5f, 163f, 180.5f), // quiebro oeste
         };
 
+        // Césped al final de B (local z 202–214). En la copia oeste se queda; en el este, B sigue por ahí hasta G.
+        static readonly Rect HousesLawnBNorth = Rect.MinMaxRect(207f, 202f, 217f, 214f);
+
         // Manzanas con césped (lo que no es calzada).
         static readonly Rect[] HousesLawns =
         {
@@ -66,11 +70,11 @@ namespace GTAChiraq.Editor
             Rect.MinMaxRect(120f, 171f, 163f, 183f),
             Rect.MinMaxRect(120f, 193f, 173f, 214f),
             Rect.MinMaxRect(173f, 181f, 207f, 214f),
-            Rect.MinMaxRect(207f, 202f, 217f, 214f),
+            HousesLawnBNorth,
             Rect.MinMaxRect(217f, 90f, 250f, 214f),
         };
 
-        enum RowKind { Houses, Apartments, Vacant }
+        enum RowKind { Houses, Apartments, Vacant, Overgrown }
 
         // Materiales del barrio (PrepareHouses).
         static Material[] houseFacades;
@@ -78,6 +82,8 @@ namespace GTAChiraq.Editor
             doorMat, plywood, porchWood, ironFence, chainLink, ironMat, concreteMat, garageDoor, glassBlock, darkGlass;
         static Material[] garageWalls, binColors, carPaints, graffitiMats;
         static Material porchRail, backDoor;
+        // Ladrillo liso (sin ventanas) de cada fachada, para hastiales y antepechos (lo rellena Facade en PrepareHouses).
+        static readonly Dictionary<Material, Material> plainBrick = new();
 
         static readonly List<Rect> housesOccupied = new();
         static readonly List<(string kind, Vector2[] corners, float height)> housesFootprints = new();
@@ -96,7 +102,10 @@ namespace GTAChiraq.Editor
             housesFootprints.Clear();
             BuildHousesVariant(world, "Barrio_Casas", Vector3.zero, 0f, 1999, west: false);
             BuildHousesVariant(world, "Barrio_Casas_Oeste", HousesWestOrigin, 180f, 2001, west: true);
+            BuildHousesWestExtension(world); // PrototypeSceneBuilder.HousesWestExt.cs: la ampliación hasta la calle x = −110
+            BuildHousesNorth(world);         // PrototypeSceneBuilder.HousesNorth.cs: la ampliación hacia el norte (los dos lados)
             BuildShopsStrip(world); // PrototypeSceneBuilder.Shops.cs: los negocios del lado que da a la manzana central
+            BuildFarWest(world);    // PrototypeSceneBuilder.FarWest.cs: al otro lado de la calle x = −110 (después de Shops: usa Storefront)
             ExportHousesFootprints();
         }
 
@@ -110,7 +119,9 @@ namespace GTAChiraq.Editor
             housesOccupied.Clear();
             var rng = new System.Random(seed);
 
-            BuildHousesGround(group);
+            // En el este, B sigue hacia el norte como calle G (HousesNorth.cs): ahí no va el césped del final de B.
+            var lawns = west ? HousesLawns : System.Array.FindAll(HousesLawns, r => r != HousesLawnBNorth);
+            BuildHousesGround(group, HousesRoads, HousesAlleys, HousesSidewalks, lawns);
 
             // Filas de solares. El origen de cada fila está en el centro de su línea de fachada (junto a la acera);
             // su +Z local apunta hacia dentro de la parcela. yaw 0: la parcela queda al norte; 180: al sur; 90: al este.
@@ -130,13 +141,18 @@ namespace GTAChiraq.Editor
 
             CornerStore(group, rng);
             BuildHousesStreetLife(group, rng, west);
-            BuildHousesWeather(group, rng);
+            BuildHousesWeather(group, rng, HousesRoads, HousesAlleys, HousesSidewalks, lawns);
         }
 
         static void PrepareHouses()
         {
-            Material Facade(string name, Color brick, bool ac, int seed) =>
-                TexturedMat(name, ProceduralTextures.BrickFacade(name, brick, ac, seed));
+            plainBrick.Clear();
+            Material Facade(string name, Color brick, bool ac, int seed)
+            {
+                var facadeMat = TexturedMat(name, ProceduralTextures.BrickFacade(name, brick, ac, seed));
+                plainBrick[facadeMat] = TexturedMat(name + "Liso", ProceduralTextures.PlainBrick(name + "Liso", brick, seed));
+                return facadeMat;
+            }
 
             houseFacades = new[]
             {
@@ -187,19 +203,19 @@ namespace GTAChiraq.Editor
 
         // ---------- Suelo: césped, calzadas, aceras y callejones ----------
 
-        static void BuildHousesGround(Transform parent)
+        /// <summary>Césped, calzadas, callejones y aceras de un barrio de casas, a partir de sus tablas de rectángulos.</summary>
+        static void BuildHousesGround(Transform parent, Rect[] roads, Rect[] alleys, Rect[] sidewalks, Rect[] lawns)
         {
             var group = new GameObject("Suelo").transform;
             group.SetParent(parent, false);
             var road = TexturedMat("CalleCasas", ProceduralTextures.Road("CalleCasas", HousesRoadWidth, 8));
             var asphalt = Mat("Asfalto", new Color(0.17f, 0.17f, 0.18f));
 
-            foreach (var r in HousesLawns)
+            foreach (var r in lawns)
                 TexturedBox("Cesped", group, new Vector3(r.center.x, 0.05f, r.center.y), new Vector3(r.width, 0.1f, r.height), lawnMat, Vector2.one * ProceduralTextures.GrassTile);
 
-            for (int i = 0; i < HousesRoads.Length; i++)
+            foreach (var r in roads)
             {
-                var r = HousesRoads[i];
                 bool eastWest = r.width > r.height;
                 if (Mathf.Min(r.width, r.height) < HousesRoadWidth - 0.1f)
                 {
@@ -212,7 +228,7 @@ namespace GTAChiraq.Editor
                 if (eastWest) go.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
             }
 
-            foreach (var r in HousesAlleys)
+            foreach (var r in alleys)
             {
                 bool eastWest = r.width > r.height;
                 var size = eastWest ? new Vector3(r.height, AlleyTop, r.width) : new Vector3(r.width, AlleyTop, r.height);
@@ -222,10 +238,10 @@ namespace GTAChiraq.Editor
 
             // Aceras: cada franja se trocea donde la cruzan calzadas, callejones o aceras ya puestas (sin solapes).
             var placed = new List<Rect>();
-            foreach (var strip in HousesSidewalks)
+            foreach (var strip in sidewalks)
             {
-                var cutters = new List<Rect>(HousesRoads);
-                cutters.AddRange(HousesAlleys);
+                var cutters = new List<Rect>(roads);
+                cutters.AddRange(alleys);
                 cutters.AddRange(placed);
                 foreach (var piece in StripMinus(strip, cutters))
                 {
@@ -275,6 +291,11 @@ namespace GTAChiraq.Editor
                 VacantLot(row, rng, -half, half, depth);
                 return;
             }
+            if (kind == RowKind.Overgrown)
+            {
+                OvergrownLot(row, rng, -half, half, depth);
+                return;
+            }
 
             if (kind == RowKind.Apartments)
             {
@@ -296,7 +317,9 @@ namespace GTAChiraq.Editor
                 if (rng.NextDouble() < 0.12)
                 {
                     float lotW = Mathf.Min(Range(rng, 7f, 11f), half - x);
-                    VacantLot(row, rng, x, x + lotW, depth);
+                    // La mitad, solar vallado con trastos; la otra mitad, comido por la vegetación.
+                    if (rng.NextDouble() < 0.5) OvergrownLot(row, rng, x, x + lotW, depth);
+                    else VacantLot(row, rng, x, x + lotW, depth);
                     x += lotW + 0.5f;
                     continue;
                 }
@@ -330,7 +353,15 @@ namespace GTAChiraq.Editor
             if (abandoned) root.name += "_Tapiada";
             TexturedBox("Muros", root, new Vector3(cx, h / 2f, s + hd / 2f), new Vector3(w, h, hd), facade, facadeTile, sidesOnly: true);
             if (gable)
-                GableRoof(root, new Vector3(cx, h, s + hd / 2f), w, hd, w * 0.42f, 0.45f, shingles, facade);
+            {
+                float rise = w * 0.42f;
+                GableRoof(root, new Vector3(cx, h, s + hd / 2f), w, hd, rise, 0.45f, shingles, facade);
+                // Ventana del desván en el hastial (el hastial es de ladrillo liso: la textura de ventanas salía cortada por el tejado).
+                float atticY = h + Mathf.Min(1.1f, rise * 0.4f);
+                Box("MarcoAtico", root, new Vector3(cx, atticY, s - 0.03f), new Vector3(0.95f, 1.15f, 0.06f), stoneTrim, collider: false);
+                Box("VentanaAtico", root, new Vector3(cx, atticY, s - 0.07f), new Vector3(0.75f, 0.95f, 0.04f), abandoned ? plywood : darkGlass, collider: false);
+                Box("AlfeizarAtico", root, new Vector3(cx, atticY - 0.62f, s - 0.08f), new Vector3(1.1f, 0.08f, 0.16f), stoneTrim, collider: false);
+            }
             else
             {
                 Box("Tejado", root, new Vector3(cx, h + 0.1f, s + hd / 2f), new Vector3(w - 0.1f, 0.2f, hd - 0.1f), tarRoof, collider: false);
@@ -338,22 +369,30 @@ namespace GTAChiraq.Editor
                 Box("Imposta", root, new Vector3(cx, ProceduralTextures.FacadeFloor - 0.1f, s - 0.04f), new Vector3(w + 0.1f, 0.2f, 0.12f), stoneTrim, collider: false);
             }
 
-            // Escalinata y puerta: la piedra gris tiene la entrada más alta, con barandilla de hierro.
-            float doorX = cx + (rng.Next(2) == 0 ? -1f : 1f) * (w / 2f - 1.3f);
-            float landing = gable ? 0.45f : 0.9f;
+            // Escalinata y puerta: la piedra gris tiene la entrada más alta, con barandilla de hierro. La puerta va en el
+            // vano de una esquina y su marco tapa entera la ventana de ese vano; por debajo de la imposta (2.8 m).
+            float doorX = FacadeBayCenter(cx, w, cx + (rng.Next(2) == 0 ? -1f : 1f) * w / 2f, 0.9f);
+            float landing = gable ? 0.45f : 0.6f;
             Box("Rellano", root, new Vector3(doorX, landing / 2f + 0.05f, s - 0.55f), new Vector3(1.8f, landing, 1.1f), concreteMat);
             int steps = Mathf.RoundToInt(landing / 0.15f) - 1;
             for (int k = 1; k <= steps; k++)
                 Box("Escalon", root, new Vector3(doorX, (landing - 0.15f * k) / 2f + 0.05f, s - 1.1f - 0.3f * (k - 0.5f)), new Vector3(1.4f, landing - 0.15f * k, 0.3f), concreteMat);
             float stairsEnd = s - 1.1f - 0.3f * steps;
             if (!gable)
-                foreach (float side in new[] { -0.75f, 0.75f })
-                    Strut("Barandilla", root, new Vector3(doorX + side, landing + 0.95f, s - 0.2f), new Vector3(doorX + side, 0.9f, stairsEnd), 0.05f, ironMat, cylinder: true);
-            Box("Puerta", root, new Vector3(doorX, landing + 1.1f, s - 0.05f), new Vector3(1.05f, 2.2f, 0.1f), abandoned ? plywood : doorMat, collider: false);
+                foreach (float side in new[] { -0.66f, 0.66f })
+                {
+                    // Pasamanos sobre el borde de los escalones: tramo plano sobre el rellano y tramo inclinado, con postes.
+                    float x = doorX + side, railTop = landing + 0.9f, footZ = stairsEnd + 0.15f;
+                    Strut("Barandilla", root, new Vector3(x, railTop, s - 0.15f), new Vector3(x, railTop, s - 1.1f), 0.05f, ironMat, cylinder: true);
+                    Strut("Barandilla", root, new Vector3(x, railTop, s - 1.1f), new Vector3(x, 0.95f, footZ), 0.05f, ironMat, cylinder: true);
+                    Strut("PosteBarandilla", root, new Vector3(x, landing, s - 1.1f), new Vector3(x, railTop, s - 1.1f), 0.06f, ironMat, cylinder: true);
+                    Strut("PosteBarandilla", root, new Vector3(x, LawnTop, footZ), new Vector3(x, 0.95f, footZ), 0.06f, ironMat, cylinder: true);
+                }
+            FacadeDoor(root, doorX, landing, s, -1f, BayWidth(w), 1.05f, 2.15f, abandoned ? plywood : doorMat, stoneTrim, gable ? 2.9f : 2.78f);
             if (stairsEnd > 0.3f)
                 TexturedBox("Camino", root, new Vector3(doorX, 0.06f, stairsEnd / 2f), new Vector3(1.2f, 0.12f, stairsEnd), sidewalkMat, Vector2.one * ProceduralTextures.SidewalkTile, collider: false);
 
-            if (abandoned) BoardUpWindows(root, cx, w, h, s, rng);
+            if (abandoned) BoardUpWindows(root, cx, w, h, s, rng, doorX);
 
             // Valla baja de hierro en el jardín delantero, abierta en el camino.
             if (!abandoned && rng.NextDouble() < 0.55)
@@ -405,8 +444,11 @@ namespace GTAChiraq.Editor
             if (garageFits) RecordFootprint(row, "garaje", gx - gw / 2f, depth - 6.25f, gx + gw / 2f, depth - 0.25f, 2.8f);
         }
 
-        /// <summary>Tablones de contrachapado sobre las ventanas de la fachada (casa abandonada).</summary>
-        static void BoardUpWindows(Transform root, float cx, float w, float h, float s, System.Random rng)
+        /// <summary>
+        /// Tablones de contrachapado sobre las ventanas de la fachada (casa abandonada). En la planta baja se salta el vano
+        /// de <paramref name="doorX"/>, cuya ventana ya tapa la puerta.
+        /// </summary>
+        static void BoardUpWindows(Transform root, float cx, float w, float h, float s, System.Random rng, float doorX = float.NaN)
         {
             int bays = Mathf.Max(1, Mathf.RoundToInt(w / ProceduralTextures.FacadeBay));
             int floors = Mathf.Max(1, Mathf.RoundToInt(h / ProceduralTextures.FacadeFloor));
@@ -415,6 +457,7 @@ namespace GTAChiraq.Editor
             for (int i = 0; i < bays; i++)
             {
                 if (rng.NextDouble() < 0.2) continue; // alguna ventana rota sin tapar
+                if (f == 0 && Mathf.Abs(cx - w / 2f + (i + 0.5f) * bay - doorX) < 0.2f) continue;
                 var board = Box("Tablon", root, new Vector3(cx - w / 2f + (i + 0.5f) * bay, f * floor + floor * 0.53f, s - 0.04f),
                     new Vector3(bay * 0.45f, floor * 0.52f, 0.05f), plywood, collider: false);
                 board.transform.localRotation = Quaternion.Euler(0f, 0f, Range(rng, -4f, 4f));
@@ -461,7 +504,8 @@ namespace GTAChiraq.Editor
         {
             var root = new GameObject("Apartamentos3Pisos").transform;
             root.SetParent(row, false);
-            const float h = 9f;
+            const float h = 9f;                  // 3 pisos de la textura de fachada
+            const float top = h + AptParapetHeight; // con el antepecho, para que quepa la puerta trasera del 3.er piso
             float s = Range(rng, 3f, 4.5f);
             float d = Mathf.Min(13f, depth - s - 6.5f); // detrás: porche con escalera (4.2 m) y patio
             float back = s + d;
@@ -469,14 +513,20 @@ namespace GTAChiraq.Editor
             var facadeTile = new Vector2(ProceduralTextures.FacadeBay, ProceduralTextures.FacadeFloor);
 
             TexturedBox("Muros", root, new Vector3(cx, h / 2f, s + d / 2f), new Vector3(w, h, d), facade, facadeTile, sidesOnly: true);
-            Box("Tejado", root, new Vector3(cx, h + 0.05f, s + d / 2f), new Vector3(w - 0.1f, 0.1f, d - 0.1f), tarRoof, collider: false);
-            Box("Pretil", root, new Vector3(cx, h + 0.3f, s + 0.15f), new Vector3(w + 0.3f, 0.6f, 0.5f), stoneTrim, collider: false);
+            // Antepecho de ladrillo liso sobre el último piso: sin él, la puerta trasera del 3.er piso asomaba por encima del muro.
+            TexturedBox("Antepecho", root, new Vector3(cx, h + AptParapetHeight / 2f, s + d / 2f), new Vector3(w, AptParapetHeight, d),
+                plainBrick[facade], new Vector2(ProceduralTextures.FacadeBay, AptParapetHeight), sidesOnly: true);
+            Box("Tejado", root, new Vector3(cx, top + 0.05f, s + d / 2f), new Vector3(w - 0.1f, 0.1f, d - 0.1f), tarRoof, collider: false);
+            Box("Pretil", root, new Vector3(cx, top + 0.3f, s + 0.15f), new Vector3(w + 0.3f, 0.6f, 0.5f), stoneTrim, collider: false);
             Box("Zocalo", root, new Vector3(cx, 0.4f, s + d / 2f), new Vector3(w + 0.12f, 0.8f, d + 0.12f), stoneTrim);
 
-            // Miradores (ventanas salientes de arriba abajo), como en apartaments2.jpg.
+            // Miradores (ventanas salientes de arriba abajo), como en apartaments2.jpg. Cada uno tapa un vano entero de
+            // la textura; si no, asomaban medias ventanas a sus lados.
+            var bayWindows = new List<float>();
             foreach (float k in w >= 16f ? new[] { -0.3f, 0.3f } : new[] { 0.28f })
             {
-                float bx = cx + k * w;
+                float bx = FacadeBayCenter(cx, w, cx + k * w, 1.6f);
+                bayWindows.Add(bx);
                 TexturedBox("Mirador", root, new Vector3(bx, h / 2f + 0.4f, s - 0.45f), new Vector3(3f, h - 0.8f, 0.9f), facade, facadeTile);
                 Box("CornisaMirador", root, new Vector3(bx, h - 0.1f, s - 0.5f), new Vector3(3.4f, 0.3f, 1.1f), stoneTrim, collider: false);
             }
@@ -485,24 +535,33 @@ namespace GTAChiraq.Editor
             for (int i = 0; i < bays; i++)
                 Box("BloqueVidrio", root, new Vector3(cx - w / 2f + (i + 0.5f) * (w / bays), 0.42f, s - 0.07f), new Vector3(0.9f, 0.45f, 0.05f), glassBlock, collider: false);
 
-            // Portal de piedra con escalones.
+            // Portal de piedra con escalones, centrado en el vano más cercano al centro que no choque con un mirador: la
+            // puerta tapa la ventana de ese vano y las pilastras caen entre ventanas. El dintel queda por debajo del
+            // alféizar del primer piso (3.75 m).
+            float portalX = cx, portalDist = float.MaxValue, bayW = BayWidth(w), wallX0 = cx - w / 2f;
+            for (int bay = 0; bay < bays; bay++)
+            {
+                float c = wallX0 + (bay + 0.5f) * bayW;
+                bool clear = c - 1.6f >= wallX0 && c + 1.6f <= wallX0 + w;
+                foreach (float bx in bayWindows) clear &= Mathf.Abs(c - bx) >= 3.3f;
+                if (clear && Mathf.Abs(c - cx) < portalDist) { portalDist = Mathf.Abs(c - cx); portalX = c; }
+            }
             foreach (float px in new[] { -1.2f, 1.2f })
-                Box("Pilastra", root, new Vector3(cx + px, 1.7f, s - 0.25f), new Vector3(0.5f, 3.4f, 0.5f), stoneTrim);
-            Box("Dintel", root, new Vector3(cx, 3.6f, s - 0.3f), new Vector3(3f, 0.5f, 0.6f), stoneTrim, collider: false);
-            Box("Puerta", root, new Vector3(cx, 1.6f, s - 0.04f), new Vector3(1.7f, 2.6f, 0.08f), darkGlass, collider: false);
-            Box("Escalon", root, new Vector3(cx, 0.15f, s - 0.6f), new Vector3(2.4f, 0.3f, 1.2f), concreteMat);
-            TexturedBox("Camino", root, new Vector3(cx, 0.06f, (s - 1.2f) / 2f), new Vector3(1.8f, 0.12f, s - 1.2f), sidewalkMat, Vector2.one * ProceduralTextures.SidewalkTile, collider: false);
+                Box("Pilastra", root, new Vector3(portalX + px, 1.55f, s - 0.25f), new Vector3(0.5f, 3.1f, 0.5f), stoneTrim);
+            Box("Dintel", root, new Vector3(portalX, 3.3f, s - 0.3f), new Vector3(3f, 0.45f, 0.6f), stoneTrim, collider: false);
+            Box("Puerta", root, new Vector3(portalX, 1.6f, s - 0.04f), new Vector3(1.7f, 2.6f, 0.08f), darkGlass, collider: false);
+            Box("Escalon", root, new Vector3(portalX, 0.15f, s - 0.6f), new Vector3(2.4f, 0.3f, 1.2f), concreteMat);
+            TexturedBox("Camino", root, new Vector3(portalX, 0.06f, (s - 1.2f) / 2f), new Vector3(1.8f, 0.12f, s - 1.2f), sidewalkMat, Vector2.one * ProceduralTextures.SidewalkTile, collider: false);
 
             // Valla baja de hierro delante, con hueco en el portal.
             var tile = new Vector2(ProceduralTextures.IronFenceWidth, 1.1f);
-            FenceSegment(root, new Vector3(cx - w / 2f, LawnTop, 0.5f), new Vector3(cx - 1.1f, LawnTop, 0.5f), 1.1f, ironFence, tile, ironMat, 2.5f, 0.05f, topRail: false);
-            FenceSegment(root, new Vector3(cx + 1.1f, LawnTop, 0.5f), new Vector3(cx + w / 2f, LawnTop, 0.5f), 1.1f, ironFence, tile, ironMat, 2.5f, 0.05f, topRail: false);
+            FenceSegment(root, new Vector3(cx - w / 2f, LawnTop, 0.5f), new Vector3(portalX - 1.1f, LawnTop, 0.5f), 1.1f, ironFence, tile, ironMat, 2.5f, 0.05f, topRail: false);
+            FenceSegment(root, new Vector3(portalX + 1.1f, LawnTop, 0.5f), new Vector3(cx + w / 2f, LawnTop, 0.5f), 1.1f, ironFence, tile, ironMat, 2.5f, 0.05f, topRail: false);
 
             // Porches traseros de madera con escalera en zigzag (apartaments.jfif). Cada porche se coloca para que su
             // puerta caiga justo en el centro de un vano de la textura de fachada: así la puerta tapa la ventana de ese
             // vano en cada piso y la escalera nunca da a una ventana.
-            int facadeBays = Mathf.Max(1, Mathf.RoundToInt(w / ProceduralTextures.FacadeBay));
-            float bayW = w / facadeBays, wallX0 = cx - w / 2f;
+            int facadeBays = bays;
             foreach (float k in w >= 18f ? new[] { -0.25f, 0.25f } : new[] { 0f })
             {
                 // Vanos cuya puerta deja el porche entero dentro de la fachada; el más cercano al sitio buscado.
@@ -529,7 +588,7 @@ namespace GTAChiraq.Editor
             for (int i = 0; i < 3; i++)
                 TrashCart(root, new Vector3(cx + w / 2f - 1f - i * 0.8f, AlleyTop, depth + 0.5f), 180f, binColors[rng.Next(binColors.Length)], false);
 
-            RecordFootprint(row, "apartamentos", cx - w / 2f, s - 0.9f, cx + w / 2f, back, h + 0.6f);
+            RecordFootprint(row, "apartamentos", cx - w / 2f, s - 0.9f, cx + w / 2f, back, top + 0.6f);
             RecordFootprint(row, "porche", cx - w / 2f, back, cx + w / 2f, back + PorchDepth, 10.4f);
         }
 
@@ -541,6 +600,7 @@ namespace GTAChiraq.Editor
         // barandillas tienen colisión.
         const float PorchHalfWidth = 2.7f, PorchDeckDepth = 2f, PorchDepth = 4.2f, PorchBandSplit = 3.1f;
         const float PorchStairX = 1.2f, PorchLandingX = 2.2f; // tramos en |x| < 1.2; rellanos de 1.2 a 2.2
+        const float AptParapetHeight = 0.75f;                   // antepecho de los apartamentos (64 px de PlainBrick)
         const float PorchDoorX = -0.6f;                         // puerta de cada piso, en el centro de un vano de la fachada
         static readonly float[] PorchDeckTops = { 1.07f, 4.07f, 7.07f }; // los pisos de la textura de fachada son de 3 m
 
@@ -588,6 +648,8 @@ namespace GTAChiraq.Editor
                 PorchRail(root, new Vector3(innerX, h, pd), new Vector3(outerX, h, pd), railH);
                 PorchRail(root, new Vector3(outerX, h, dd), new Vector3(outerX, h, pd), railH);
                 if (!rightward) PorchRail(root, new Vector3(outerX, h, dd), new Vector3(innerX, h, dd), railH); // rellano de medio piso
+                // En el último rellano no sale ningún tramo por la banda B: se cierra el hueco que da a la escalera de abajo.
+                if (i + 2 == heights.Length) PorchRail(root, new Vector3(innerX, h, PorchBandSplit), new Vector3(innerX, h, pd), railH);
             }
             // Por debajo del primer tramo de vuelta no se pasa (hay poca altura).
             ColliderBox(root, "LimiteBajoEscalera", new Vector3(-PorchStairX, 1f, bandB), new Vector3(0.1f, 2f, bandW));
@@ -689,6 +751,77 @@ namespace GTAChiraq.Editor
             RecordFootprint(row, "solar", x0, 0f, x1, depth, 0f);
         }
 
+        /// <summary>
+        /// Solar abandonado comido por la vegetación (img/estructures/abandonedParcelVegetacion.png): abierto a la acera,
+        /// hierba alta por todo (algo más baja junto a la acera), árboles grandes y matorral al fondo, algún árbol seco,
+        /// los restos del camino de hormigón de la casa que hubo, un atajo de barro en diagonal y un poste de cartel
+        /// torcido. Marco de la fila: acera en z = 0 y la parcela hacia +Z.
+        /// </summary>
+        static void OvergrownLot(Transform row, System.Random rng, float x0, float x1, float depth)
+        {
+            var root = new GameObject("SolarVegetacion").transform;
+            root.SetParent(row, false);
+            float w = x1 - x0;
+            var bark = LoadMat("Corteza");
+            var bushes = new[] { LoadMat("Arbusto"), LoadMat("ArbustoSeco") };
+
+            // Hierba alta muy densa; los primeros 2.5 m, más baja.
+            int clumps = Mathf.RoundToInt(w * depth * 0.3f);
+            for (int i = 0; i < clumps; i++)
+            {
+                float z = Range(rng, 0.5f, depth - 0.3f);
+                bool front = z < 2.5f;
+                Clump(root, rng, new Vector3(Range(rng, x0 + 0.3f, x1 - 0.3f), LawnTop, z), front ? 0.3f : 0.5f, front ? 0.8f : 1.5f);
+            }
+
+            // Árboles grandes en la mitad del fondo (uno cada ~6 m de frente) y un árbol seco.
+            int trees = Mathf.Clamp(Mathf.RoundToInt(w / 6f), 1, 4);
+            for (int i = 0; i < trees; i++)
+            {
+                float tx = x0 + (i + 0.5f) * w / trees + Range(rng, -1f, 1f);
+                DistrictTree(root, new Vector3(Mathf.Clamp(tx, x0 + 1.5f, x1 - 1.5f), LawnTop, Range(rng, depth * 0.55f, depth - 1.2f)), bark, rng, Range(rng, 1.1f, 1.5f), rng);
+            }
+            if (rng.NextDouble() < 0.7)
+                BareTree(root, new Vector3(Range(rng, x0 + 1.5f, x1 - 1.5f), LawnTop, Range(rng, depth * 0.3f, depth * 0.6f)), bark, rng, Range(rng, 0.8f, 1.1f));
+
+            // Matorral a lo largo del fondo.
+            for (float x = x0 + 0.8f; x < x1 - 0.8f; x += Range(rng, 1.2f, 2.4f))
+            {
+                if (rng.NextDouble() < 0.3) continue;
+                float s = Range(rng, 1f, 2f);
+                var material = bushes[rng.NextDouble() < 0.6 ? 0 : 1];
+                if (material)
+                    Primitive(PrimitiveType.Sphere, "Matorral", root, new Vector3(x + Range(rng, -0.3f, 0.3f), LawnTop + s * 0.3f, depth - Range(rng, 0.6f, 1.6f)),
+                        new Vector3(s, s * 0.75f, s * 0.9f), material, keepCollider: false);
+            }
+
+            // Restos del camino de hormigón de la casa que hubo: losas rotas y alguna que falta.
+            float walkX = Range(rng, x0 + 2f, x1 - 2f), walkEnd = Range(rng, 3f, 5f);
+            for (float z = 0.1f; z < walkEnd; z += 1.05f)
+            {
+                if (rng.NextDouble() < 0.2) continue;
+                Box("CaminoRoto", root, new Vector3(walkX + Range(rng, -0.05f, 0.05f), LawnTop + 0.01f, z + 0.5f), new Vector3(1.1f, 0.03f, 0.95f), concreteMat, collider: false)
+                    .transform.localRotation = Quaternion.Euler(0f, Range(rng, -4f, 4f), 0f);
+            }
+
+            // Atajo de barro en diagonal: la gente cruza el solar.
+            var mud = LoadMat("Barro");
+            if (mud && w > 8f)
+            {
+                bool flip = rng.NextDouble() < 0.5;
+                DesirePath(root, new Vector3(flip ? x1 - 0.5f : x0 + 0.5f, 0f, 0.6f), new Vector3(flip ? x0 + 1f : x1 - 1f, 0f, depth - 1f), mud, rng);
+            }
+
+            // Poste de cartel torcido junto a la acera, basura y nieve.
+            float postX = rng.NextDouble() < 0.5 ? x0 + 0.6f : x1 - 0.6f;
+            Strut("PosteCartel", root, new Vector3(postX, LawnTop, 0.5f), new Vector3(postX + Range(rng, -0.25f, 0.25f), 2.4f, 0.5f + Range(rng, -0.15f, 0.15f)), 0.06f, ironMat, cylinder: true);
+            for (int i = 0; i < 1 + rng.Next(3); i++)
+                GarbageBag(root, new Vector3(Range(rng, x0 + 1f, x1 - 1f), LawnTop, Range(rng, 1f, depth - 1f)), rng);
+            for (int i = 0; i < 2; i++)
+                SnowPatch(root, new Vector3(Range(rng, x0 + 1f, x1 - 1f), LawnTop, Range(rng, depth * 0.5f, depth - 1f)), Range(rng, 0f, 360f), new Vector2(Range(rng, 1.5f, 3f), Range(rng, 1f, 2f)));
+            RecordFootprint(row, "solar", x0, 0f, x1, depth, 0f);
+        }
+
         // ---------- Tienda de esquina ----------
 
         static void CornerStore(Transform parent, System.Random rng)
@@ -701,11 +834,13 @@ namespace GTAChiraq.Editor
             TexturedBox("Muros", root, new Vector3(0f, h / 2f, 0f), new Vector3(w, h, d), facade, new Vector2(ProceduralTextures.FacadeBay, h), sidesOnly: true);
             Box("Tejado", root, new Vector3(0f, h + 0.05f, 0f), new Vector3(w, 0.1f, d), tarRoof, collider: false);
             Box("Pretil", root, new Vector3(0f, h + 0.4f, -d / 2f + 0.15f), new Vector3(w + 0.2f, 0.8f, 0.3f), stoneTrim, collider: false);
-            // Escaparate con rejas hacia C2 (−Z) y letrero sin texto.
-            Box("Escaparate", root, new Vector3(-1f, 1.5f, -d / 2f - 0.04f), new Vector3(8f, 2.2f, 0.06f), darkGlass, collider: false);
+            // Escaparate con rejas hacia C2 (−Z) y letrero sin texto, sobre un frente pintado que tapa las ventanas de la
+            // textura de ladrillo hasta el letrero (si no, asomaban trozos de ventana entre el escaparate y el letrero).
+            Box("Frente", root, new Vector3(0f, 1.6f, -d / 2f - 0.02f), new Vector3(w, 3.2f, 0.04f), Mat("FrenteTienda", new Color(0.15f, 0.3f, 0.18f)), collider: false);
+            Box("Escaparate", root, new Vector3(-1f, 1.5f, -d / 2f - 0.05f), new Vector3(8f, 2.2f, 0.04f), darkGlass, collider: false);
             for (float x = -4.8f; x <= 2.8f; x += 0.4f)
                 Box("Reja", root, new Vector3(x, 1.5f, -d / 2f - 0.1f), new Vector3(0.04f, 2.2f, 0.04f), ironMat, collider: false);
-            Box("Puerta", root, new Vector3(4.2f, 1.2f, -d / 2f - 0.04f), new Vector3(1.2f, 2.3f, 0.06f), darkGlass, collider: false);
+            Box("Puerta", root, new Vector3(4.2f, 1.2f, -d / 2f - 0.05f), new Vector3(1.2f, 2.3f, 0.04f), darkGlass, collider: false);
             Box("Letrero", root, new Vector3(0f, 3.55f, -d / 2f - 0.15f), new Vector3(w - 1f, 0.9f, 0.2f), Mat("LetreroRojo", new Color(0.6f, 0.1f, 0.08f)), collider: false);
             if (graffitiMats[1]) WallGraffiti(root, new Vector3(-w / 2f, 1.6f, 1f), Vector3.left, 3.2f, graffitiMats[1]);
             TrashCan(root, new Vector3(5.6f, SidewalkTop - 0.0f, -d / 2f - 1.3f), 0f, false);
@@ -744,9 +879,11 @@ namespace GTAChiraq.Editor
             ParkedCar(group, new Vector3(136f, RoadTop, 191.8f), 180f, rng);
             ParkedCar(group, new Vector3(223f, AlleyTop, 128.5f), 0f, rng); // en el pasaje a6
 
-            // Calle B sin salida por los dos extremos: barrera de hormigón, pilonas y nieve apilada.
+            // Barrera de hormigón, pilonas y nieve apilada en el extremo de B que no sigue: el norte (local 201.4) sigue
+            // como G en el este, y el sur (local 92.6, el norte en el mundo) sigue como B' hasta F en la copia oeste
+            // (HousesNorth.cs). Así B es sin salida solo por el lado del barrio de viviendas y de los negocios.
             var bollard = Mat("PilonaRoja", new Color(0.55f, 0.12f, 0.1f));
-            foreach (float z in new[] { 92.6f, 201.4f })
+            foreach (float z in new[] { west ? 201.4f : 92.6f })
             {
                 Box("Barrera", group, new Vector3(212f, 0.42f, z), new Vector3(9.6f, 0.8f, 0.6f), concreteMat);
                 for (float x = 208f; x <= 216f; x += 2f)
@@ -764,17 +901,28 @@ namespace GTAChiraq.Editor
                 WoodFenceLine(group, new Vector3(HousesMinX, LawnTop, fenceZ), new Vector3(240.5f, LawnTop, fenceZ));
                 WoodFenceLine(group, new Vector3(246.5f, LawnTop, fenceZ), new Vector3(HousesMaxX, LawnTop, fenceZ));
             }
-            else WoodFenceLine(group, new Vector3(HousesMinX, LawnTop, fenceZ), new Vector3(HousesMaxX, LawnTop, fenceZ));
-            WoodFenceLine(group, new Vector3(HousesMaxX - 0.2f, LawnTop, HousesMinZ), new Vector3(HousesMaxX - 0.2f, LawnTop, HousesMaxZ));
-            // Lado sur (local): en el este da al barrio de viviendas y tiene dos huecos de paso; en el oeste es el límite
-            // del mapa y va entera.
-            float x0 = HousesMinX + 2f;
-            foreach (float gap in west ? new float[0] : new[] { 150f, 186f })
+            // En el este, el borde norte ya no lleva valla: al otro lado del callejón a4 siguen las casas de la ampliación
+            // norte (HousesNorth.cs), cuyas parcelas tienen su propia valla trasera.
+            // En la copia oeste esta valla separa de la ampliación: se abre donde entran sus callejones (HousesWestExt.cs).
+            float fenceZ0 = HousesMinZ;
+            foreach (var (g0, g1) in west ? WestExtFenceGapsLocal : new (float, float)[0])
             {
-                WoodFenceLine(group, new Vector3(x0, LawnTop, 91.2f), new Vector3(gap, LawnTop, 91.2f));
-                x0 = gap + 2.5f;
+                WoodFenceLine(group, new Vector3(HousesMaxX - 0.2f, LawnTop, fenceZ0), new Vector3(HousesMaxX - 0.2f, LawnTop, g0));
+                fenceZ0 = g1;
             }
-            WoodFenceLine(group, new Vector3(x0, LawnTop, 91.2f), new Vector3(240f, LawnTop, 91.2f));
+            WoodFenceLine(group, new Vector3(HousesMaxX - 0.2f, LawnTop, fenceZ0), new Vector3(HousesMaxX - 0.2f, LawnTop, HousesMaxZ));
+            // Lado sur (local): en el este da al barrio de viviendas y tiene dos huecos de paso. En el oeste es el borde
+            // norte del mundo y no lleva valla: al otro lado del callejón a1' siguen las casas de la ampliación norte.
+            if (!west)
+            {
+                float x0 = HousesMinX + 2f;
+                foreach (float gap in new[] { 150f, 186f })
+                {
+                    WoodFenceLine(group, new Vector3(x0, LawnTop, 91.2f), new Vector3(gap, LawnTop, 91.2f));
+                    x0 = gap + 2.5f;
+                }
+                WoodFenceLine(group, new Vector3(x0, LawnTop, 91.2f), new Vector3(240f, LawnTop, 91.2f));
+            }
         }
 
         static List<Vector3> Points(Vector3 a, Vector3 b, float spacing)
@@ -804,7 +952,7 @@ namespace GTAChiraq.Editor
 
         // ---------- Nieve, maleza, basura y suciedad ----------
 
-        static void BuildHousesWeather(Transform parent, System.Random rng)
+        static void BuildHousesWeather(Transform parent, System.Random rng, Rect[] roads, Rect[] alleys, Rect[] sidewalks, Rect[] lawns)
         {
             var group = new GameObject("NieveMalezaBasura").transform;
             group.SetParent(parent, false);
@@ -812,7 +960,7 @@ namespace GTAChiraq.Editor
 
             // Callejones: maleza en los bordes, charcos y barro, bolsas y algún montón de nieve contra la valla.
             int decal = 0;
-            foreach (var r in HousesAlleys)
+            foreach (var r in alleys)
             {
                 bool eastWest = r.width > r.height;
                 float length = eastWest ? r.width : r.height;
@@ -839,7 +987,7 @@ namespace GTAChiraq.Editor
             }
 
             // Montones de nieve sucia en el bordillo de las aceras.
-            foreach (var strip in HousesSidewalks)
+            foreach (var strip in sidewalks)
             {
                 bool alongX = strip.width >= strip.height;
                 float length = alongX ? strip.width : strip.height;
@@ -847,7 +995,7 @@ namespace GTAChiraq.Editor
                 {
                     if (rng.NextDouble() < 0.35) continue;
                     var p = alongX ? new Vector3(strip.xMin + t, SidewalkTop, strip.center.y) : new Vector3(strip.center.x, SidewalkTop, strip.yMin + t);
-                    if (!InsideAny(HousesRoads, p) && !InsideAny(HousesAlleys, p))
+                    if (!InsideAny(roads, p) && !InsideAny(alleys, p))
                         SnowMound(group, p, new Vector3(Range(rng, 1.2f, 2.8f), Range(rng, 0.2f, 0.4f), 0.8f), alongX ? 0f : 90f);
                 }
             }
@@ -855,9 +1003,9 @@ namespace GTAChiraq.Editor
             // Placas de nieve en el césped y basura en las aceras, fuera de los edificios.
             for (int i = 0; i < 70; i++)
             {
-                var lawn = HousesLawns[rng.Next(HousesLawns.Length)];
+                var lawn = lawns[rng.Next(lawns.Length)];
                 var p = new Vector3(Range(rng, lawn.xMin + 1f, lawn.xMax - 1f), LawnTop, Range(rng, lawn.yMin + 1f, lawn.yMax - 1f));
-                if (InsideAny(housesOccupied, p) || InsideAny(HousesAlleys, p)) continue;
+                if (InsideAny(housesOccupied, p) || InsideAny(alleys, p)) continue;
                 SnowPatch(group, p, Range(rng, 0f, 360f), new Vector2(Range(rng, 1.4f, 3.5f), Range(rng, 1f, 2.4f)));
             }
             var paper = (name: "Papel", material: Mat("BasuraPapel", new Color(0.82f, 0.82f, 0.78f)), shape: PrimitiveType.Cube, size: new Vector3(0.22f, 0.01f, 0.3f));
@@ -866,9 +1014,9 @@ namespace GTAChiraq.Editor
             var kinds = new[] { paper, can, bottle };
             for (int i = 0; i < 160; i++)
             {
-                var strip = HousesSidewalks[rng.Next(HousesSidewalks.Length)];
+                var strip = sidewalks[rng.Next(sidewalks.Length)];
                 var p = new Vector3(Range(rng, strip.xMin + 0.2f, strip.xMax - 0.2f), SidewalkTop, Range(rng, strip.yMin + 0.2f, strip.yMax - 0.2f));
-                if (InsideAny(HousesRoads, p) || InsideAny(HousesAlleys, p)) continue;
+                if (InsideAny(roads, p) || InsideAny(alleys, p)) continue;
                 PlaceLitter(group, kinds[rng.Next(kinds.Length)], p, rng);
             }
         }
@@ -913,7 +1061,9 @@ namespace GTAChiraq.Editor
             var roofGo = MeshObject("Tejado", parent, wallTop, ridgeAlongX, v, uv, tris, roof);
             roofGo.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.TwoSided;
 
-            // Hastiales.
+            // Hastiales. Con una fachada de ladrillo se usa su versión lisa: la textura con ventanas salía cortada por los faldones.
+            float tu = ProceduralTextures.FacadeBay, tv = ProceduralTextures.FacadeFloor;
+            if (plainBrick.TryGetValue(wall, out var plainWall)) { wall = plainWall; tv = ProceduralTextures.PlainBrickHeight; }
             var gv = new List<Vector3>();
             var guv = new List<Vector2>();
             var gt = new List<int>();
@@ -921,11 +1071,49 @@ namespace GTAChiraq.Editor
             {
                 int i = gv.Count;
                 gv.AddRange(new[] { new Vector3(-hw, 0f, z), new Vector3(hw, 0f, z), new Vector3(0f, rise, z) });
-                float tu = ProceduralTextures.FacadeBay, tv = ProceduralTextures.FacadeFloor;
                 guv.AddRange(new[] { new Vector2(0f, 0f), new Vector2(2f * hw / tu, 0f), new Vector2(hw / tu, rise / tv) });
                 gt.AddRange(z > 0f ? new[] { i, i + 1, i + 2 } : new[] { i, i + 2, i + 1 });
             }
             MeshObject("Hastiales", parent, wallTop, ridgeAlongX, gv, guv, gt, wall);
+        }
+
+        // ---------- Puertas sobre la textura de fachada ----------
+
+        // La ventana de BrickFacade ocupa en cada vano 116/256 del ancho (con el alféizar) y, en la planta baja, de
+        // 0.75 m (alféizar) a 2.46 m (dintel). Una puerta encima de un vano debe tapar todo eso.
+        const float WindowCoverFraction = 0.47f, WindowLintelTop = 2.48f;
+
+        /// <summary>Ancho de un vano de la textura de fachada en una pared de <paramref name="width"/> (TexturedBox redondea los vanos).</summary>
+        static float BayWidth(float width) => width / Mathf.Max(1, Mathf.RoundToInt(width / ProceduralTextures.FacadeBay));
+
+        /// <summary>
+        /// Centro del vano de fachada más cercano a <paramref name="want"/> en una pared de ancho <paramref name="width"/>
+        /// centrada en <paramref name="wallCx"/>, dejando al menos <paramref name="margin"/> hasta cada esquina.
+        /// </summary>
+        static float FacadeBayCenter(float wallCx, float width, float want, float margin = 0f)
+        {
+            float bayW = BayWidth(width), x0 = wallCx - width / 2f, best = wallCx, dist = float.MaxValue;
+            for (float c = x0 + bayW / 2f; c < x0 + width; c += bayW)
+            {
+                if (c - x0 < margin - 0.01f || x0 + width - c < margin - 0.01f) continue;
+                if (Mathf.Abs(c - want) < dist) { dist = Mathf.Abs(c - want); best = c; }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Puerta de planta baja sobre un vano de la textura de fachada (pared en z = <paramref name="faceZ"/>, mirando a
+        /// <paramref name="outward"/> = ±1): un marco que tapa entera la ventana del vano, alféizar incluido, y la hoja
+        /// delante. <paramref name="bottom"/> no debe pasar del alféizar (0.75 m). El marco no sube de <paramref name="maxTop"/>.
+        /// </summary>
+        static GameObject FacadeDoor(Transform root, float x, float bottom, float faceZ, float outward, float bayW,
+            float doorW, float doorH, Material leaf, Material frame, float maxTop = 2.9f)
+        {
+            float frameW = Mathf.Max(doorW + 0.3f, bayW * WindowCoverFraction);
+            float frameTop = Mathf.Min(maxTop, Mathf.Max(bottom + doorH + 0.12f, WindowLintelTop));
+            doorH = Mathf.Min(doorH, frameTop - 0.1f - bottom);
+            Box("MarcoPuerta", root, new Vector3(x, (bottom + frameTop) / 2f, faceZ + outward * 0.03f), new Vector3(frameW, frameTop - bottom, 0.06f), frame, collider: false);
+            return Box("Puerta", root, new Vector3(x, bottom + doorH / 2f, faceZ + outward * 0.08f), new Vector3(doorW, doorH, 0.06f), leaf, collider: false);
         }
 
         static GameObject MeshObject(string name, Transform parent, Vector3 position, bool rotate90, List<Vector3> vertices, List<Vector2> uvs, List<int> triangles, Material material)

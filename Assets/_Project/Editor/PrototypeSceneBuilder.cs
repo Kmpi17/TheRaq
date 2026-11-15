@@ -67,6 +67,7 @@ namespace GTAChiraq.Editor
             BuildElevatedTrain(world);  // PrototypeSceneBuilder.Train.cs (los trenes quedan fuera de "Mundo": se mueven)
             BuildStreetLights(world);
             BuildSnow(world);
+            BuildMainRoadDetails(world); // PrototypeSceneBuilder.MainRoads.cs: alcantarillas, sumideros, nieve y manchas
             MarkStatic(world);
 
             var player = BuildPlayer(new Vector3(-10f, 0.2f, -BlockHalfZ - 1.5f));
@@ -121,7 +122,6 @@ namespace GTAChiraq.Editor
         {
             var asphalt = Mat("Asfalto", new Color(0.17f, 0.17f, 0.18f));
             var concrete = Mat("Hormigon", new Color(0.6f, 0.59f, 0.56f));
-            var yellow = Mat("LineaAmarilla", new Color(0.8f, 0.65f, 0.15f));
 
             Box("Suelo", world, new Vector3(0f, -0.1f, 0f), new Vector3(600f, 0.2f, 600f), asphalt);
 
@@ -130,16 +130,26 @@ namespace GTAChiraq.Editor
 
             // Aceras de enfrente, al otro lado de la calzada.
             float farZ = outerZ + RoadWidth + SidewalkWidth / 2f, farX = outerX + RoadWidth + SidewalkWidth / 2f;
-            // La del norte se corta en la entrada del aparcamiento de los negocios y en el pasaje al callejón (Shops.cs).
+            // Las de enfrente se cortan donde las cruza la otra calle grande (la avenida y la calle x = −110 para las del
+            // norte y sur; las calles z = ±80 para la del oeste): si no, quedaría un bordillo atravesando la calzada.
+            var avenueCuts = new List<Rect> { Rect.MinMaxRect(outerX, -300f, outerX + RoadWidth, 300f), Rect.MinMaxRect(-outerX - RoadWidth, -300f, -outerX, 300f) };
+            // La del norte se corta también en la entrada del aparcamiento de los negocios y en el pasaje al callejón (Shops.cs).
             var northStrip = Rect.MinMaxRect(-300f, farZ - SidewalkWidth / 2f, 300f, farZ + SidewalkWidth / 2f);
-            foreach (var piece in StripMinus(northStrip, new List<Rect> { ShopsLotDriveway, ShopsAlleyLink }))
+            var northCuts = new List<Rect>(avenueCuts) { ShopsLotDriveway, ShopsAlleyLink };
+            northCuts.AddRange(FarWestNorthSidewalkCuts); // calle J y entradas de la gasolinera (FarWest.cs)
+            foreach (var piece in StripMinus(northStrip, northCuts))
                 Box("AceraEnfrente_N", world, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
-            Box("AceraEnfrente_S", world, new Vector3(0f, 0.075f, -farZ), new Vector3(600f, 0.15f, SidewalkWidth), concrete);
+            var southStrip = Rect.MinMaxRect(-300f, -farZ - SidewalkWidth / 2f, 300f, -farZ + SidewalkWidth / 2f);
+            foreach (var piece in StripMinus(southStrip, avenueCuts))
+                Box("AceraEnfrente_S", world, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
             // La acera de enfrente este se corta donde entra la calle del barrio de viviendas.
             float cut = DistrictRoadWidth / 2f, half = (300f - cut) / 2f;
-            // Al norte, también se corta donde entran las calles A y C1 del barrio de casas.
+            // Al norte, también se corta donde entran las calles A y C1 del barrio de casas y la Fe de la ampliación norte.
             float north = cut;
-            foreach (var r in HousesRoads)
+            var avenueRoads = new List<Rect>(HousesRoads);
+            avenueRoads.AddRange(NorthAvenueRoadsEast);
+            avenueRoads.Sort((p, q) => p.yMin.CompareTo(q.yMin));
+            foreach (var r in avenueRoads)
             {
                 if (r.xMin > farX) continue; // solo las que salen de la avenida
                 Box("AceraEnfrente_E_N", world, new Vector3(farX, 0.075f, (north + r.yMin) / 2f), new Vector3(SidewalkWidth, 0.15f, r.yMin - north), concrete);
@@ -147,14 +157,14 @@ namespace GTAChiraq.Editor
             }
             Box("AceraEnfrente_E_N", world, new Vector3(farX, 0.075f, (north + 300f) / 2f), new Vector3(SidewalkWidth, 0.15f, 300f - north), concrete);
             Box("AceraEnfrente_E_S", world, new Vector3(farX, 0.075f, -cut - half), new Vector3(SidewalkWidth, 0.15f, half * 2f), concrete);
-            Box("AceraEnfrente_O", world, new Vector3(-farX, 0.075f, 0f), new Vector3(SidewalkWidth, 0.15f, 600f), concrete);
+            var westStrip = Rect.MinMaxRect(-farX - SidewalkWidth / 2f, -300f, -farX + SidewalkWidth / 2f, 300f);
+            var crossStreets = new List<Rect> { Rect.MinMaxRect(-300f, outerZ, 300f, outerZ + RoadWidth), Rect.MinMaxRect(-300f, -outerZ - RoadWidth, 300f, -outerZ) };
+            crossStreets.AddRange(FarWestWestSidewalkCuts); // calles D, E, F, H del oeste lejano y entrada de la gasolinera
+            foreach (var piece in StripMinus(westStrip, crossStreets))
+                Box("AceraEnfrente_O", world, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
 
-            // Línea central de cada calle.
-            float roadZ = outerZ + RoadWidth / 2f, roadX = outerX + RoadWidth / 2f;
-            Box("Linea_N", world, new Vector3(0f, 0.005f, roadZ), new Vector3(600f, 0.01f, 0.15f), yellow, collider: false);
-            Box("Linea_S", world, new Vector3(0f, 0.005f, -roadZ), new Vector3(600f, 0.01f, 0.15f), yellow, collider: false);
-            Box("Linea_E", world, new Vector3(roadX, 0.005f, 0f), new Vector3(0.15f, 0.01f, 600f), yellow, collider: false);
-            Box("Linea_O", world, new Vector3(-roadX, 0.005f, 0f), new Vector3(0.15f, 0.01f, 600f), yellow, collider: false);
+            // Calzadas de las cuatro calles grandes con textura, cruces y pasos de cebra (PrototypeSceneBuilder.MainRoads.cs).
+            BuildMainRoads(world);
         }
 
         static void BuildSurroundings(Transform world)
@@ -177,7 +187,7 @@ namespace GTAChiraq.Editor
                 if (Mathf.Abs(Mathf.Abs(x) - avenueX) < 14f) continue; // deja libre el cruce
                 foreach (float side in new[] { 1f, -1f })
                 {
-                    if (side > 0f && x > -37f) continue; // ahí están los negocios y los dos barrios de casas
+                    if (side > 0f) continue; // al norte: el oeste lejano, la ampliación oeste, los negocios y los barrios de casas
 
                     float height = rng.NextDouble() < 0.7 ? 8f : 5f;
                     var size = new Vector3(10f, height, 14f);

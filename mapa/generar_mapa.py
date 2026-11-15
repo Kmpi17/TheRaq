@@ -23,9 +23,55 @@ WALKUP_SIZE, TOWER_SIZE = (24, 12), (30, 15)     # (x, z)
 COURT, COURT_SIZE, COURT_MARGIN = (232, 58), (12, 20), 1.5
 PLAZA, WRECK = (232, -58), (241, -34)
 
+# ---------- Ampliación oeste del barrio de casas (PrototypeSceneBuilder.HousesWestExt.cs), en el mundo ----------
+WX_MIN_X, WX_MAX_X, WX_MIN_Z, WX_MAX_Z, WX_STREET_END = -103, -30, 90, 226, -36
+WX_ROADS = [(-103, 126.5, -36, 136.5), (-103, 180.5, -36, 190.5)]
+WX_ROAD_NAMES = [("D", -70, 131.5), ("E", -70, 185.5)]
+WX_ALLEYS = [(-100.5, 102.5, -26, 107.5), (-100.5, 156.5, -26, 161.5), (-100.5, 219, -26, 224)]
+WX_SIDEWALKS = [(-103, 90, -100.5, 226), (-100.5, 124, -36, 126.5), (-100.5, 136.5, -36, 139), (-36, 124, -33.5, 139),
+                (-100.5, 178, -36, 180.5), (-100.5, 190.5, -36, 193), (-36, 178, -33.5, 193)]
+WX_LAWNS = [(-100.5, 90, -30, 126.5), (-36, 126.5, -30, 136.5), (-100.5, 136.5, -30, 180.5), (-36, 180.5, -30, 190.5),
+            (-100.5, 190.5, -30, 226)]
+WX_FENCE_GAPS_LOCAL = [(92, 97), (154.5, 159.5), (208.5, 213.5)]   # huecos en la valla este de la copia (z local)
+
+# ---------- Oeste lejano (PrototypeSceneBuilder.FarWest.cs), en el mundo ----------
+FW_ROADS = [(-262, 87, -252, 298), (-252, 126.5, -117, 136.5), (-252, 180.5, -117, 190.5), (-252, 248, -117, 258),
+            (-252, 288, -117, 298)]
+FW_ROAD_NAMES = [("J", -257, 210), ("D", -190, 131.5), ("E", -160, 185.5), ("F", -190, 253), ("H", -190, 293)]
+FW_ALLEYS = [(-226, 156.5, -120, 161.5), (-205, 219, -120, 224)]
+FW_SIDEWALKS = [(-264.5, 90, -262, 298), (-252, 90, -249.5, 298), (-249.5, 124, -120, 126.5), (-249.5, 136.5, -120, 139),
+                (-249.5, 178, -120, 180.5), (-249.5, 190.5, -120, 193), (-249.5, 245.5, -120, 248),
+                (-249.5, 258, -120, 260.5), (-249.5, 285.5, -120, 288)]
+FW_LAWNS = [(-249.5, 102, -160, 124), (-249.5, 139, -120, 178), (-249.5, 193, -120, 245.5), (-249.5, 260.5, -120, 285.5),
+            (-300, 90, -264.5, 298)]
+FW_GAS_LOT = (-160, 90, -120, 124)
+FW_GAS_DRIVES = [(-156, 87, -146, 90), (-134, 87, -124, 90), (-120, 104, -117, 114)]
+FW_CANOPY = (-150, 98.5, -128, 110.5)
+FW_MART = (-158, 113, -141, 120.5)
+FW_SHOPS = [("7", -247, -235), ("8", -229, -219), ("9", -215, -202), ("10", -190, -176), ("11", -173, -163)]
+FW_SHOPS_VACANT = (-201, 93, -191, 102)
+FW_COURT = (-237.75, 158.5)
+SH_FRONT_FW = 93                                  # misma línea de fachada que los negocios (ShopsFront)
+FW_WASTELAND = (-249.5, 193, -205, 245.5)
+
+# ---------- Ampliación norte (PrototypeSceneBuilder.HousesNorth.cs), en el mundo ----------
+N_MAX_Z = 298                                    # borde norte de la calle H
+NE_ROADS = [(117, 248, 207, 258), (207, 202, 217, 298), (117, 288, 207, 298)]   # Fe, G (sigue a B), H este
+NE_ROAD_NAMES = [("Fe", 160, 253), ("G", 212, 255), ("H", 160, 293)]
+NE_ALLEYS = [(241, 213.5, 246, 285.5)]
+NE_SIDEWALKS = [(120, 245.5, 207, 248), (120, 258, 207, 260.5), (204.5, 202, 207, 208.5), (204.5, 213.5, 207, 285.5),
+                (217, 202, 219.5, 208.5), (217, 213.5, 219.5, 298), (120, 285.5, 207, 288)]
+NE_LAWNS = [(120, 214, 207, 248), (120, 258, 207, 288), (217, 214, 250, N_MAX_Z)]
+NW_ROADS = [(-103, 248, 103, 258), (3, 224, 13, 248), (-103, 288, 103, 298)]   # F, B' (sigue), H oeste
+NW_ROAD_NAMES = [("F", -60, 253), ("F", 50, 253), ("H", -60, 293), ("H", 50, 293), ("B'", 8, 236)]
+NW_ALLEYS = [(-42, 260.5, -37, 285.5)]
+NW_SIDEWALKS = [(-103, 226, -100.5, 288), (-100.5, 245.5, 100, 248), (-100.5, 258, 100, 260.5), (0.5, 224, 3, 245.5),
+                (13, 224, 15.5, 245.5), (-100.5, 285.5, 100, 288)]
+NW_LAWNS = [(-100.5, 226, 3, 248), (13, 226, 100, 248), (-100.5, 258, 100, 288)]
+
 # ---------- Dibujo ----------
 S = 4                                    # píxeles por metro
-X0, X1, Z0, Z1 = -215, 262, -112, 232    # zona del mundo que se dibuja
+X0, X1, Z0, Z1 = -305, 262, -112, 302    # zona del mundo que se dibuja
 
 # ---------- Barrio de casas (PrototypeSceneBuilder.Houses.cs), rectángulos (x0, z0, x1, z1) ----------
 H_ROADS = [(117, 117, 207, 127), (207, 92, 217, 202), (117, 183, 173, 193), (163, 171, 207, 181), (163, 181, 173, 183)]
@@ -117,13 +163,32 @@ box(X0, Z0, X1, Z1, C["asphalt"])
 outer_x, outer_z = BLOCK_HALF_X + SIDEWALK, BLOCK_HALF_Z + SIDEWALK
 road_z, road_x = outer_z + ROAD / 2, outer_x + ROAD / 2          # 80, 110
 far_z, far_x = outer_z + ROAD + SIDEWALK / 2, outer_x + ROAD + SIDEWALK / 2
+# Calles grandes (PrototypeSceneBuilder.MainRoads.cs): la doble amarilla para en la línea de stop, a 4.1 m del cruce,
+# y en cada llegada hay un paso de cebra de 0.4 a 3.2 m del cruce.
+STOP_GAP = ROAD / 2 + 4.1
 for z in (road_z, -road_z):
-    box(X0, z - 0.08, X1, z + 0.08, C["line"])
+    edges = [X0, -road_x - STOP_GAP, -road_x + STOP_GAP, road_x - STOP_GAP]   # acaba en la avenida
+    for x0_, x1_ in zip(edges[0::2], edges[1::2]):
+        box(x0_, z - 0.08, x1_, z + 0.08, C["line"])
 for x in (road_x, -road_x):
-    box(x - 0.08, Z0, x + 0.08, Z1, C["line"])
+    edges = [Z0] + [e for k in (-road_z, road_z) for e in (k - STOP_GAP, k + STOP_GAP)] + [Z1]
+    for z0_, z1_ in zip(edges[0::2], edges[1::2]):
+        box(x - 0.08, z0_, x + 0.08, z1_, C["line"])
+for cx in (-road_x, road_x):
+    for cz in (-road_z, road_z):
+        for sgn in (1, -1):
+            n0, n1 = ROAD / 2 + 0.4, ROAD / 2 + 3.2
+            for i in range(14):                                                 # barras de 0.5 m cada metro
+                a0 = -ROAD / 2 + 0.3 + i
+                if not (cx > 0 and sgn > 0):                                    # z = ±80 acaba en la avenida (cruce en T)
+                    box(cx + n0 if sgn > 0 else cx - n1, cz + a0, cx + n1 if sgn > 0 else cx - n0, cz + a0 + 0.5, (215, 215, 205))
+                box(cx + a0, cz + sgn * n0 if sgn > 0 else cz - n1, cx + a0 + 0.5, cz + n1 if sgn > 0 else cz - n0, (215, 215, 205))
+# Aceras de enfrente N/S y O, cortadas donde las cruza la otra calle grande (no hay bordillo atravesando la calzada).
 for side in (1, -1):
-    rect(0, side * far_z, 600, SIDEWALK, C["sidewalk"])                         # aceras de enfrente N/S
-box(-far_x - 1.5, Z0, -far_x + 1.5, Z1, C["sidewalk"])                          # acera de enfrente O
+    for x0_, x1_ in ((-300, -outer_x - ROAD), (-outer_x, outer_x), (outer_x + ROAD, 300)):
+        box(x0_, side * far_z - SIDEWALK / 2, x1_, side * far_z + SIDEWALK / 2, C["sidewalk"])
+for z0_, z1_ in ((Z0, -outer_z - ROAD), (-outer_z, outer_z), (outer_z + ROAD, Z1)):
+    box(-far_x - 1.5, z0_, -far_x + 1.5, z1_, C["sidewalk"])
 box(far_x - 1.5, D_ROAD / 2, far_x + 1.5, Z1, C["sidewalk"])                    # acera de enfrente E (cortada)
 box(far_x - 1.5, -D_ROAD / 2, far_x + 1.5, Z0, C["sidewalk"])
 
@@ -261,11 +326,10 @@ x = -200
 while x <= 200:
     if abs(abs(x) - avenue_x) >= 14:
         for side in (1, -1):
-            if side > 0 and x > -37:
-                continue  # ahí están los negocios y los dos barrios de casas
+            if side > 0:
+                continue  # al norte: oeste lejano, ampliación oeste, negocios y barrios de casas
             rect(x, side * row_z, 10, 14, C["house"], outline=(70, 50, 40))
     x += 13
-label(-120, row_z, "two-flats (2 plantas, color liso)", F_S)
 label(-60, -row_z, "two-flats (2 plantas, color liso)", F_S)
 rect(-avenue_x - 20, -row_z, 16, 14, C["store"], outline=(30, 30, 30), width=2)
 box(-avenue_x - 26, -row_z + 7, -avenue_x - 14, -row_z + 7.6, (30, 70, 160))
@@ -375,17 +439,27 @@ for r in H_ALLEYS:
     box(*r, C["alley"])
 box(far_x - 1.5, 117, far_x + 1.5, 127, C["asphalt"])                             # la acera de la avenida se corta
 box(far_x - 1.5, 183, far_x + 1.5, 193, C["asphalt"])
-d.line([px(120, 214 - 0.2), px(250, 214 - 0.2)], fill=C["wood"], width=3)          # vallas de madera del borde
-d.line([px(250 - 0.2, 90), px(250 - 0.2, 214)], fill=C["wood"], width=3)
+for r in NE_LAWNS:                                                                  # ampliación norte (este)
+    box(*r, C["lawn_d"])
+for r in NE_ROADS:
+    box(*r, C["asphalt"])
+for r in NE_SIDEWALKS:
+    box(*r, C["sidewalk"])
+for r in NE_ALLEYS:
+    box(*r, C["alley"])
+box(far_x - 1.5, 248, far_x + 1.5, 258, C["asphalt"])
+box(far_x - 1.5, 288, far_x + 1.5, 298, C["asphalt"])
+d.line([px(219.5, N_MAX_Z - 0.2), px(250, N_MAX_Z - 0.2)], fill=C["wood"], width=3)  # vallas de madera del borde
+d.line([px(250 - 0.2, 90), px(250 - 0.2, N_MAX_Z)], fill=C["wood"], width=3)
 for a, b in ((122, 150), (152.5, 186), (188.5, 240)):
     d.line([px(a, 91.2), px(b, 91.2)], fill=C["wood"], width=3)
-for z in (92.6, 201.4):                                                            # B sin salida
+for z in (92.6,):                                                                  # B sin salida por el sur (sigue como G)
     box(207.2, z - 0.3, 216.8, z + 0.3, (200, 200, 195))
 footprints = Path(__file__).with_name("edificios_casas.json")
 if footprints.exists():
     import json
     kind_color = {"casa": C["brick"], "apartamentos": C["tower"], "garaje": C["garage"], "porche": C["porch"],
-                  "tienda": C["store"], "solar": C["weeds"]}
+                  "tienda": C["store"], "solar": C["weeds"], "cancha": C["court"], "gasolinera": (225, 225, 220)}
     for e in json.loads(footprints.read_text(encoding="utf-8"))["edificios"]:
         pts = [px(x, z) for x, z in e["esquinas"]]
         if e["tipo"] == "solar":
@@ -396,7 +470,7 @@ else:
     label(185, 160, "casas: construye la escena en Unity\ny vuelve a ejecutar este script", F_M)
 for name, x, z in H_ROAD_NAMES:
     label(x, z, f"calle {name}", F_S)
-label(185, 218, "BARRIO DE CASAS (casas bajas, apartamentos de 3 pisos, callejones)", F_M)
+label(185, 205, "BARRIO DE CASAS (casas bajas, apartamentos de 3 pisos, callejones)", F_M)
 
 # ---------- Copia oeste del barrio de casas (girada 180°: mundo = (220 − x, 316 − z)) ----------
 HW_X, HW_Z = 220, 316
@@ -420,20 +494,65 @@ for r in H_ALLEYS:
     box(*west(r), C["alley"])
 west_line(120, 240.5, 214 - 0.2)                                                   # valla tras los negocios (hueco en a5)
 west_line(246.5, 250, 214 - 0.2)
-west_line(122, 240, 91.2)
-d.line([px(HW_X - 249.8, HW_Z - 90), px(HW_X - 249.8, HW_Z - 214)], fill=C["wood"], width=3)
-for z in (92.6, 201.4):
+z_prev = 90                                                                        # valla hacia la ampliación, con huecos
+for g0, g1 in WX_FENCE_GAPS_LOCAL + [(214, 214)]:
+    d.line([px(HW_X - 249.8, HW_Z - z_prev), px(HW_X - 249.8, HW_Z - g0)], fill=C["wood"], width=3)
+    z_prev = g1
+for z in (201.4,):                                                                 # B' sigue hacia el norte hasta F
     box(HW_X - 216.8, HW_Z - z - 0.3, HW_X - 207.2, HW_Z - z + 0.3, (200, 200, 195))
 for name, x, z in H_ROAD_NAMES:
     label(HW_X - x, HW_Z - z, f"calle {name}'", F_S)
 # Acera oeste de la avenida (x 100–103), cortada donde entran A' y C1'.
 z_prev = 90
-cuts = sorted((west(r)[1], west(r)[3]) for r in H_ROADS if r[0] < 118)
+cuts = sorted([(west(r)[1], west(r)[3]) for r in H_ROADS if r[0] < 118] + [(r[1], r[3]) for r in (NW_ROADS[0], NW_ROADS[2])])
 for a, b in cuts:
     box(100, z_prev, 103, a, C["sidewalk"])
     z_prev = b
 box(100, z_prev, 103, Z1, C["sidewalk"])
-# Las huellas del oeste (y de los negocios) se vuelven a dibujar encima del suelo de la copia.
+# Ampliación oeste (calles D y E sin salida, callejones que siguen los de la copia).
+for r in WX_LAWNS:
+    box(*r, C["lawn_d"])
+for r in WX_ROADS:
+    box(*r, C["asphalt"])
+for r in WX_SIDEWALKS:
+    box(*r, C["sidewalk"])
+for r in WX_ALLEYS:
+    box(*r, C["alley"])
+for r in WX_ROADS:                                                                  # barrera del fondo
+    box(r[2] - 0.9, r[1] + 0.2, r[2] - 0.3, r[3] - 0.2, (200, 200, 195))
+for name, x, z in WX_ROAD_NAMES:
+    label(x, z, f"calle {name}", F_S)
+for r in NW_LAWNS:                                                                  # ampliación norte (oeste)
+    box(*r, C["lawn_d"])
+for r in NW_ROADS:
+    box(*r, C["asphalt"])
+for r in NW_SIDEWALKS:
+    box(*r, C["sidewalk"])
+for r in NW_ALLEYS:
+    box(*r, C["alley"])
+# Oeste lejano: calles que siguen D, E, F y H al otro lado de la calle x = −110, calle J, gasolinera y negocios.
+for r in FW_LAWNS:
+    box(*r, C["lawn_d"])
+for r in FW_SIDEWALKS:
+    box(*r, C["sidewalk"])
+for r in FW_ROADS:
+    box(*r, C["asphalt"])
+for r in FW_ALLEYS:
+    box(*r, C["alley"])
+box(*FW_GAS_LOT, C["lot"])
+for r in FW_GAS_DRIVES:
+    box(*r, C["lot"])
+box(FW_MART[0], FW_MART[1] - 2.4, FW_MART[2], FW_MART[1], C["sidewalk"])
+box(*FW_MART, C["store"], outline=(30, 30, 30), width=2)
+box(-249.5, 90, -160, 93, C["sidewalk"])
+box(-249.5, 93, -160, 102, C["lawn_d"])
+for _, x0, x1 in FW_SHOPS:
+    box(x0, SH_FRONT_FW + 7.5, x1, 102, C["alley"])
+    box(x0, SH_FRONT_FW, x1, SH_FRONT_FW + 7.5, C["store"], outline=(30, 30, 30), width=2)
+hatch(*FW_SHOPS_VACANT, C["weeds"])
+box(*FW_WASTELAND, (132, 112, 84))
+
+# Las huellas del oeste (y de los negocios y la ampliación) se vuelven a dibujar encima del suelo de la copia.
 if footprints.exists():
     for e in json.loads(footprints.read_text(encoding="utf-8"))["edificios"]:
         if max(x for x, _ in e["esquinas"]) > 101:
@@ -446,7 +565,32 @@ if footprints.exists():
 if footprints.exists() and not any(min(x for x, _ in e["esquinas"]) < 100 and min(z for _, z in e["esquinas"]) > 102
                                    for e in json.loads(footprints.read_text(encoding="utf-8"))["edificios"]):
     label(62, 150, "casas oeste: construye la escena en Unity" + chr(10) + "y vuelve a ejecutar este script", F_M)
-label(35, 228.5, "BARRIO DE CASAS OESTE (el mismo, girado 180°)", F_M)
+label(35, 216, "BARRIO DE CASAS OESTE (el mismo, girado 180°)", F_M)
+label(-66, 216, "AMPLIACIÓN OESTE", F_M)
+for name, x, z in NE_ROAD_NAMES + NW_ROAD_NAMES:
+    label(x, z, f"calle {name}", F_S)
+label(0, 276, "AMPLIACIÓN NORTE (oeste)", F_M)
+# Detalles del oeste lejano encima de las huellas.
+box(*FW_CANOPY, (225, 225, 220), outline=(160, 30, 25), width=2)
+for z in (101.3, 107.7):
+    box(-147, z - 0.65, -131, z + 0.65, (150, 150, 145))
+    for x in (-142.5, -135.5):
+        box(x - 0.55, z - 0.3, x + 0.55, z + 0.3, (170, 30, 25))
+rect(-123.5, 93.5, 2.6, 2.6, (170, 30, 25))
+label(-139, 104.5, "GASOLINERA", F_S)
+label(-149.5, 116.8, "food mart", F_S, fill=(255, 255, 255), halo=False)
+for n, x0, x1 in FW_SHOPS:
+    label((x0 + x1) / 2, SH_FRONT_FW + 3.75, n, F_S, fill=(255, 255, 255), halo=False)
+cx, cz = FW_COURT
+box(cx - 8, cz - 12, cx + 8, cz + 12, C["court"], outline=(230, 230, 230), width=2)
+label(cx, cz, "cancha", F_S, fill=(255, 255, 255), halo=False)
+wx0, wz0, wx1, wz1 = FW_WASTELAND
+label((wx0 + wx1) / 2, (wz0 + wz1) / 2, "DESCAMPADO" + chr(10) + "(barro, escombros," + chr(10) + "coche, bidón)", F_S)
+for name, x, z in FW_ROAD_NAMES:
+    label(x, z, f"calle {name}", F_S)
+label(-200, 270, "OESTE LEJANO", F_M)
+label(-205, 76, "negocios: 7 alitas · 8 empeños · 9 belleza · 10 neumáticos · 11 lavandería", F_S)
+label(160, 276, "AMPLIACIÓN NORTE (este)", F_M)
 
 # ---------- Franja de negocios (PrototypeSceneBuilder.Shops.cs) ----------
 SH_LINK = (-26, 87, -21, 102.5)
@@ -478,7 +622,7 @@ label(232, 128.5, "pasaje", F_S)
 
 # ---------- Tren elevado (PrototypeSceneBuilder.Train.cs) sobre la avenida x = 110 ----------
 TRAIN_W, TRAIN_E = 101.8, 118.2
-TRAIN_CROSSINGS = [(80, 7), (-80, 7), (0, 6), (122, 5), (188, 5), (128, 5), (194, 5)]
+TRAIN_CROSSINGS = [(80, 7), (-80, 7), (0, 6), (122, 5), (188, 5), (128, 5), (194, 5), (253, 5), (293, 5)]
 STATION_Z0, STATION_Z1 = 4, 68
 box(TRAIN_W + 0.4, Z0, TRAIN_E - 0.4, Z1, C["train"] + (95,))                     # tablero (semitransparente)
 for tx in (106.5, 113.5):                                                          # vías
@@ -517,7 +661,7 @@ for gx in range(-200, 261, 20):
     x_, _ = px(gx, 0)
     d.line([(x_, px(0, Z1)[1]), (x_, px(0, Z0)[1])], fill=C["grid"] + (40,), width=1)
     d.text((x_, px(0, Z0)[1] + 6), str(gx), font=F_S, fill=C["text"], anchor="mt")
-for gz in range(-100, 221, 20):
+for gz in range(-100, Z1 - 1, 20):
     _, y_ = px(0, gz)
     d.line([(px(X0, 0)[0], y_), (px(X1, 0)[0], y_)], fill=C["grid"] + (40,), width=1)
     d.text((px(X0, 0)[0] - 6, y_), str(gz), font=F_S, fill=C["text"], anchor="rm")
