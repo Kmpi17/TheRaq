@@ -7,7 +7,7 @@
   - Se recupera a `RegenRate` (22/s) tras `RegenDelay` (0.9 s) sin gastar.
   - A 0 queda **agotado** (`Exhausted`: no esprinta ni puede gastar) hasta volver al 30 %.
   - `Boost(s)` multiplica la recuperación por 2.5 (bebida energética).
-- `CombatMath.Spread(base, aiming, speed, bloom)`: dispersión en grados. ×2.5 desde la cadera, y más al moverse o al encadenar tiros.
+- `CombatMath.Spread(base, aiming, speed, bloom, crouched)`: dispersión en grados. ×2.5 desde la cadera, y más al moverse o al encadenar tiros; agachado, ×0.7 (`CrouchSpreadFactor`).
 - `CombatMath.Scatter(dir, angle, disc)`: desvía un tiro dentro de ese cono.
 
 ## `Health.cs`
@@ -39,6 +39,9 @@ Tests: `Tests/EditMode/CharacterSystemsTests.cs`.
 - Enemigos o NPC que usen `Health` y disparen (la cobertura ya funciona contra rayos).
 - Animaciones de verdad (ahora el puño y la pistola son primitivas que se mueven).
 - Más armas: basta con añadirlas a `ItemCatalog`. Las automáticas necesitarían `IsPressed` en vez de `WasPressedThisFrame`.
+
+## Avisos para los NPC
+Cada disparo del jugador llama a `NpcAlerts.Gunshot(posición, jugador, aQuienApuntaba)` (aunque falle) y cada golpe que hace daño a `NpcAlerts.Hit`. Los NPC lo oyen (45 m y 12 m): los civiles huyen y los grupos responden o ayudan a su bando (`Scripts/NPC/`). Todo disparo o golpe nuevo debe avisar igual.
 
 ## Datos para la animación
 `PlayerCombat` expone `WeaponRaised` (apuntando o justo tras disparar desde la cadera), `Punching`, `PunchExtend` (0–1, cuánto ha salido el puño), `PunchSide` (+1 derecha, −1 izquierda) y `PunchIsHook`. Los usa `PlayerAnimator` para mover los brazos. El campo `fist` (un puño suelto que salía al pegar) ya no lo pone el generador: con brazos animados no hace falta, y sin él el combate funciona igual.

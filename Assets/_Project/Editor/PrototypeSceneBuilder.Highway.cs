@@ -185,6 +185,7 @@ namespace GTAChiraq.Editor
                 light.range = 22f;
                 light.intensity = 3f;
                 light.shadows = LightShadows.None;
+                light.gameObject.AddComponent<NightLight>(); // apagada de día
             }
 
             // Pórtico de acero con carteles verdes (texto genérico, sin nombres de autopistas reales) en z = −30: se ve

@@ -5,12 +5,18 @@ namespace GTAChiraq
     /// <summary>
     /// Animación procedural del personaje (no hay Animator ni clips: el modelo es de piezas). Mueve las articulaciones
     /// que crea el generador dentro de <c>Modelo</c>: <c>Cuerpo</c> (pelvis), <c>Cadera/Rodilla/Tobillo</c> Izq/Der,
-    /// <c>Columna</c>, <c>Craneo</c> y <c>Hombro/Codo</c> Izq/Der. Poses:
+    /// <c>Columna</c>, <c>Craneo</c> y <c>Hombro/Codo</c> Izq/Der. Capas:
     /// <list type="bullet">
-    /// <item>quieto (respira y se balancea un poco), andar, correr y esprintar con el ciclo de <see cref="AnimationMath.Gait"/>;</item>
-    /// <item>en el aire, escalando, agachado tras una cobertura baja o pegado a una alta, y muerto;</item>
-    /// <item>con IK de brazo (<see cref="AnimationMath.SolveTwoBone"/>): la mano derecha en la pistola (y la izquierda
-    /// sujetándola al apuntar o recargando), puñetazos con guardia, y las dos manos en la puerta al forzar un coche.</item>
+    /// <item>ciclo de paso de <see cref="AnimationMath.Gait"/> (curvas de la marcha real: andar, trotar, esprintar), con
+    /// la pelvis que bota, se va sobre la pierna de apoyo y cae del otro lado, y los hombros contra las caderas;</item>
+    /// <item>peso: todo el cuerpo se inclina hacia dentro en las curvas, hacia delante al arrancar y hacia atrás al
+    /// frenar, y se hunde al caer de alto;</item>
+    /// <item>personalidad: quieto carga el peso en una pierna y lo cambia de vez en cuando, respira, mira alrededor; la
+    /// cabeza se mantiene estable y mira al frente aunque el cuerpo se incline;</item>
+    /// <item>agachado (C), en cobertura, escalando, en el aire y muerto;</item>
+    /// <item>IK de brazo (<see cref="AnimationMath.SolveTwoBone"/>): las dos manos en la pistola al apuntar o recargar,
+    /// puñetazos con guardia, las dos manos en la puerta al forzar un coche y en el borde al escalar. Con la pistola
+    /// bajada, el brazo se balancea y la pistola va en la mano (la coloca este componente).</item>
     /// </list>
     /// Corre en LateUpdate, después de que el combate coloque la pistola.
     /// </summary>
@@ -19,6 +25,10 @@ namespace GTAChiraq
         [SerializeField] float runSpeed = 4.4f, sprintSpeed = 7.2f;
         [Tooltip("Rapidez con la que las articulaciones van a su pose (más alto, más seco).")]
         [SerializeField] float sharpness = 14f;
+        [Tooltip("Cuánto se inclina hacia dentro en las curvas (grados por (°/s · m/s)).")]
+        [SerializeField] float bankPerTurn = 0.008f;
+        [Tooltip("Actitud (0–1): balanceo de hombros y caderas, cabeceo y brazos algo abiertos.")]
+        [Range(0f, 1f)] [SerializeField] float swagger = 0.6f;
 
         Transform model, pelvis, spine, head, pistol;
         readonly Transform[] hip = new Transform[2], knee = new Transform[2], ankle = new Transform[2];
@@ -33,13 +43,24 @@ namespace GTAChiraq
         PlayerVitals vitals;
         VehicleEntry entry;
 
-        float phase, airTime, moveBlend, runBlend;
+        float phase, airTime, moveBlend, jogBlend, sprintBlend;
         Vector3 moveDir = Vector3.forward; // dirección del movimiento en el espacio del cuerpo, suavizada
         Vector3 modelRest;
         float modelYaw, coverFacing = 1f;
+        // Peso y personalidad.
+        float lastYaw, lastForwardSpeed, accelSmooth, bank, tilt, landDip;
+        float weight, weightTarget = 1f, nextWeightSwap = 3f;
+        float lookYaw, lookTarget, nextLook = 4f, idleTime;
+        bool wasInAir;
 
         /// <summary>Fase del ciclo de paso (radianes), para tests y depurar.</summary>
         public float Phase => phase;
+        /// <summary>
+        /// Altura (en el espacio de <c>Modelo</c>) del pivote de la pistola al apuntar: el hombro derecho. Baja al
+        /// agacharse, así que <see cref="PlayerCombat"/> no pone la pistola a la altura de pie (antes, agachado, los
+        /// brazos se iban por encima de la cabeza). 0 si no se ha calculado aún.
+        /// </summary>
+        public float AimPivotY { get; private set; }
 
         void Awake()
         {
@@ -73,6 +94,7 @@ namespace GTAChiraq
             combat = GetComponent<PlayerCombat>();
             vitals = GetComponent<PlayerVitals>();
             entry = GetComponent<VehicleEntry>();
+            lastYaw = transform.eulerAngles.y;
         }
 
         static Transform FindDeep(Transform root, string name)
@@ -85,26 +107,56 @@ namespace GTAChiraq
         void LateUpdate()
         {
             if (controller && !controller.enabled && !(vitals && vitals.Dead) && !(climb && climb.Climbing)) return; // en el coche no se ve
-            float dt = Time.deltaTime;
+            float dt = Mathf.Max(Time.deltaTime, 1e-4f);
             float k = 1f - Mathf.Exp(-sharpness * dt);
+            float t = Time.time;
 
             bool dead = vitals && vitals.Dead;
             bool climbing = climb && climb.Climbing;
             bool inCover = cover && cover.InCover;
-            bool crouched = cover && cover.Crouched;
             bool grounded = !controller || !controller.enabled || controller.isGrounded;
+            float airBefore = airTime;
             airTime = grounded || climbing ? 0f : airTime + dt;
             bool inAir = airTime > 0.18f;
+            // Agachado por su cuenta (C), fuera de la cobertura; o tras una cobertura baja.
+            bool crouchStance = movement && movement.Crouching && !inCover && !climbing && !dead && !inAir;
+            bool crouched = (cover && cover.Crouched) || crouchStance;
+            bool aiming = combat && combat.WeaponRaised && !dead && !climbing;
+            float aimPitch = aiming ? combat.AimPitch : 0f;
+
+            // Al tocar suelo después de una caída: se hunde (más cuanto más tiempo en el aire) y se recupera.
+            if (wasInAir && !inAir && !climbing) landDip = Mathf.Max(landDip, Mathf.Clamp01((airBefore + 0.1f) / 0.9f));
+            if (inAir) landDip = 0f;
+            wasInAir = inAir;
+            landDip = Mathf.MoveTowards(landDip, 0f, 2.8f * dt);
 
             // Velocidad: la del movimiento a pie, o la real del controlador en cobertura (se mueve de lado).
             var velocity = movement ? movement.PlanarVelocity : Vector3.zero;
             if (inCover && controller && controller.enabled) velocity = Vector3.ProjectOnPlane(controller.velocity, Vector3.up);
             float speed = velocity.magnitude;
             bool still = dead || climbing || inAir;
+            bool slowGait = inCover || crouchStance || aiming; // pasos de andar, nunca de correr
             moveBlend = Mathf.MoveTowards(moveBlend, still ? 0f : Mathf.Clamp01(speed / 1.2f), 6f * dt);
-            runBlend = Mathf.MoveTowards(runBlend, Mathf.Clamp01((speed - runSpeed * 0.5f) / (sprintSpeed - runSpeed * 0.5f)), 3f * dt);
-            phase = AnimationMath.AdvancePhase(phase, still ? 0f : speed, runBlend, dt);
-            var g = AnimationMath.Gait(phase, moveBlend, inCover ? 0f : runBlend);
+            jogBlend = Mathf.MoveTowards(jogBlend, slowGait ? 0f : Mathf.Clamp01((speed - 2.6f) / Mathf.Max(0.1f, runSpeed - 3f)), 3f * dt);
+            sprintBlend = Mathf.MoveTowards(sprintBlend, slowGait ? 0f : Mathf.Clamp01((speed - runSpeed - 0.4f) / Mathf.Max(0.1f, sprintSpeed - runSpeed - 0.6f)), 2.5f * dt);
+            // Agachado los pasos son cortos: la fase va más deprisa para que los pies no patinen.
+            float phaseSpeed = still ? 0f : crouchStance ? speed * AnimationMath.Stride(0f, 0f) / AnimationMath.CrouchStride : speed;
+            phase = AnimationMath.AdvancePhase(phase, phaseSpeed, jogBlend, sprintBlend, dt);
+            var g = AnimationMath.Gait(phase, moveBlend, jogBlend, sprintBlend);
+            float idle = 1f - moveBlend;
+
+            // ---------- Peso: inclinarse en las curvas y al arrancar o frenar (todo el cuerpo, desde los pies) ----------
+            float yaw = transform.eulerAngles.y;
+            float yawRate = Mathf.DeltaAngle(lastYaw, yaw) / dt;
+            lastYaw = yaw;
+            float forwardSpeed = Vector3.Dot(velocity, transform.forward);
+            accelSmooth = Mathf.Lerp(accelSmooth, (forwardSpeed - lastForwardSpeed) / dt, 1f - Mathf.Exp(-8f * dt));
+            lastForwardSpeed = forwardSpeed;
+            bool weighted = grounded && !climbing && !inCover && !dead && !inAir;
+            float bankTarget = weighted ? Mathf.Clamp(-yawRate * speed * bankPerTurn, -13f, 13f) : 0f;
+            float tiltTarget = weighted && !aiming ? Mathf.Clamp(accelSmooth * 0.45f, -8f, 6f) : 0f;
+            bank = Mathf.Lerp(bank, bankTarget, 1f - Mathf.Exp(-6f * dt));
+            tilt = Mathf.Lerp(tilt, tiltTarget, 1f - Mathf.Exp(-5f * dt));
 
             // Cobertura alta sin asomarse: de lado, con el hombro contra la pared y mirando a lo largo de ella hacia
             // donde se movió por última vez (no abrazado a la pared). Al apuntar se gira para asomarse.
@@ -117,7 +169,7 @@ namespace GTAChiraq
             if (!dead)
             {
                 modelYaw = Mathf.MoveTowards(modelYaw, sideOn ? coverFacing * 75f : 0f, 420f * dt);
-                model.localRotation = Quaternion.Euler(0f, modelYaw, 0f);
+                model.localRotation = Quaternion.Euler(tilt, 0f, bank) * Quaternion.Euler(0f, modelYaw, 0f);
                 // Se separa un poco de la pared para que el hombro no se meta en ella.
                 model.localPosition = modelRest + Vector3.back * (0.14f * Mathf.Abs(modelYaw) / 75f);
             }
@@ -126,7 +178,7 @@ namespace GTAChiraq
             // atrás, y las piernas tienen que dar el paso hacia allí, no hacia delante.
             if (speed > 0.3f)
             {
-                var local = model.InverseTransformDirection(velocity);
+                var local = Quaternion.Euler(0f, -modelYaw, 0f) * transform.InverseTransformDirection(velocity);
                 local.y = 0f;
                 moveDir = Vector3.Slerp(moveDir, local.normalized, 1f - Mathf.Exp(-10f * dt));
             }
@@ -135,23 +187,43 @@ namespace GTAChiraq
             float forwardOnly = Mathf.Max(0f, ahead); // inclinarse y torcer el tronco solo al ir hacia delante
             var swingAxis = AnimationMath.SwingAxis(moveDir);
 
-            float t = Time.time;
-            float idle = 1f - moveBlend;
-            float breathe = Mathf.Sin(t * 1.8f) * 1.4f * idle;
-            bool aiming = combat && combat.WeaponRaised && !dead && !climbing;
-            float aimPitch = aiming ? combat.AimPitch : 0f;
+            // ---------- Personalidad quieto: peso en una pierna, respirar, mirar alrededor ----------
+            bool relaxed = !dead && !climbing && !inAir && !inCover && !crouchStance && !aiming && !(combat && combat.Punching) && !(entry && entry.Forcing);
+            idleTime = relaxed && moveBlend < 0.1f ? idleTime + dt : 0f;
+            if (t > nextWeightSwap)
+            {
+                weightTarget = -weightTarget;
+                nextWeightSwap = t + Random.Range(4.5f, 9f);
+            }
+            weight = Mathf.Lerp(weight, relaxed ? weightTarget * idle : 0f, 1f - Mathf.Exp(-2.2f * dt));
+            AnimationMath.WeightShift(weight, out float weightSway, out float weightRoll, out float looseKnee);
+            if (t > nextLook)
+            {
+                // Mira a un lado un rato y vuelve al frente.
+                bool lookAway = Mathf.Approximately(lookTarget, 0f) && idleTime > 1.5f;
+                lookTarget = lookAway ? Random.Range(18f, 35f) * (Random.value < 0.5f ? -1f : 1f) : 0f;
+                nextLook = t + (lookAway ? Random.Range(1.2f, 2.6f) : Random.Range(3f, 6.5f));
+            }
+            if (!relaxed) lookTarget = 0f;
+            lookYaw = Mathf.Lerp(lookYaw, lookTarget, 1f - Mathf.Exp(-4f * dt));
+            float breathe = Mathf.Sin(t * 1.7f) * 1.3f * idle;
 
             // ---------- Piernas, pelvis, columna y cabeza ----------
             var hipA = new[] { g.HipL, g.HipR };
             var kneeA = new[] { g.KneeL, g.KneeR };
             var ankleA = new float[2];
-            var spread = new float[2]; // abrir la pierna hacia fuera (grados)
-            float drop = g.Bob, lean = g.Lean * forwardOnly + breathe;
-            float pelvisYaw = g.PelvisYaw * Mathf.Abs(ahead), spineYaw = g.SpineYaw * Mathf.Abs(ahead);
-            float headPitch = -g.Lean * 0.6f * forwardOnly;
+            var spread = new float[2];   // abrir la pierna hacia fuera (grados)
+            var hipSwing = new float[2]; // paso encima de la pose (en el eje del movimiento), agachado
+            float drop = g.Bob, swayX = g.SwayX, roll = g.PelvisRoll * (1f + 0.6f * swagger);
+            float lean = g.Lean * forwardOnly + breathe + 2f; // de base, algo cargado de hombros
+            float pelvisYaw = g.PelvisYaw * Mathf.Abs(ahead), spineYaw = g.SpineYaw * Mathf.Abs(ahead) * (1f + 0.4f * swagger);
+            // La cabeza compensa la inclinación del tronco: mira al frente (con un leve cabeceo al paso).
+            float headPitch = -g.Lean * 0.75f * forwardOnly - 2f + Mathf.Sin(2f * phase) * 1.5f * swagger * moveBlend;
             bool locomotion = false;
             if (crouched)
             {
+                swayX = 0f;
+                roll = 0f;
                 drop = -0.36f;
                 for (int i = 0; i < 2; i++)
                 {
@@ -160,20 +232,43 @@ namespace GTAChiraq
                     ankleA[i] = -38f;
                     spread[i] = 8f;
                 }
-                // Agachado y moviéndose de lado: pasitos cortos hacia donde va.
-                if (moveBlend > 0.05f)
-                    for (int i = 0; i < 2; i++)
-                        spread[i] += Mathf.Sin(phase + i * Mathf.PI) * 10f * moveBlend * Mathf.Abs(moveDir.x);
                 lean = 22f + breathe;
                 headPitch = -16f;
+                if (crouchStance)
+                {
+                    // Agachado en medio de la calle: algo menos hundido que tras un muro, un pie algo adelantado, y
+                    // pasos cortos hacia donde vaya (delante, de lado o atrás) con el ciclo de andar encima de la pose.
+                    drop = -0.32f + g.Bob;
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float side = i == 0 ? -1f : 1f;
+                        hipSwing[i] = AnimationMath.SideStepHip((i == 0 ? g.HipL : g.HipR) * 0.8f, side, moveDir);
+                        hipA[i] = -70f + (i == 0 ? -8f : 6f) * idle;
+                        kneeA[i] = 108f + (i == 0 ? g.KneeL : g.KneeR) * 0.45f;
+                        ankleA[i] = -(hipA[i] + hipSwing[i] * ahead + kneeA[i]) * 0.9f;
+                        spread[i] = 7f;
+                    }
+                    lean = 16f + breathe;
+                    headPitch = -10f;
+                    if (aiming)
+                    {
+                        lean = 8f + aimPitch * 0.35f;
+                        headPitch = aimPitch * 0.4f - 4f;
+                    }
+                }
+                // Tras la cobertura y moviéndose de lado: pasitos cortos hacia donde va.
+                else if (moveBlend > 0.05f)
+                    for (int i = 0; i < 2; i++)
+                        spread[i] += Mathf.Sin(phase + i * Mathf.PI) * 10f * moveBlend * Mathf.Abs(moveDir.x);
             }
             else if (climbing)
             {
+                swayX = roll = 0f;
                 var kind = climb.CurrentKind;
                 float below = climb.EdgeY - transform.position.y; // los pies, por debajo del borde
                 if (kind is ClimbKind.Vault or ClimbKind.SlideOver)
                 {
-                    // Por encima con una mano apoyada: piernas recogidas y el cuerpo echado hacia delante.
+                    // Por encima con una mano apoyada: piernas recogidas a un lado y el cuerpo echado hacia delante.
                     hipA = new[] { -85f, -55f };
                     kneeA = new[] { 115f, 105f };
                     ankleA = new[] { -20f, -20f };
@@ -212,13 +307,17 @@ namespace GTAChiraq
             }
             else if (inAir)
             {
-                hipA = new[] { -28f, -8f };
-                kneeA = new[] { 45f, 25f };
-                ankleA = new[] { -10f, -10f };
-                lean = 4f;
+                // Cayendo: una pierna adelantada buscando el suelo y la otra recogida.
+                swayX = roll = 0f;
+                hipA = new[] { -32f, -6f };
+                kneeA = new[] { 40f, 55f };
+                ankleA = new[] { 0f, -15f };
+                spread = new[] { 4f, 6f };
+                lean = 6f;
             }
             else if (dead)
             {
+                swayX = roll = 0f;
                 hipA = new[] { -4f, 6f };
                 kneeA = new[] { 12f, 4f };
                 ankleA = new[] { 0f, 0f };
@@ -232,7 +331,17 @@ namespace GTAChiraq
                 {
                     float side = i == 0 ? -1f : 1f;
                     hipA[i] = AnimationMath.SideStepHip(hipA[i], side, moveDir);
-                    spread[i] = 2f * idle;
+                    spread[i] = 3f * idle;
+                }
+                // Quieto: el peso en una pierna; la otra, con la rodilla suelta y el pie algo adelantado y abierto.
+                if (Mathf.Abs(weight) > 0.01f)
+                {
+                    int loose = weight < 0f ? 1 : 0; // con el peso a la izquierda, la derecha va suelta
+                    hipA[loose] -= looseKnee * 0.45f;
+                    kneeA[loose] += looseKnee;
+                    spread[loose] += 3f * Mathf.Abs(weight);
+                    swayX += weightSway;
+                    roll += weightRoll;
                 }
                 // Apuntando parado: piernas abiertas, la izquierda algo adelantada, rodillas sueltas, y el tronco y la
                 // cabeza siguiendo la mira arriba y abajo.
@@ -247,30 +356,57 @@ namespace GTAChiraq
                     }
                     drop -= 0.02f * idle;
                     lean += 3f + aimPitch * 0.35f;
-                    headPitch += aimPitch * 0.4f;
+                    headPitch = aimPitch * 0.4f;
                 }
-                // El pie, casi plano: compensa la cadera (en su eje) y la rodilla.
-                for (int i = 0; i < 2; i++) ankleA[i] = -(hipA[i] * ahead + kneeA[i]) * 0.6f;
+                // El pie con la inclinación del ciclo respecto al suelo (al ir hacia atrás, al revés; de lado, plano).
+                for (int i = 0; i < 2; i++)
+                {
+                    float foot = (i == 0 ? g.FootL : g.FootR) * ahead;
+                    ankleA[i] = foot - (hipA[i] * ahead + kneeA[i]);
+                }
             }
 
-            pelvis.localPosition = Vector3.Lerp(pelvis.localPosition, pelvisRest + Vector3.up * drop, k);
-            Blend(pelvis, Quaternion.Euler(0f, pelvisYaw, 0f), k);
-            Blend(spine, Quaternion.Euler(lean, spineYaw, 0f), k);
-            if (head) Blend(head, Quaternion.Euler(headPitch, -spineYaw * 0.5f, 0f), k);
+            // Al caer de alto: rodillas y caderas se doblan y el tronco se echa adelante para amortiguar.
+            if (landDip > 0.01f && !climbing && !dead)
+            {
+                float d = Mathf.SmoothStep(0f, 1f, landDip);
+                drop -= 0.16f * d;
+                for (int i = 0; i < 2; i++)
+                {
+                    hipA[i] -= 30f * d;
+                    kneeA[i] += 50f * d;
+                    ankleA[i] -= 20f * d;
+                }
+                lean += 14f * d;
+                headPitch -= 8f * d;
+            }
+
+            pelvis.localPosition = Vector3.Lerp(pelvis.localPosition, pelvisRest + new Vector3(swayX, drop, 0f), k);
+            Blend(pelvis, Quaternion.Euler(0f, pelvisYaw, roll), k);
+            // Los hombros, contra la caída de la cadera (y de lado al cargar el peso, al revés que la pelvis).
+            float spineRoll = -roll * 1.6f;
+            Blend(spine, Quaternion.Euler(lean, spineYaw, spineRoll), k);
+            // La cabeza: casi nivelada y mirando al frente, contra el giro y la caída del tronco; quieto, mira alrededor.
+            float headYaw = -(pelvisYaw + spineYaw) + lookYaw;
+            if (head) Blend(head, Quaternion.Euler(headPitch, headYaw, roll * 0.4f), k);
+            // Las piernas no se mueven de sitio con la pelvis: compensan su desplazamiento y su caída.
+            float legComp = -Mathf.Asin(Mathf.Clamp(swayX / 0.86f, -0.5f, 0.5f)) * Mathf.Rad2Deg - roll;
             for (int i = 0; i < 2; i++)
             {
                 float side = i == 0 ? -1f : 1f;
                 var axis = locomotion ? swingAxis : Vector3.right;
-                Blend(hip[i], Quaternion.AngleAxis(hipA[i], axis) * Quaternion.Euler(0f, 0f, side * spread[i]), k);
+                Blend(hip[i], Quaternion.AngleAxis(hipSwing[i], swingAxis) * Quaternion.AngleAxis(hipA[i], axis)
+                              * Quaternion.Euler(0f, 0f, side * spread[i] + legComp), k);
                 if (knee[i]) Blend(knee[i], Quaternion.Euler(kneeA[i], 0f, 0f), k);
                 if (ankle[i]) Blend(ankle[i], Quaternion.Euler(ankleA[i], 0f, 0f), k);
             }
 
             // ---------- Brazos: primero la pose de movimiento (FK) y encima el IK de lo que haga con las manos ----------
+            bool carryPistol = CarryingLoweredPistol();
             for (int i = 0; i < 2; i++)
             {
                 float side = i == 0 ? -1f : 1f;
-                float sway = Mathf.Sin(t * 1.8f + i) * 2f * idle;
+                float sway = Mathf.Sin(t * 1.7f + i * 1.3f) * 2f * idle;
                 Quaternion sh, el;
                 if (dead)
                 {
@@ -279,20 +415,25 @@ namespace GTAChiraq
                 }
                 else if (climbing)
                 {
-                    // La mano que no se apoya: abierta para equilibrarse al saltar, o bajando tras subir.
+                    // La mano que no se apoya: al saltar, adelantada y algo arriba para equilibrarse (no en cruz);
+                    // subiendo, bajando tras pasar el borde.
                     bool vault = climb.CurrentKind is ClimbKind.Vault or ClimbKind.SlideOver;
-                    sh = vault ? Quaternion.Euler(-35f, 0f, side * 60f) : Quaternion.Euler(-25f, 0f, side * 18f);
-                    el = Quaternion.Euler(vault ? -25f : -40f, 0f, 0f);
+                    sh = vault ? Quaternion.Euler(-65f, 0f, side * 22f) : Quaternion.Euler(-25f, 0f, side * 18f);
+                    el = Quaternion.Euler(vault ? -35f : -40f, 0f, 0f);
                 }
                 else if (inAir)
                 {
-                    sh = Quaternion.Euler(-35f, 0f, side * 35f);
-                    el = Quaternion.Euler(-30f, 0f, 0f);
+                    // Brazos algo abiertos y adelantados para equilibrarse.
+                    sh = Quaternion.Euler(-30f, 0f, side * 28f);
+                    el = Quaternion.Euler(-35f, 0f, 0f);
                 }
                 else if (crouched)
                 {
-                    sh = Quaternion.Euler(-35f, 0f, side * 10f);
-                    el = Quaternion.Euler(-75f, 0f, 0f);
+                    // Tras la cobertura, brazos recogidos delante, listos. Agachado por su cuenta, más bajos, con las
+                    // manos sobre las rodillas, y se balancean un poco al andar.
+                    float swing = crouchStance ? (i == 0 ? g.ShoulderL : g.ShoulderR) * 0.4f * Mathf.Abs(ahead) : 0f;
+                    sh = Quaternion.Euler((crouchStance ? -16f : -35f) + swing, 0f, side * (crouchStance ? 14f : 10f));
+                    el = Quaternion.Euler(crouchStance ? -48f : -75f, 0f, 0f);
                 }
                 else if (sideOn)
                 {
@@ -308,17 +449,44 @@ namespace GTAChiraq
                 }
                 else
                 {
-                    // Los brazos se balancean al ir hacia delante o atrás; de lado, casi quietos.
+                    // Los brazos se balancean al ir hacia delante o atrás; de lado, casi quietos. Quietos, relajados:
+                    // algo separados del cuerpo y con el codo un poco doblado. El brazo de la pistola, más corto.
                     float swing = (i == 0 ? g.ShoulderL : g.ShoulderR) * Mathf.Max(0.25f, Mathf.Abs(ahead));
-                    sh = Quaternion.Euler(swing + sway, 0f, side * 5f);
-                    el = Quaternion.Euler((i == 0 ? g.ElbowL : g.ElbowR) - 8f * idle, 0f, 0f);
+                    float elbowBend = (i == 0 ? g.ElbowL : g.ElbowR) - 14f * idle;
+                    if (i == 1 && carryPistol)
+                    {
+                        swing *= 0.6f;
+                        elbowBend -= 18f;
+                    }
+                    float open = side * (6f + 4f * swagger + 3f * jogBlend);
+                    sh = Quaternion.Euler(swing + sway - 2f * idle, 0f, open);
+                    el = Quaternion.Euler(elbowBend, 0f, 0f);
                 }
 
                 if (!dead && HandTarget(i, out var target)) SolveArm(i, target, out sh, out el);
                 Blend(shoulder[i], sh, Mathf.Min(1f, k * 1.6f));
                 if (elbow[i]) Blend(elbow[i], el, Mathf.Min(1f, k * 1.6f));
             }
+
+            // Con la pistola bajada, va en la mano derecha, con el cañón hacia delante y abajo.
+            if (carryPistol && hand[1])
+            {
+                pistol.rotation = hand[1].rotation * Quaternion.Euler(28f, 0f, 0f);
+                pistol.position = hand[1].TransformPoint(new Vector3(0f, -0.055f, 0.005f)) - pistol.TransformVector(new Vector3(0f, -0.07f, -0.04f));
+            }
+
+            // Pivote de la pistola al apuntar (para el combate): a la altura del hombro derecho, sea cual sea la pose.
+            if (shoulder[1])
+            {
+                float y = model.InverseTransformPoint(shoulder[1].position).y + 0.03f;
+                AimPivotY = AimPivotY <= 0f ? y : Mathf.Lerp(AimPivotY, y, 1f - Mathf.Exp(-12f * dt));
+            }
         }
+
+        /// <summary>Lleva la pistola bajada (no apunta, no recarga, no pega): va en la mano y el brazo se balancea.</summary>
+        bool CarryingLoweredPistol()
+            => pistol && pistol.gameObject.activeInHierarchy && combat && !combat.WeaponRaised && !combat.Reloading && !combat.Punching
+               && !(entry && entry.Forcing) && !(vitals && vitals.Dead);
 
         /// <summary>Dónde va la mano <paramref name="i"/> (0 izquierda, 1 derecha) si está haciendo algo, en el mundo.</summary>
         bool HandTarget(int i, out Vector3 target)
@@ -365,20 +533,13 @@ namespace GTAChiraq
                 return true;
             }
 
-            // Pistola: la derecha la empuña siempre; la izquierda la sujeta al apuntar o al recargar.
-            if (pistol && pistol.gameObject.activeInHierarchy)
+            // Pistola levantada (apuntando o recargando): la derecha la empuña y la izquierda la sujeta. Bajada, la
+            // lleva la mano derecha (ver CarryingLoweredPistol) y no hay IK.
+            if (pistol && pistol.gameObject.activeInHierarchy && (combat.WeaponRaised || combat.Reloading))
             {
                 var grip = pistol.TransformPoint(new Vector3(0f, -0.07f, -0.04f));
-                if (i == 1)
-                {
-                    target = grip;
-                    return true;
-                }
-                if (combat.WeaponRaised || combat.Reloading)
-                {
-                    target = grip + model.TransformVector(new Vector3(-0.06f, -0.02f, -0.02f));
-                    return true;
-                }
+                target = i == 1 ? grip : grip + model.TransformVector(new Vector3(-0.06f, -0.02f, -0.02f));
+                return true;
             }
             return false;
         }

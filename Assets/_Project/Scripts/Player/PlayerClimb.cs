@@ -125,7 +125,7 @@ namespace GTAChiraq
                 var beyond = hit.point + dir * (0.9f + r);
                 beyond.y = top.point.y + 0.3f;
                 if (!Physics.Raycast(beyond, Vector3.down, out var ground, ClimbMath.MaxDrop + 0.3f, mask, QueryTriggerInteraction.Ignore)) return false;
-                if (ground.normal.y < 0.7f) return false;
+                if (ground.normal.y < 0.7f || !IsFloor(ground.point)) return false;
                 land = ground.point;
             }
 
@@ -141,10 +141,27 @@ namespace GTAChiraq
             return true;
         }
 
+        /// <summary>
+        /// Suelo de verdad donde caer: alrededor del punto (a un palmo en cruz) también hay suelo a esa altura. El
+        /// pasamanos de 3 cm de otra valla o el borde de un muro no valen: antes, al saltar una valla junto a una
+        /// esquina, el rayo de suelo daba en el pasamanos del tramo de al lado y el personaje acababa de pie encima.
+        /// </summary>
+        bool IsFloor(Vector3 point)
+        {
+            int solid = 0;
+            foreach (var offset in new[] { Vector3.right, Vector3.left, Vector3.forward, Vector3.back })
+            {
+                var from = point + offset * 0.22f + Vector3.up * 0.3f;
+                if (Physics.Raycast(from, Vector3.down, out var h, 0.55f, mask, QueryTriggerInteraction.Ignore) && h.normal.y > 0.7f) solid++;
+            }
+            return solid >= 3;
+        }
+
         bool RoomToLand(Vector3 land, Vector3 feet, float height)
         {
-            float cr = controller.radius * 0.9f;
-            if (Physics.CheckCapsule(land + Vector3.up * (cr + 0.08f), land + Vector3.up * (controller.height - cr), cr, mask, QueryTriggerInteraction.Ignore)) return false;
+            // Con el alto de pie aunque esté agachado: al escalar se levanta.
+            float cr = controller.radius * 0.9f, standing = Mathf.Max(controller.height, movement.StandHeight);
+            if (Physics.CheckCapsule(land + Vector3.up * (cr + 0.08f), land + Vector3.up * (standing - cr), cr, mask, QueryTriggerInteraction.Ignore)) return false;
             return !Physics.Raycast(feet + Vector3.up * (controller.height - 0.1f), Vector3.up, height + 0.3f, mask, QueryTriggerInteraction.Ignore);
         }
 
@@ -185,7 +202,7 @@ namespace GTAChiraq
             var beyond = hit.point + dir * (width + r + 0.3f);
             beyond.y = topY + 0.3f;
             if (!Physics.Raycast(beyond, Vector3.down, out var ground, ClimbMath.MaxDrop + 0.3f, mask, QueryTriggerInteraction.Ignore)) return false;
-            if (ground.normal.y < 0.7f) return false;
+            if (ground.normal.y < 0.7f || !IsFloor(ground.point)) return false;
             var land = ground.point;
             if (!RoomToLand(land, feet, h)) return false;
 
@@ -204,6 +221,7 @@ namespace GTAChiraq
         IEnumerator Run(Plan p)
         {
             Climbing = true;
+            movement.ForceStand(); // se levanta para escalar
             movement.Locked = true;
             controller.enabled = false;
             transform.rotation = Quaternion.LookRotation(p.Forward);

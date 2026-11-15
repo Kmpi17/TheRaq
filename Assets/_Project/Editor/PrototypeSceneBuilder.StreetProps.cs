@@ -516,6 +516,7 @@ namespace GTAChiraq.Editor
             light.range = 9f;
             light.intensity = 2.5f;
             light.shadows = LightShadows.None;
+            light.gameObject.AddComponent<NightLight>(); // apagada de día, encendida al anochecer
         }
 
         /// <summary>Poste con cámara de vigilancia y luz azul encima (ficticio, sin logotipos).</summary>

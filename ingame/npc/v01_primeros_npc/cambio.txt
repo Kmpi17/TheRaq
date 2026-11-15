@@ -1,0 +1,2 @@
+Primeros NPC: civiles y pandilleros por hora y tiempo, sitios habituales, tiendas que cierran de noche (menos la de licores), el enemigo que te reconoce en su barrio y una incursion nocturna.
+Capturas en juego con NpcCapturePlayTests (GTACHIRAQ_CAPTURA=v01_primeros_npc).

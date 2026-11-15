@@ -248,8 +248,8 @@ namespace GTAChiraq.Editor
             var spine = Joint("Columna", pelvis, new Vector3(0f, 0.05f, 0f));
             var torsoRings = new[]
             {
-                new Ring(-0.02f, 0.18f, 0.122f), new Ring(0.12f, 0.185f, 0.128f, 0.005f), new Ring(0.3f, 0.2f, 0.138f, 0.01f),
-                new Ring(0.41f, 0.2f, 0.13f, 0.005f), new Ring(0.49f, 0.165f, 0.11f), new Ring(0.555f, 0.09f, 0.07f),
+                new Ring(-0.02f, 0.18f, 0.122f), new Ring(0.12f, 0.188f, 0.13f, 0.005f), new Ring(0.3f, 0.205f, 0.145f, 0.012f),
+                new Ring(0.41f, 0.21f, 0.135f, 0.006f), new Ring(0.49f, 0.18f, 0.112f), new Ring(0.555f, 0.09f, 0.07f),
             };
             Loft("Torso", spine, Vector3.zero, torsoMat, 10, 2.6f, true, true, torsoRings);
             // Camiseta XL: faldón que cae recto y se abre un poco hasta medio muslo, y cuello redondo.
@@ -329,10 +329,18 @@ namespace GTAChiraq.Editor
                     new Ring(0.025f, 0.018f, 0.022f), new Ring(0.06f, 0.024f, 0.032f), new Ring(0.095f, 0.016f, 0.026f, -0.005f));
 
             var cap = Joint("Gorra", head, Vector3.zero);
-            Part(PrimitiveType.Sphere, "Copa", cap, new Vector3(0f, 0.13f, -0.01f), new Vector3(0.29f, 0.21f, 0.3f), headMat);
-            Part(PrimitiveType.Cube, "Visera", cap, new Vector3(0f, 0.12f, 0.2f), new Vector3(0.24f, 0.025f, 0.17f), headMat)
-                .transform.localRotation = Quaternion.Euler(6f, 0f, 0f);
-            Part(PrimitiveType.Sphere, "Boton", cap, new Vector3(0f, 0.235f, -0.01f), new Vector3(0.03f, 0.015f, 0.03f), headMat);
+            // Gorra de béisbol: la copa asienta en la frente y por encima de las orejas (antes bajaba hasta ellas y,
+            // en negro, parecía un casco), con el frente algo más alto y la visera larga y un poco caída.
+            Part(PrimitiveType.Sphere, "Copa", cap, new Vector3(0f, 0.148f, -0.012f), new Vector3(0.272f, 0.175f, 0.29f), headMat)
+                .transform.localRotation = Quaternion.Euler(-7f, 0f, 0f);
+            Part(PrimitiveType.Cube, "Frente", cap, new Vector3(0f, 0.15f, 0.105f), new Vector3(0.2f, 0.09f, 0.03f), headMat)
+                .transform.localRotation = Quaternion.Euler(-14f, 0f, 0f);
+            Part(PrimitiveType.Cube, "Visera", cap, new Vector3(0f, 0.112f, 0.205f), new Vector3(0.215f, 0.02f, 0.19f), headMat)
+                .transform.localRotation = Quaternion.Euler(9f, 0f, 0f);
+            foreach (float side in new[] { -1f, 1f })
+                Part(PrimitiveType.Cube, "ViseraLado", cap, new Vector3(side * 0.095f, 0.106f, 0.2f), new Vector3(0.04f, 0.02f, 0.17f), headMat)
+                    .transform.localRotation = Quaternion.Euler(9f, 0f, side * 14f);
+            Part(PrimitiveType.Sphere, "Boton", cap, new Vector3(0f, 0.234f, -0.02f), new Vector3(0.03f, 0.015f, 0.03f), headMat);
 
             var beanie = Hidden("Gorro", head);
             Part(PrimitiveType.Sphere, "Copa", beanie, new Vector3(0f, 0.14f, 0f), new Vector3(0.3f, 0.27f, 0.31f), beanieMat);
@@ -361,28 +369,29 @@ namespace GTAChiraq.Editor
             foreach (float side in new[] { -1f, 1f })
                 Part(PrimitiveType.Cube, "Patilla", frame, new Vector3(side * 0.12f, 0.093f, 0.07f), new Vector3(0.008f, 0.012f, 0.14f), frameMat);
 
-            // Brazos largos y delgados: brazo y antebrazo de 0.3 m y mano al final (palma, dedos y pulgar). El deltoide
+            // Brazos largos: brazo y antebrazo de 0.3 m, con la manga de la sudadera holgada, y manos grandes (palma, dedos y pulgar). El deltoide
             // redondea el hombro; la manga ancha de la camiseta llega casi al codo.
             foreach (float side in new[] { -1f, 1f })
             {
                 string s = side < 0f ? "Izq" : "Der";
-                var shoulder = Joint("Hombro" + s, spine, new Vector3(side * 0.225f, 0.45f, 0f));
+                var shoulder = Joint("Hombro" + s, spine, new Vector3(side * 0.235f, 0.45f, 0f));
                 Loft("Deltoide" + s, shoulder, new Vector3(-side * 0.01f, 0f, 0f), torsoMat, 8, 2f, true, true,
-                    new Ring(-0.1f, 0.055f, 0.06f), new Ring(-0.03f, 0.067f, 0.074f), new Ring(0.025f, 0.058f, 0.067f), new Ring(0.055f, 0.028f, 0.035f));
+                    new Ring(-0.1f, 0.062f, 0.067f), new Ring(-0.03f, 0.075f, 0.082f), new Ring(0.025f, 0.064f, 0.073f), new Ring(0.055f, 0.03f, 0.038f));
                 Loft("Brazo" + s, shoulder, Vector3.zero, torsoMat, 8, 2f, false, false,
-                    new Ring(0.02f, 0.05f, 0.054f), new Ring(-0.15f, 0.047f, 0.051f), new Ring(-0.31f, 0.04f, 0.043f));
+                    new Ring(0.02f, 0.058f, 0.062f), new Ring(-0.15f, 0.056f, 0.06f), new Ring(-0.31f, 0.048f, 0.051f));
                 Loft("Manga" + s, shoulder, Vector3.zero, torsoMat, 8, 2f, false, false,
                     new Ring(0.05f, 0.08f, 0.085f), new Ring(-0.1f, 0.088f, 0.092f), new Ring(-0.24f, 0.092f, 0.096f, 0.005f)).SetActive(false);
                 var elbow = Joint("Codo" + s, shoulder, new Vector3(0f, -0.3f, 0f));
+                // Manga de sudadera holgada que se recoge en el puño.
                 Loft("Antebrazo" + s, elbow, Vector3.zero, torsoMat, 8, 2f, false, false,
-                    new Ring(0.02f, 0.044f, 0.047f), new Ring(-0.1f, 0.043f, 0.045f), new Ring(-0.29f, 0.031f, 0.029f));
+                    new Ring(0.02f, 0.05f, 0.053f), new Ring(-0.12f, 0.05f, 0.052f), new Ring(-0.25f, 0.044f, 0.045f), new Ring(-0.29f, 0.036f, 0.034f));
                 // Mano: la palma mira al cuerpo con el brazo colgando; el pulgar, hacia delante.
                 var hand = Joint("Mano" + s, elbow, new Vector3(0f, -0.3f, 0f));
-                Part(PrimitiveType.Cube, "Palma", hand, new Vector3(0f, -0.035f, 0f), new Vector3(0.04f, 0.085f, 0.085f), skin);
-                Part(PrimitiveType.Cube, "Dedos", hand, new Vector3(-side * 0.008f, -0.105f, -0.003f), new Vector3(0.032f, 0.07f, 0.08f), skin)
-                    .transform.localRotation = Quaternion.Euler(0f, 0f, -side * 14f);
-                Part(PrimitiveType.Cube, "Pulgar", hand, new Vector3(-side * 0.012f, -0.05f, 0.05f), new Vector3(0.026f, 0.055f, 0.026f), skin)
-                    .transform.localRotation = Quaternion.Euler(28f, 0f, 0f);
+                Part(PrimitiveType.Cube, "Palma", hand, new Vector3(0f, -0.042f, 0f), new Vector3(0.048f, 0.1f, 0.098f), skin);
+                Part(PrimitiveType.Cube, "Dedos", hand, new Vector3(-side * 0.01f, -0.122f, -0.003f), new Vector3(0.04f, 0.08f, 0.092f), skin)
+                    .transform.localRotation = Quaternion.Euler(0f, 0f, -side * 16f);
+                Part(PrimitiveType.Cube, "Pulgar", hand, new Vector3(-side * 0.014f, -0.058f, 0.058f), new Vector3(0.03f, 0.064f, 0.03f), skin)
+                    .transform.localRotation = Quaternion.Euler(30f, 0f, 0f);
             }
         }
     }

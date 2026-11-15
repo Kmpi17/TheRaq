@@ -14,6 +14,7 @@ namespace GTAChiraq
         PlayerInventory inventory;
         PlayerClimb climb;
         PlayerCover cover;
+        PlayerMovement movement;
         VehicleEntry entry;
         PlayerInteractor interactor;
         CharacterController controller;
@@ -28,6 +29,7 @@ namespace GTAChiraq
             inventory = GetComponent<PlayerInventory>();
             climb = GetComponent<PlayerClimb>();
             cover = GetComponent<PlayerCover>();
+            movement = GetComponent<PlayerMovement>();
             entry = GetComponent<VehicleEntry>();
             interactor = GetComponent<PlayerInteractor>();
             controller = GetComponent<CharacterController>();
@@ -84,6 +86,18 @@ namespace GTAChiraq
                 if (!inventory.IsOpen && inventory.Message != null) GUI.Label(new Rect(sw / 2 - 200, sh * 0.72f, 400, 24), inventory.Message, center);
             }
 
+            // Hora y tiempo, bajo el dinero.
+            var weather = WeatherSystem.Instance;
+            if (weather) GUI.Label(new Rect(sw - 300, 86, 280, 24), weather.Describe(), new GUIStyle(label) { alignment = TextAnchor.UpperRight, normal = { textColor = new Color(0.85f, 0.88f, 0.95f) } });
+
+            // Barrio en el que está y avisos de los NPC (te han reconocido, incursión), arriba en el centro.
+            var population = NpcPopulation.Instance;
+            if (population)
+            {
+                GUI.Label(new Rect(sw - 300, 110, 280, 24), population.TerritoryLabel, new GUIStyle(label) { alignment = TextAnchor.UpperRight, normal = { textColor = population.TerritoryColor } });
+                if (population.Message != null) GUI.Label(new Rect(sw / 2 - 350, sh * 0.16f, 700, 28), population.Message, new GUIStyle(center) { normal = { textColor = new Color(1f, 0.82f, 0.45f) } });
+            }
+
             if (vitals && vitals.Dead)
             {
                 GUI.Label(new Rect(0, sh / 2 - 60, sw, 70), "HOSPITALIZADO", big);
@@ -131,6 +145,8 @@ namespace GTAChiraq
                 hint = entry.Nearby.TryGetComponent(out VehicleLock carLock) && carLock.Locked ? "Mantén F: forzar la puerta y robar el coche" : "F: subir al coche";
             else if (hint != null && entry && entry.Nearby && !entry.Forcing && !(cover && cover.InCover))
                 hint += "  ·  F: " + (entry.Nearby.TryGetComponent(out VehicleLock nearLock) && nearLock.Locked ? "forzar la puerta (mantén)" : "subir");
+            if (hint == null && movement && movement.Crouching && !(cover && cover.InCover)) hint = "Agachado · C: levantarse";
+            if (movement && Time.time - movement.StandBlockedTime < 1.5f) hint = "No hay sitio para levantarse";
             if (climb && Time.time - climb.NoStaminaTime < 1.5f) hint = "Sin fuerzas para escalar";
             if (hint != null) GUI.Label(new Rect(sw / 2 - 250, sh - 200, 500, 24), hint, center);
         }

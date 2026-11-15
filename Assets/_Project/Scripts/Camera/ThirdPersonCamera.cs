@@ -36,8 +36,10 @@ namespace GTAChiraq
         [SerializeField] float autoAlignDelay = 1.5f;
         [SerializeField] float autoAlignSpeed = 120f;
         [SerializeField] float collisionRadius = 0.25f;
+        [Tooltip("Parte de lo que se encoge el personaje (agachado o en cobertura baja) que baja también la cámara.")]
+        [SerializeField] float crouchFollow = 0.6f;
         [Tooltip("Por defecto ignora al jugador (Ignore Raycast) y a los coches (Vehiculo).")]
-        [SerializeField] LayerMask collisionMask = ~((1 << GameLayers.IgnoreRaycast) | (1 << GameLayers.Vehicle));
+        [SerializeField] LayerMask collisionMask = ~((1 << GameLayers.IgnoreRaycast) | (1 << GameLayers.Vehicle) | (1 << GameLayers.Npc));
 
         float yaw;
         float pitch = 15f;
@@ -47,6 +49,10 @@ namespace GTAChiraq
         float aimBlend;
         float baseFieldOfView = -1f;
         Camera cameraComponent;
+        Transform bodyOf;               // el target para el que se buscaron los componentes de abajo
+        CharacterController targetBody; // a pie: su alto dice si va agachado
+        PlayerMovement targetMovement;
+        float crouchDrop;
 
         public float Yaw => yaw;
         public float AimBlend => aimBlend;
@@ -98,7 +104,18 @@ namespace GTAChiraq
             if (mode == Mode.Vehicle && Time.time - lastLookTime > autoAlignDelay)
                 yaw = Mathf.MoveTowardsAngle(yaw, target.eulerAngles.y, autoAlignSpeed * Time.deltaTime);
 
-            Vector3 pivot = target.position + Vector3.up * profile.height;
+            // Agachado (o en cobertura baja) el CharacterController es más bajo: la cámara baja con él, suavizada.
+            if (bodyOf != target)
+            {
+                bodyOf = target;
+                targetBody = target.GetComponent<CharacterController>();
+                targetMovement = target.GetComponent<PlayerMovement>();
+            }
+            float wantDrop = mode == Mode.OnFoot && targetBody && targetBody.enabled && targetMovement
+                ? Mathf.Max(0f, targetMovement.StandHeight - targetBody.height) * crouchFollow : 0f;
+            crouchDrop = Mathf.MoveTowards(crouchDrop, wantDrop, 2.5f * Time.deltaTime);
+
+            Vector3 pivot = target.position + Vector3.up * (profile.height - crouchDrop);
             Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
             Vector3 back = rotation * Vector3.back;
 

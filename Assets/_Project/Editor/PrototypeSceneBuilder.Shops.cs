@@ -196,11 +196,14 @@ namespace GTAChiraq.Editor
             SignQuad(root, new Vector3(0f, signY, f - 0.235f), Vector3.back, signW, signH, sign);
 
             // Cartel de OPEN de neón en el escaparate (no en la iglesia).
+            GameObject openSign = null;
             if (kind != ShopKind.Church)
             {
                 var open = SignMat("Neon_Open", "OPEN", new Color(0.05f, 0.03f, 0.04f), new Color(1f, 0.15f, 0.2f), 77, 2.2f);
                 float ox = doorLeft ? winX0 + 0.8f : winX1 - 0.8f;
                 SignQuad(root, new Vector3(ox, 2.3f, f - 0.05f), Vector3.back, 1f, 1f / ((float)open.mainTexture.width / open.mainTexture.height), open);
+                openSign = root.GetChild(root.childCount - 1).gameObject;
+                openSign.name = "NeonOpen";
             }
 
             // Toldo inclinado.
@@ -349,6 +352,7 @@ namespace GTAChiraq.Editor
             if (rng.NextDouble() < 0.7)
                 Box("AireTejado", root, new Vector3(Range(rng, -hw + 1.5f, hw - 1.5f), h + 0.55f, d * 0.6f), new Vector3(1.4f, 0.9f, 1.1f), Mat("AireAcondicionado", new Color(0.7f, 0.69f, 0.64f)));
 
+            ShopLife(root, kind, w, doorX, f, openSign); // PrototypeSceneBuilder.Npc.cs: horario y sitio para los NPC
             RecordFootprint(root, "tienda", -hw, 0f, hw, d, h + 0.9f);
         }
 

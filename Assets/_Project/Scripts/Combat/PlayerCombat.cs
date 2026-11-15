@@ -26,6 +26,7 @@ namespace GTAChiraq
         [SerializeField] float headshotMultiplier = 2.5f;
 
         PlayerMovement movement;
+        PlayerAnimator animator;
         PlayerInventory inventory;
         PlayerVitals vitals;
         PlayerCover cover;
@@ -66,6 +67,7 @@ namespace GTAChiraq
         void Awake()
         {
             movement = GetComponent<PlayerMovement>();
+            animator = GetComponent<PlayerAnimator>();
             inventory = GetComponent<PlayerInventory>();
             vitals = GetComponent<PlayerVitals>();
             cover = GetComponent<PlayerCover>();
@@ -112,7 +114,7 @@ namespace GTAChiraq
 
             bloom = Mathf.MoveTowards(bloom, 0f, 6f * Time.deltaTime);
             float speed = movement ? movement.PlanarVelocity.magnitude : 0f;
-            CurrentSpread = weapon != null ? CombatMath.Spread(weapon.Spread, IsAiming, speed, bloom) : 0f;
+            CurrentSpread = weapon != null ? CombatMath.Spread(weapon.Spread, IsAiming, speed, bloom, movement && movement.Crouching) : 0f;
             flash.enabled = Time.time < flashUntil;
             UpdateReload(weapon);
             UpdateVisuals(weapon);
@@ -172,6 +174,9 @@ namespace GTAChiraq
                 ApplyHit(hit.collider, hit.rigidbody, hit.point, dir, damage, DamageKind.Bullet, 4f);
                 BulletHole(hit);
             }
+            // Los NPC lo oyen: los civiles huyen y los grupos responden (a quien se apuntaba, aunque se fallara).
+            var shotAt = aimHit.collider ? aimHit.collider.GetComponentInParent<Health>() : null;
+            NpcAlerts.Gunshot(transform.position, gameObject, shotAt ? shotAt.gameObject : null);
 
             if (followCamera) followCamera.AddRecoil(weapon.Recoil, Random.Range(-0.4f, 0.4f));
             flashUntil = Time.time + 0.05f;
@@ -306,6 +311,7 @@ namespace GTAChiraq
             if (health && health != ownHealth && !health.IsDead)
             {
                 health.TakeDamage(new DamageInfo(damage, kind, point, direction, gameObject));
+                if (kind == DamageKind.Melee) NpcAlerts.Hit(point, gameObject, health.gameObject);
                 LastHitTime = Time.time;
                 LastHitKilled = health.IsDead;
             }
@@ -327,9 +333,11 @@ namespace GTAChiraq
                 if (raised && followCamera)
                     pitch = Mathf.Clamp(-Mathf.Asin(Mathf.Clamp(followCamera.AimRay.direction.y, -1f, 1f)) * Mathf.Rad2Deg, -55f, 60f);
                 AimPitch = Mathf.Lerp(AimPitch, pitch, 1f - Mathf.Exp(-14f * Time.deltaTime));
-                var pivot = new Vector3(0.1f, 1.45f, 0f);
+                // A la altura del hombro de verdad (la da PlayerAnimator): agachado o en cobertura baja, más abajo.
+                float shoulderY = animator && animator.AimPivotY > 0f ? animator.AimPivotY : 1.45f;
+                var pivot = new Vector3(0.1f, shoulderY, 0f);
                 var aimPose = pivot + Quaternion.Euler(AimPitch, 0f, 0f) * new Vector3(0.06f, 0.04f, 0.66f);
-                var idle = new Vector3(0.3f, 0.98f, 0.16f);
+                var idle = new Vector3(0.3f, shoulderY - 0.47f, 0.16f);
                 var pose = raised ? aimPose : idle;
                 if (Reloading) pose += Vector3.down * 0.25f;
                 float follow = 1f - Mathf.Exp(-18f * Time.deltaTime);

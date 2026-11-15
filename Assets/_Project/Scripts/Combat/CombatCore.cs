@@ -145,10 +145,12 @@ namespace GTAChiraq
     {
         /// <summary>
         /// Dispersión de un disparo en grados: la base del arma más el retroceso acumulado (bloom) y lo que se mueve
-        /// el tirador. Sin apuntar (desde la cadera) es 2.5 veces mayor.
+        /// el tirador. Sin apuntar (desde la cadera) es 2.5 veces mayor; agachado, un 30 % menor.
         /// </summary>
-        public static float Spread(float baseSpread, bool aiming, float speed, float bloom)
-            => (baseSpread + bloom + speed * 0.35f) * (aiming ? 1f : 2.5f);
+        public static float Spread(float baseSpread, bool aiming, float speed, float bloom, bool crouched = false)
+            => (baseSpread + bloom + speed * 0.35f) * (aiming ? 1f : 2.5f) * (crouched ? CrouchSpreadFactor : 1f);
+
+        public const float CrouchSpreadFactor = 0.7f;
 
         /// <summary>Desvía <paramref name="direction"/> dentro de un cono de <paramref name="angle"/> grados. <paramref name="disc"/> es un punto del círculo unidad.</summary>
         public static Vector3 Scatter(Vector3 direction, float angle, Vector2 disc)

@@ -1651,6 +1651,21 @@ namespace GTAChiraq.Editor
             return Save(name, S, S, px);
         }
 
+        /// <summary>Copo de nieve: punto blanco de borde suave sobre transparente (partículas de nieve).</summary>
+        public static Texture2D Snowflake()
+        {
+            const int S = 32;
+            var px = new Color[S * S];
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float dx = (x + 0.5f) / S - 0.5f, dy = (y + 0.5f) / S - 0.5f;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy) * 2f;
+                    px[y * S + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(1f - Mathf.SmoothStep(0.35f, 1f, r)));
+                }
+            return Save("Copo", S, S, px, alpha: true, clamp: true);
+        }
+
         // ---------- Guardado ----------
 
         static Texture2D Save(string name, int size, Color[] pixels) => Save(name, size, size, pixels);

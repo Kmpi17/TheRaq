@@ -60,7 +60,11 @@ namespace GTAChiraq
         {
             DeathTime = Time.time;
             if (cover) cover.Exit();
-            if (movement) movement.Locked = true;
+            if (movement)
+            {
+                movement.ForceStand();
+                movement.Locked = true;
+            }
             if (model) model.localRotation = Quaternion.Euler(-88f, 0f, 0f); // tumbado boca arriba
         }
 
@@ -74,6 +78,7 @@ namespace GTAChiraq
             if (model) model.localRotation = Quaternion.identity;
             if (movement)
             {
+                movement.ForceStand();
                 movement.ResetMotion();
                 movement.Locked = false;
             }

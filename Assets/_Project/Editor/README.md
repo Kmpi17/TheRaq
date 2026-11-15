@@ -29,7 +29,7 @@ Menú **GTAChiraq > Construir escena prototipo**. Genera `Assets/_Project/Scenes
 ## Qué hace `Build()`, en orden
 0. **`PrepareCars()`**: materiales de los coches (los usan todas las zonas).
 1. **`EnsureUrp()`**: si `GraphicsSettings.defaultRenderPipeline` no es URP, crea `Settings/URP_Renderer.asset` y `Settings/URP_Pipeline.asset` y los asigna.
-2. **`SetupLighting()`**: luz direccional fría y suave (cielo nublado), ambiente plano gris, niebla lineal de 25 a 260 m y sin skybox.
+2. **`SetupLighting()`**: la luz de mediodía de `DayCycleMath.Look(12, 0, 0)`: luz direccional fría y suave (cielo nublado), ambiente plano gris, niebla lineal de 25 a 260 m y el cielo gris degradado (`CieloGris.mat`, shader `GTAChiraq/CieloGris` de `Assets/_Project/Shaders/`), sin reflejos del cielo (`DefaultReflectionMode.Custom`). En juego la cambia `WeatherSystem` con la hora y el tiempo. `EnsureUrp()` pone el renderer en **Forward+** (sin límite de luces por objeto: con Forward, las aceras y calzadas largas solo recibían 4 farolas).
 3. **Mundo** (todo bajo el objeto `Mundo` y marcado como estático):
    - `BuildStreets`: suelo de asfalto liso (de x −275 a 300: encima de la autopista, el suelo lo ponen los puentes y el techo del túnel), aceras de enfrente y, con `BuildMainRoads`, las calzadas texturizadas de las calles grandes (ver *Calles grandes*). La acera norte se corta en la entrada del aparcamiento de los negocios y en el pasaje al callejón (`ShopsLotDriveway`, `ShopsAlleyLink`). El césped y la acera de la manzana central los pone `BuildTowersBlock`.
    - `BuildSurroundings`: filas de casas de 2 plantas al otro lado de la calle sur (al norte ya no: está el oeste lejano; enfrente de la manzana central, tampoco: están las cocheras), una tienda de esquina con letrero y coches aparcados (se pueden robar).
@@ -64,6 +64,14 @@ Menú **GTAChiraq > Construir escena prototipo**. Genera `Assets/_Project/Scenes
 - Barrio de casas: x ∈ [120, 250], z ∈ [90, 214]; su copia oeste, x ∈ [−30, 100], z ∈ [102, 226]; franja de negocios, x ∈ [−30, 100], z ∈ [90, 102].
 - En el barrio: cancha de baloncesto en (232, 58), plaza en (232, −58) y coche abandonado en (241, −34) (constantes al principio de `StreetProps.cs`).
 - Las constantes `BlockHalfX`, `BlockHalfZ`, `SidewalkWidth` y `RoadWidth` controlan esta disposición.
+
+## Gente: `PrototypeSceneBuilder.Npc.cs`
+Se llama al final de `Build()` (`BuildNpcs(world, player)`), cuando ya está todo el mundo, porque la malla de navegación tiene que verlo:
+- **Sitios** (`NpcSpot`, bajo `Mundo/SitiosNPC`): las esquinas habituales de cada facción (`HabitualSpots`, con coordenadas del mundo sacadas de `NPCS.md` y del plano), los sitios de paso de los civiles en las aceras (`CivilianSpots`) y el memorial. `ScanProps` recorre el mundo y pone uno en cada `Banco` (sentarse; en la `ParadaBus`, esperar a cubierto) y en el `Bidon` con `Brasas` del descampado (calentarse, Crestline).
+- **Locales:** `Storefront` llama a `ShopLife`: `ShopHours` (el OPEN pasa a llamarse `NeonOpen`; se añade una `PersianaCerrada` entera, oculta), un sitio de recado en la puerta (solo abierto) y, en la FOOD & LIQUOR, una esquina de venta del grupo del barrio (Ash Block en la franja de negocios).
+- **Malla de navegación:** `NavMeshSurface` sobre los colliders de todo (sin las capas 2 y 7), vóxel de 0.2 m; se guarda en `Scenes/Prototype_NavMesh.asset` (no se versiona). Tarda unos segundos.
+- **Plantilla y población:** `PlantillaNPC` (inactiva) copia el `Modelo` del jugador con la pistola, y lleva cápsula de 1.5 m, esfera `Cabeza`, `NavMeshAgent`, `Health`, `PlayerOutfit` (copiado del jugador con `persist` apagado), `NpcAnimator` y `NpcBrain`; todo en la capa 7 `Personaje` (`ProjectSettings/TagManager.asset`). Cuelga de `Poblacion` (`NpcPopulation`).
+- El asmdef del editor referencia `Unity.AI.Navigation`.
 
 ## Paleta y materiales
 Los materiales se crean con `Mat(name, color)` (URP/Lit) en `Assets/_Project/Materials/<name>.mat`. Si ya existen, se reutilizan y se les actualiza el color.
@@ -440,8 +448,13 @@ Las cuatro calles de 14 m alrededor de la manzana central (norte y sur en z = ±
 - En `BuildStreets`, las aceras de enfrente norte y sur se cortan donde pasan la avenida y la calle x = −110, y la del oeste donde pasan z = ±80 (antes eran tiras de 600 m que dejaban un bordillo atravesando la calzada).
 - Capturas: elemento `calles_grandes` en `IngameScreenshots`.
 
+## Hora y tiempo: `PrototypeSceneBuilder.Weather.cs`
+`BuildWeather` (después de `BuildMainRoadDetails`) crea el objeto `Tiempo`, fuera de `Mundo`, con `WeatherSystem`. Le pasa el sol (`RenderSettings.sun`), el cielo y dos materiales de partículas transparentes (URP Particles/Unlit, que se desvanecen a menos de 1.2–4 m de la cámara): `Lluvia`, sin textura, y `Copo`, con `ProceduralTextures.Snowflake()`. `SkyMaterial()` crea `CieloGris.mat`.
+
+Las luces de calle llevan `NightLight` desde donde se crean: `StreetLight` (farolas), `ParkLamp` (StreetProps), las farolas de la autopista (Highway) y las torres de focos de las cocheras (RailYard). Las demás (interiores, fuegos, túnel, faros) no lo llevan y se quedan siempre encendidas. **Una luz de calle nueva tiene que llevar `NightLight`.**
+
 ## Capturas in-game: `IngameScreenshots.cs`
-Saca capturas de 1920×1080 de las distintas zonas, **agrupadas por elemento y por versión**. Usa una cámara temporal con los ajustes de la `Main Camera` (niebla, fondo, 60° de FOV) y `Camera.Render()` sobre un RenderTexture; los trenes salen donde los deja el generador, porque no se entra en Play.
+Saca capturas de 1920×1080 de las distintas zonas, **agrupadas por elemento y por versión**. Todas salen a mediodía y sin lluvia (`WeatherSystem.Preview`), salvo el elemento `tiempo`, que captura cada vista con cada estado de `Weathers` (mediodía, atardecer, noche, lluvia y nieve de día y de noche). El primer fotograma se renderiza y se descarta, porque sale quemado. Usa una cámara temporal con los ajustes de la `Main Camera` (niebla, fondo, 60° de FOV) y `Camera.Render()` sobre un RenderTexture; los trenes salen donde los deja el generador, porque no se entra en Play.
 
 - **Carpetas:** `ingame/<elemento>/vNN_<cambio>/`, con las imágenes y un `cambio.txt` (fecha y descripción). Cada vez que se cambia un elemento se capturan sus vistas en una versión nueva (NN = la última + 1), sin tocar las anteriores, para poder compararlas.
 - **Elementos** (los define la primera columna de `Views`): `manzana_central`, `avenida_tren`, `estacion`, `barrio_viviendas`, `barrio_casas`, `negocios`, `barrio_casas_oeste`, `oeste_lejano`, `calles_grandes`, `autopista`, `instituto` y `aereas`. Para una zona nueva basta con añadir filas con otro nombre de elemento.

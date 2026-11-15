@@ -5,7 +5,7 @@ Cámara orbital propia (no usa Cinemachine) que va en `Main Camera`. Se actualiz
 ## Funcionamiento
 1. Acumula `yaw` y `pitch` a partir de `LookMouse × mouseSensitivity` y `LookStick × stickSpeed × dt`. El pitch se limita según el perfil.
 2. **En modo `Vehicle`**: si no se mueve la cámara durante `autoAlignDelay` s, el yaw vuelve solo hacia la parte trasera del coche a `autoAlignSpeed` °/s.
-3. Calcula el pivote (`target.position + up × height`) y lanza un `SphereCast` hacia atrás. Si choca con una pared, acerca la cámara.
+3. Calcula el pivote (`target.position + up × height`; a pie, menos el `crouchFollow` (60 %) de lo que el CharacterController del jugador está por debajo de `PlayerMovement.StandHeight`, así que baja con él agachado y en cobertura baja, suavizado) y lanza un `SphereCast` hacia atrás. Si choca con una pared, acerca la cámara.
 4. Gestiona el cursor: se bloquea al empezar, Esc lo suelta y un clic lo vuelve a bloquear.
 
 ## API
@@ -25,4 +25,4 @@ Cámara orbital propia (no usa Cinemachine) que va en `Main Camera`. Se actualiz
 | `aim` | 1.9 m | 1.55 m | −50…60° |
 
 ## Colisión
-`collisionMask` ignora por defecto la capa 2 (`Ignore Raycast`, el jugador) y la 6 (`Vehiculo`, todos los coches conducibles), para que la cámara no choque con ellos (`GameLayers`). La escalada, la cobertura y las balas sí ven la capa 6. Si añades personajes, ponlos en la capa 2; los vehículos, en la 6.
+`collisionMask` ignora por defecto la capa 2 (`Ignore Raycast`, el jugador), la 6 (`Vehiculo`, todos los coches conducibles) y la 7 (`Personaje`, los NPC), para que la cámara no choque con ellos (`GameLayers`). La escalada, la cobertura y las balas sí ven la capa 6. Los NPC van en la 7; los vehículos, en la 6.

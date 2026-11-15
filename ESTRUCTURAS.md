@@ -26,8 +26,10 @@ Cuaderno del mundo del juego. Aquí se anota **todo lo que se decide sobre el mu
 - **Comprobar que cabe:** el mundo va de x −300 a 300 y de z −300 a 300 (el plano rotula todo). Antes de construir una zona se comprueba que lo pedido cabe a escala en el sitio indicado; si no cabe, se pregunta qué hacer en vez de encogerlo o moverlo sin decir nada.
 - **Escala de juego en lo grande:** las instalaciones que a escala real no caben en una manzana (campos de deporte, pistas) pueden ir algo reducidas, siempre que se lean bien: el campo de fútbol americano del instituto usa 0.76 m por yarda.
 - **El inicio, con personalidad:** lo que se ve desde donde empieza el jugador (la acera sur de la manzana central) no puede ser relleno genérico: va algo reconocible y con juego, como las cocheras del tren.
+- **Hora y tiempo:** el día es el de siempre (cielo cubierto de invierno, luz fría y suave) y no se toca. Un día dura 20 min reales (`WeatherSystem`, 50 s por hora): amanece de 5:30 a 7:30 y anochece de 18:30 a 20:30. El cielo es un degradado gris cuyo horizonte es siempre el color de la niebla, para que lo lejano se funda con él. De noche el cielo y la niebla tiran al naranja del sodio de la ciudad y las farolas hacen charcos de luz. Llueve o nieva al azar, pero casi siempre está seco (~70 % nublado, ~20 % nieve, ~10 % lluvia; episodios de 2–7 min que entran y salen en 40 s). **Toda luz de calle nueva** (farola, foco, letrero exterior) lleva `NightLight`: apagada de día, encendida al anochecer. Las de interiores, fuegos y el túnel no lo llevan y se quedan siempre encendidas.
 - **Texturas de personaje pintadas:** la ropa y la piel del personaje imitan las texturas de PS2 de `gang.png`: la forma la da la textura, no la trama. Pliegues y arrugas con cresta clara y surco oscuro, sombra horneada, costuras, pespuntes y desgaste, a baja resolución (128 px) y casi blancas para que el color lo ponga la prenda. Nada de tramas finas que de lejos se vean lisas.
 - **Forma del personaje:** mallas low-poly facetadas (por anillos), no primitivas redondas de Unity. Proporciones de PS2 como en `gang.png`: cabeza pequeña y ovalada, torso cuadrado, brazos largos y finos, piernas largas, ropa ancha que cae recta y pies grandes. Los rasgos de la cara se pintan en la textura; solo la nariz y las orejas llevan malla.
+- **Gente en el mundo:** cada sitio donde deba haber gente (esquina, banco, portal, puerta de tienda, cancha, bidón) lleva un `NpcSpot` desde el generador (`PrototypeSceneBuilder.Npc.cs`): los bancos y el bidón con fuego lo reciben solos; las esquinas habituales de cada grupo y los sitios de paso de civiles van en las tablas `HabitualSpots` y `CivilianSpots` (siempre **en la acera o el césped**, no en la calzada). Todo local nuevo hecho con `Storefront` tiene horario (`ShopHours`): de noche, persiana bajada y sin OPEN, salvo la tienda de licores.
 - **Cómo se trabaja este archivo:** antes de hablar o tocar cualquier estructura se leen este archivo y los README relacionados (sobre todo `Assets/_Project/Editor/README.md`) y se miran el plano `mapa/mapa.png` y las imágenes de `img/estructures/` (y `img/`). Cada imagen nueva se añade a la tabla de *Referencias visuales*. Toda regla nueva que salga se apunta en esta sección.
 
 ## Referencias visuales (`img/estructures/`)
@@ -92,6 +94,8 @@ La avenida que separa la manzana central de los barrios es la avenida principal.
   - Cada uno se para unos 10 s en la estación, sigue hasta perderse en la niebla y vuelve a pasar al rato.
 
 ### Manzana central: conjunto de torres (x −100–100, z −70–70)
+*Facción: Ash Block, el bloque del jugador (complejo "Ashgrove Homes"; ver [NPCS.md](NPCS.md)).*
+
 Conjunto de vivienda pública al estilo de `thetowers1-3`: torres altas detrás de filas de casas adosadas, con patios de césped gastado. Usa los mismos materiales que el barrio de viviendas de al lado (ladrillo con ventanas, acera de losas, césped seco, valla de hierro y farolas), para que las dos zonas casen.
 
 - **Torres** de ladrillo de 27×15 m, con cantos de forjado de hormigón vistos en cada planta, pilastras en las esquinas, cornisa, caseta de ascensor, depósito y antena:
@@ -119,6 +123,8 @@ Conjunto de vivienda pública al estilo de `thetowers1-3`: torres altas detrás 
 - **Calles grandes** (las cuatro de 14 m): 4 carriles con doble línea amarilla, bordes blancos y separadores discontinuos; asfalto gastado de invierno (rodadas, sal, grietas selladas con alquitrán, parches de obras, baches, pintura borrada). Las calles norte y sur acaban en la avenida (al este está el barrio de viviendas), así que los cruces de la avenida son en T. En los cruces (±110, ±80): separadores continuos al llegar, línea de stop en los carriles que entran y paso de cebra de barras anchas en cada lado. Tapas de alcantarilla, sumideros en el bordillo, nieve sucia apartada contra el bordillo, charcos y aceite donde paran los coches.
 
 ### Cocheras del tren elevado (x −74…100, z −91.5…−222)
+*Tierra de nadie: escondite y atajo, con grafitis de todas las facciones.*
+
 Al sur de la calle z = −80, justo enfrente del inicio del jugador, donde antes había una fila de two-flats lisos (`PrototypeSceneBuilder.RailYard.cs`). Es una playa de vías de grava cerrada con valla, el sitio donde duermen los trenes del elevado de la avenida. Quedan dos two-flats en la esquina oeste (con la calle x = −110).
 
 - **Rampa de acceso**: sale de la vía oeste del elevado (x 106.5, justo al sur del cruce de z = −80) y baja en diagonal hacia el suroeste hasta el fondo de la playa (78, −206). Arriba va en viaducto de acero, con pórticos cada 12 m; por debajo de 2.6 m, sobre un terraplén con muros de contención, al que se puede subir.
@@ -136,6 +142,8 @@ Al sur de la calle z = −80, justo enfrente del inicio del jugador, donde antes
 - Tienda de esquina con letrero azul y coches aparcados.
 
 ### Barrio de viviendas (este, x 120–250)
+*Facción: Kessler Courts, set aliado de Ash Block al otro lado de la vía. Frontera con Larkin en el callejón sur del barrio de casas.*
+
 Es la primera zona con texturas y detalle, y la que marca el listón para el resto.
 
 - **Calle** E–O de 12 m en z = 0. Sale de la avenida este y acaba en una fila de pilonas rojas. Lleva doble línea amarilla, bordes blancos, grietas, charcos, manchas de aceite y alcantarillas.
@@ -160,6 +168,8 @@ Es la primera zona con texturas y detalle, y la que marca el listón para el res
   - **Maleza alta de zona abandonada:** en la franja del fondo del barrio, al final de la calle, alrededor del coche abandonado y en 3 solares descuidados. Hay matojos más bajos al pie de la valla y de las fachadas traseras, y hierbajos en las grietas de la acera.
 
 ### Barrio de casas (norte, x 120–250, z 90–214)
+*Facción: Larkin Street, enemigo del bloque y de Kessler (también su ampliación norte-este).*
+
 Casas bajas y apartamentos de 3 pisos, con calles que no forman cuadrícula y muchas partes traseras. Se entra desde la avenida por las calles A y C.
 
 - **Calles** de 10 m con aceras de 2.5 m:
@@ -192,6 +202,8 @@ Casas bajas y apartamentos de 3 pisos, con calles que no forman cuadrícula y mu
   - vallas de madera cerrando el barrio por el norte, el este y el sur.
 
 ### Barrio de casas oeste y franja de negocios (x −30–100, z 90–226)
+*Facción: Dunmore (también las ampliaciones oeste y norte-oeste), el rival más cercano de Ash Block. La calle norte es la frontera; la franja de negocios está en disputa y la tienda de licores es la esquina más valiosa.*
+
 Continuación del barrio de casas al otro lado de la vía. Tiene **la misma estructura** (las mismas calles, callejones, filas de casas, apartamentos, solar del este y tienda de esquina), girada 180° alrededor de la avenida:
 
 - Se entra desde la avenida (x = 103) por la calle **A'** (z ≈ 194) y por la **C'** (z ≈ 128, con el quiebro). La **B'** (x ≈ 8) es sin salida por el sur (junto a los negocios) y por el norte sigue recta hasta la calle F de la ampliación norte.
@@ -212,6 +224,8 @@ Continuación del barrio de casas al otro lado de la vía. Tiene **la misma estr
 Todos tienen letrero luminoso (se ve de noche y con niebla), cartel de neón OPEN (menos la iglesia) y, detrás, un patio de servicio con puerta de chapa, contenedor o cubo y bolsas. En la calle: farolas de sodio, papeleras, coches aparcados, nieve en el bordillo y basura.
 
 ### Oeste lejano (x −300…−120, z 90–298, al otro lado de la calle x = −110)
+*Facción: Crestline, los mayores, set aliado de Ash Block y enemigo de Dunmore.*
+
 Barrio de casas con negocios, gasolinera, cancha y descampado (`PrototypeSceneBuilder.FarWest.cs`). Sustituye a los two-flats lisos que había al norte de la calle norte.
 
 - **Calles:** D, E, F y H **siguen rectas** las de la ampliación oeste y la norte cruzando la calle x = −110 (ahí son cruces de cuatro brazos) y acaban en la calle **J** (x −262…−252), que va de la calle norte al borde norte. Los callejones siguen los n2 y n3 de la ampliación oeste y acaban en la cancha y en el descampado.
@@ -233,6 +247,8 @@ Autopista en trinchera, al estilo de las del Southside, pegada al borde oeste de
 - Bordes: pretil y malla en los dos muros, así que no se puede saltar dentro. Todavía no hay rampas para entrar con el coche.
 
 ### Instituto (x −275…−120, z −70…70)
+*Zona neutral: coinciden chavales de todos los barrios.*
+
 Instituto público entre la autopista y la calle x = −110, y entre las calles z = ±80 (`PrototypeSceneBuilder.School.cs`). Usa los materiales de los barrios (acera de losas, césped seco, valla de hierro, malla, farolas de sodio), con ladrillo claro como el de muchas escuelas de la ciudad.
 
 - **Edificio principal** de 3 plantas mirando a la calle norte: ladrillo claro con ventanas, cornisa y antepecho de ladrillo liso. Portal de piedra con tres puertas de cristal y escalinata con barandillas. Encima, un remate con la placa "HIGH SCHOOL" (sin nombre real) y "EST 1961". Rejas en las ventanas de la planta baja, alguna ventana tapada con contrachapado, letrero de "ALL VISITORS REPORT TO MAIN OFFICE" y climatizadores en el tejado.
@@ -306,6 +322,12 @@ Sigue la copia oeste hacia la calle x = −110, con el mismo tipo de casas pero 
 
 Registro de lo que se ha pedido sobre el mundo, del más antiguo al más reciente. Se usa para no repetir errores y mantener el tono.
 
+- **2026-11-15:** «implementa todo esto» (NPC y facciones, por fases; los enemigos te atacan en su territorio, los aliados defienden su zona, Dunmore y Larkin aliados entre sí). → Implementado en `Scripts/NPC/`. *Para el mundo:* sitios de NPC en esquinas habituales, bancos, parada de bus, portales, puerta de cada local, cancha, plaza, memorial y bidón del descampado; los locales cierran de 21:00 a 8:00 con la persiana bajada (la FOOD & LIQUOR nunca), y la malla de navegación se genera con la escena. Capturas en `ingame/npc/v01_primeros_npc/`.
+
+- **2026-11-15:** «¿qué facciones me recomiendas y cuáles serían sus barrios?» → Propuesta aceptada (detalle en [NPCS.md](NPCS.md), *Facciones y territorios*): Ash Block (manzana central, el jugador), Kessler Courts (barrio de viviendas, rival principal al otro lado de la vía), Larkin Street (casas del noreste, aliado de Kessler), Dunmore (casas del oeste, tregua frágil) y Crestline (oeste lejano, los mayores, neutral). Zonas neutrales: franja de negocios (la tienda de licores, en disputa), avenida y estación (frontera), instituto y cocheras. El sur queda para una sexta facción.
+- **2026-11-15:** «como el mapa se tiene que ampliar, Kessler Courts es un set aliado y el oeste lejano también; los otros no». → Ash Block, Kessler y Crestline son aliados; Dunmore y Larkin, enemigos (Dunmore, el rival más cercano, frontera en la calle norte; Larkin, frontera con Kessler en el callejón z ≈ 95). La avenida y la estación pasan a ser paso seguro. Las zonas nuevas del mapa traerán más facciones rivales.
+- **2026-11-15:** Comportamiento de los NPC según la hora y el tiempo (de día civiles y pandilleros tranquilos, de noche solo abre la tienda de licores y hay más incursiones) y **lugares icónicos o esquinas habituales** de cada grupo, aunque también se les encuentre por ahí. → Diseño en [NPCS.md](NPCS.md), sin programar todavía. *Para el mundo:* las esquinas, porches, la puerta de la tienda de licores, la zona de reunión y el memorial tendrán puntos de actividad (`ActivitySpot`), y algunos deben estar **a cubierto** para la lluvia.
+- **2026-11-15:** «implementa un sistema de tiempo, el día está bien como está, habría que meter noche, lluvia y nieve, también un fondo de cielo más o menos grisáceo, y los ciclos de día y noche duran 20 min; la lluvia y la nieve son aleatorias pero que sea algo normal». → `WeatherSystem` con día de 20 min, noche con farolas de sodio (apagadas de día), lluvia y nieve de partículas al azar (casi siempre seco) y cielo gris degradado. Para que las farolas iluminen el suelo, el renderer pasa a Forward+ (con Forward solo 4 luces por objeto y las aceras largas se quedaban a oscuras). Capturas en `ingame/tiempo/`. *Regla:* las luces de calle llevan `NightLight` (ver *Hora y tiempo*).
 - **2026-11-15:** «en la torre donde vive el protagonista quiero un interior que será un portal y desde ahí se coge el ascensor para ir a la casa; la casa en el piso más alto y que se vea la ciudad desde una ventana». → Vestíbulo en la planta baja de T2 (buzones, escalera, fluorescentes, dos ascensores) y piso en la esquina sureste de la planta 14, con dos ventanas al sur y una al este con cristal y vistas reales. La torre se construye con huecos (`TowerOpenings`). *Regla:* los interiores que necesitan vistas van dentro del edificio, no escondidos aparte.
 - **2026-11-14**: Texturas como las de `img/` en una parte del mundo: ladrillo y calles. → Se creó el barrio de viviendas con texturas generadas.
 - **2026-11-14**: «Más detalle en las calles: bancos, árboles, vallas, arbustos, suciedad, canastas… rollo muy callejero». → Se añadió el detalle callejero del barrio.
@@ -343,6 +365,7 @@ Registro de lo que se ha pedido sobre el mundo, del más antiguo al más recient
 
 ## Pendiente e ideas
 
+- NPC ([NPCS.md](NPCS.md)): hecho lo básico (sitios y horario de tiendas). Faltan sitios en los porches traseros y más sitios a cubierto para la lluvia (marquesinas, portales de Kessler), y pasos de cebra en la malla para que los civiles crucen por ellos.
 - Más detalle en las calzadas de los barrios de casas (las calles grandes ya se hicieron el 2026-11-15): siguen con la textura `Road` sencilla, sin parches, alcantarillas ni pasos de cebra en las bocas.
 
 - Pasar los two-flats de los alrededores al mismo nivel de texturas y detalle que el barrio de viviendas.

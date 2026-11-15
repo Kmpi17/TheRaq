@@ -33,6 +33,8 @@ namespace GTAChiraq
         readonly Dictionary<Transform, Vector3> baseScale = new();
         MaterialPropertyBlock block;
         bool initialized;
+        float skinTone = 1f;
+        Color skin = Skin;
 
         public Outfit Outfit { get; private set; }
 
@@ -60,6 +62,22 @@ namespace GTAChiraq
             }
             restNames = names.ToArray();
             restScales = scales.ToArray();
+            Apply();
+        }
+
+        /// <summary>
+        /// Viste el modelo con esas prendas sin guardarlas (los NPC) y con un tono de piel (1 = el del jugador; menos,
+        /// más oscuro; más, más claro). La cara y las manos se tiñen con un MaterialPropertyBlock.
+        /// </summary>
+        public void Wear(IEnumerable<string> ids, float skinTone = 1f)
+        {
+            persist = false;
+            if (Outfit != null) Outfit.Changed -= OnChanged;
+            Outfit = Outfit.Of(ids);
+            Outfit.Changed += OnChanged;
+            this.skinTone = skinTone;
+            skin = new Color(Skin.r * skinTone, Skin.g * skinTone, Skin.b * skinTone);
+            Init();
             Apply();
         }
 
@@ -185,8 +203,8 @@ namespace GTAChiraq
                     Show("Manga" + s, shortSleeve);
                     Paint("Manga" + s, bodyColor, bodyTex);
                     Paint("Deltoide" + s, bodyColor, bodyTex);
-                    Paint("Brazo" + s, shortSleeve ? Skin : torso.Color, shortSleeve ? skinTexture : tex);
-                    Paint("Antebrazo" + s, shortSleeve ? Skin : torso.Color, shortSleeve ? skinTexture : tex);
+                    Paint("Brazo" + s, shortSleeve ? skin : torso.Color, shortSleeve ? skinTexture : tex);
+                    Paint("Antebrazo" + s, shortSleeve ? skin : torso.Color, shortSleeve ? skinTexture : tex);
                     Widen("Manga" + s, longTee ? 1.12f : 1f);
                     Widen("Brazo" + s, style == ClothingStyle.Puffer ? 1.25f : 1f);
                     Widen("Antebrazo" + s, style == ClothingStyle.Puffer ? 1.2f : 1f);
@@ -228,6 +246,25 @@ namespace GTAChiraq
                     Paint("Cana" + s, feet.Color, TextureOf(feet));
                     Paint("Pie" + s, feet.Color, TextureOf(feet));
                 }
+            if (!Mathf.Approximately(skinTone, 1f)) TintSkin();
+        }
+
+        /// <summary>Tiñe la piel a la vista (cara, cuello, manos) con el tono de <see cref="Wear"/>. Los brazos ya los pinta la ropa.</summary>
+        void TintSkin()
+        {
+            var model = transform.Find("Modelo");
+            if (!model) return;
+            block ??= new MaterialPropertyBlock();
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+            {
+                var m = r.sharedMaterial;
+                if (!m || r.name.StartsWith("Brazo") || r.name.StartsWith("Antebrazo")) continue;
+                bool face = m.name.StartsWith("CaraPersonaje");
+                if (!face && !m.name.StartsWith("Piel")) continue;
+                block.Clear();
+                block.SetColor(BaseColor, face ? new Color(skinTone, skinTone, skinTone) : skin);
+                r.SetPropertyBlock(block);
+            }
         }
 
         void Show(string part, bool on)

@@ -18,6 +18,10 @@ namespace GTAChiraq.Tests
             keyboard = InputSystem.AddDevice<Keyboard>();
         }
 
+        /// <summary>Escena vacía: sin lo que dejen cargado otros tests (la escena prototipo con sus NPC).</summary>
+        [UnitySetUp]
+        public IEnumerator FreshScene() => TestScenes.Fresh();
+
         public override void TearDown()
         {
             foreach (var go in new[] { player, wall, ground, car })

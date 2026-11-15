@@ -12,7 +12,7 @@ namespace GTAChiraq.Tests
     /// <summary>
     /// Grabador de animaciones del personaje (no es un test de verdad: es explícito y no comprueba nada). Carga la
     /// escena generada, monta un plató despejado en el aire (suelo, muro alto, muro bajo y una valla), maneja al jugador
-    /// con teclado y ratón simulados (quieto, andar apuntando, correr, esprintar, apuntar y moverse de lado y hacia
+    /// con teclado y ratón simulados (quieto, andar apuntando, correr, esprintar, agachado quieto, andando y apuntando, apuntar y moverse de lado y hacia
     /// atrás, disparar, puñetazos, cubrirse en muro alto y bajo moviéndose de lado y asomándose, y escalar) y guarda
     /// fotogramas de cada acción desde un lado, desde 3/4 por delante y con la cámara del juego.
     /// Salida: &lt;proyecto&gt;/ingame/animaciones/&lt;carpeta&gt;/&lt;acción&gt;_&lt;vista&gt;_NN.ppm (se pasan a PNG fuera), con la carpeta en la
@@ -93,6 +93,44 @@ namespace GTAChiraq.Tests
             Up(keyboard.wKey);
             yield return Wait(0.6f);
             yield return Record("frenar", 4, 0.1f);
+
+            // Quieto un buen rato: carga el peso en una pierna, lo cambia y mira alrededor.
+            yield return Place(new Vector3(-4f, 0f, -6f));
+            yield return Record("quieto_largo", 12, 0.7f);
+            // Corriendo en curva (la cámara gira y el personaje la sigue): se inclina hacia dentro.
+            yield return Place(new Vector3(6f, 0f, -12f));
+            var spinner = new GameObject("GiraCamara").AddComponent<CameraSpinner>();
+            spinner.Camera = followCamera;
+            spinner.Rate = 110f;
+            Down(keyboard.wKey);
+            yield return Wait(0.8f);
+            yield return Record("correr_curva", 8, 0.08f);
+            Up(keyboard.wKey);
+            Object.Destroy(spinner.gameObject);
+            yield return Wait(0.6f);
+
+            // Agachado (C): quieto, andando hacia delante y de lado, y apuntando agachado.
+            yield return Place(new Vector3(-4f, 0f, -6f));
+            yield return TapCrouch();
+            yield return Wait(0.5f);
+            yield return Record("agachado", 3, 0.25f);
+            foreach (var (name, key) in new[] { ("agachado_andar", keyboard.wKey), ("agachado_lado", keyboard.dKey) })
+            {
+                yield return Place(new Vector3(-4f, 0f, -12f));
+                Down(key);
+                yield return Wait(0.6f);
+                yield return Record(name, 10, 0.06f);
+                Up(key);
+            }
+            Equip("pistola");
+            yield return Place(new Vector3(-4f, 0f, -6f));
+            Down(mouse.rightButton);
+            yield return Wait(0.6f);
+            yield return Record("agachado_apuntar", 3, 0.2f);
+            Up(mouse.rightButton);
+            Equip(null);
+            yield return TapCrouch();
+            yield return Wait(0.4f);
 
             // Puñetazos (tres seguidos para ver el combo).
             yield return Place(new Vector3(-4f, 0f, -6f));
@@ -237,6 +275,28 @@ namespace GTAChiraq.Tests
             Up(keyboard.qKey);
             yield return null;
             Debug.Log($"[Grabador] Q después: en cobertura {(cover && cover.InCover)} baja {(cover && cover.LowCover)}");
+        }
+
+        /// <summary>Pulsa C (agacharse o levantarse) y apunta en el registro cómo queda.</summary>
+        IEnumerator TapCrouch()
+        {
+            Down(keyboard.cKey);
+            yield return Wait(0.05f);
+            Up(keyboard.cKey);
+            yield return null;
+            var mv = player.GetComponent<PlayerMovement>();
+            Debug.Log($"[Grabador] C: agachado {(mv && mv.Crouching)} alto {controller.height}");
+        }
+
+        /// <summary>Gira la cámara del juego a ritmo fijo (para correr en curva).</summary>
+        sealed class CameraSpinner : MonoBehaviour
+        {
+            public ThirdPersonCamera Camera;
+            public float Rate;
+            void Update()
+            {
+                if (Camera) Camera.SetYaw(Camera.Yaw + Rate * Time.deltaTime);
+            }
         }
 
         void Equip(string id)

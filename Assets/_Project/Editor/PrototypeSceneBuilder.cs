@@ -71,6 +71,7 @@ namespace GTAChiraq.Editor
             BuildStreetLights(world);
             BuildSnow(world);
             BuildMainRoadDetails(world); // PrototypeSceneBuilder.MainRoads.cs: alcantarillas, sumideros, nieve y manchas
+            BuildWeather(world);         // PrototypeSceneBuilder.Weather.cs: día y noche, lluvia y nieve (las luces de "Mundo" llevan NightLight)
             BuildDrivableParkedCars();   // PrototypeSceneBuilder.Cars.cs: los aparcados salen de "Mundo" y se pueden robar
             MarkStatic(world);
 
@@ -78,6 +79,7 @@ namespace GTAChiraq.Editor
             BuildCar(new Vector3(-16f, 0.4f, -BlockHalfZ - SidewalkWidth - 3f), Quaternion.Euler(0f, -90f, 0f));
             BuildCamera(player);
             BuildTrainingArea(); // PrototypeSceneBuilder.Training.cs: dianas y objetos junto al inicio (fuera de "Mundo")
+            BuildNpcs(world, player); // PrototypeSceneBuilder.Npc.cs: malla de navegación, sitios, plantilla y población (al final: la malla ve todo)
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddSceneToBuild(ScenePath);
@@ -88,10 +90,15 @@ namespace GTAChiraq.Editor
 
         static void EnsureUrp()
         {
-            if (GraphicsSettings.defaultRenderPipeline is UniversalRenderPipelineAsset) return;
+            if (GraphicsSettings.defaultRenderPipeline is UniversalRenderPipelineAsset)
+            {
+                UseForwardPlus(AssetDatabase.LoadAssetAtPath<UniversalRendererData>(SettingsDir + "/URP_Renderer.asset"));
+                return;
+            }
 
             EnsureFolder(SettingsDir);
             var rendererData = ScriptableObject.CreateInstance<UniversalRendererData>();
+            rendererData.renderingMode = RenderingMode.ForwardPlus;
             AssetDatabase.CreateAsset(rendererData, SettingsDir + "/URP_Renderer.asset");
             var pipeline = UniversalRenderPipelineAsset.Create(rendererData);
             AssetDatabase.CreateAsset(pipeline, SettingsDir + "/URP_Pipeline.asset");
@@ -100,25 +107,41 @@ namespace GTAChiraq.Editor
             Debug.Log("[GTAChiraq] URP configurado como render pipeline por defecto.");
         }
 
+        /// <summary>
+        /// Forward+: sin límite de luces por objeto. Con Forward solo las 4 luces más importantes de cada objeto lo
+        /// iluminan, y las aceras y calzadas largas (un solo objeto con decenas de farolas) se quedaban sin charcos de luz.
+        /// </summary>
+        static void UseForwardPlus(UniversalRendererData rendererData)
+        {
+            if (!rendererData || rendererData.renderingMode == RenderingMode.ForwardPlus) return;
+            rendererData.renderingMode = RenderingMode.ForwardPlus;
+            EditorUtility.SetDirty(rendererData);
+            AssetDatabase.SaveAssets();
+        }
+
         static void SetupLighting()
         {
+            // La luz de mediodía; WeatherSystem la cambia en juego con la hora y el tiempo (DayCycleMath).
+            var noon = DayCycleMath.Look(12f, 0f, 0f);
             var sun = new GameObject("Sol nublado").AddComponent<Light>();
             sun.type = LightType.Directional;
-            sun.color = new Color(0.8f, 0.84f, 0.92f);
-            sun.intensity = 0.7f;
+            sun.color = noon.SunColor;
+            sun.intensity = noon.SunIntensity;
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.5f;
-            sun.transform.rotation = Quaternion.Euler(40f, -35f, 0f);
+            sun.transform.rotation = noon.SunRotation;
 
             RenderSettings.sun = sun;
-            RenderSettings.skybox = null;
+            RenderSettings.skybox = SkyMaterial(); // cielo gris degradado (PrototypeSceneBuilder.Weather.cs)
+            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom; // sin reflejos del cielo, como antes
+            RenderSettings.customReflectionTexture = null;
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.45f, 0.47f, 0.52f);
+            RenderSettings.ambientLight = noon.Ambient;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = FogColor;
-            RenderSettings.fogStartDistance = 25f;
-            RenderSettings.fogEndDistance = 260f;
+            RenderSettings.fogColor = noon.Fog;
+            RenderSettings.fogStartDistance = noon.FogStart;
+            RenderSettings.fogEndDistance = noon.FogEnd;
         }
 
         // ---------- Mundo ----------
@@ -407,6 +430,7 @@ namespace GTAChiraq.Editor
             light.range = 16f;
             light.intensity = 4f;
             light.shadows = LightShadows.None;
+            light.gameObject.AddComponent<NightLight>(); // apagada de día, encendida al anochecer
         }
 
         static void BuildSnow(Transform world)
@@ -521,7 +545,7 @@ namespace GTAChiraq.Editor
             cameraObject.transform.SetPositionAndRotation(player.transform.position + new Vector3(0f, 2.5f, -4f), Quaternion.Euler(15f, 0f, 0f));
 
             var camera = cameraObject.AddComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.clearFlags = CameraClearFlags.Skybox; // el cielo gris; el fondo sólido queda de reserva
             camera.backgroundColor = FogColor;
             camera.nearClipPlane = 0.1f;
             camera.farClipPlane = 400f;

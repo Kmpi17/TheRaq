@@ -3,6 +3,7 @@
     "rootNamespace": "GTAChiraq.Editor",
     "references": [
         "GTAChiraq.Runtime",
+        "Unity.AI.Navigation",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime"
     ],

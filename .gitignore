@@ -55,3 +55,5 @@ desktop.ini
 # La escena prototipo se genera desde el menú GTAChiraq > Construir escena prototipo
 # (pesa más de 100 MB porque lleva dentro las mallas generadas). Su .meta sí se versiona.
 /Assets/_Project/Scenes/Prototype.unity
+/Assets/_Project/Scenes/Prototype_NavMesh.asset
+/Assets/_Project/Scenes/Prototype_NavMesh.asset.meta

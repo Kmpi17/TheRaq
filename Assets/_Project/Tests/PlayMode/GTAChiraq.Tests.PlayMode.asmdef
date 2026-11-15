@@ -3,6 +3,7 @@
     "rootNamespace": "GTAChiraq.Tests",
     "references": [
         "GTAChiraq.Runtime",
+        "Unity.AI.Navigation",
         "Unity.InputSystem",
         "Unity.InputSystem.TestFramework",
         "UnityEngine.TestRunner",

@@ -7,5 +7,7 @@ namespace GTAChiraq
         public const int IgnoreRaycast = 2;
         /// <summary>"Vehiculo": todos los coches que se pueden conducir (el del jugador y los aparcados).</summary>
         public const int Vehicle = 6;
+        /// <summary>"Personaje": los NPC (la cámara los atraviesa; no tapan la vista de otros NPC).</summary>
+        public const int Npc = 7;
     }
 }

@@ -24,6 +24,7 @@ if (input.Interact.WasPressedThisFrame()) { ... }
 | `Aim` | Button | Clic derecho, leftTrigger | `PlayerCombat` |
 | `Reload` | Button | R, buttonWest | `PlayerCombat` |
 | `Cover` | Button | Q, rightShoulder | `PlayerCover` |
+| `Crouch` | Button | C, leftStickPress (pulsar el stick izquierdo) | `PlayerMovement` (agacharse o levantarse, alterna) |
 | `Inventory` | Button | Tab, select | `PlayerInventory` |
 | `WeaponScroll` | Axis | rueda del ratón, cruceta ← → | `PlayerInventory` |
 

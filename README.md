@@ -18,6 +18,7 @@ Juego de mundo abierto 3D en tercera persona (género tipo GTA San Andreas), amb
 | Esprintar (gasta energía) | Shift izquierdo | B / Círculo |
 | Escalar, saltar una valla o cruzar un coche / freno de mano | Espacio | A / Cruz · RB |
 | Cubrirse / salir de la cobertura | Q | RB |
+| Agacharse / levantarse | C | Pulsar stick izquierdo |
 | Apuntar | Clic derecho | LT |
 | Pegar / disparar | Clic izquierdo | RT |
 | Recargar | R | X / Cuadrado |
@@ -31,6 +32,20 @@ Juego de mundo abierto 3D en tercera persona (género tipo GTA San Andreas), amb
 
 [`ESTRUCTURAS.md`](ESTRUCTURAS.md) es el cuaderno del mundo: estilo, zonas, estructuras y todo lo que se ha pedido sobre cómo debe sentirse cada sitio.
 
+## NPC y facciones
+Diseño, investigación y facciones en **[NPCS.md](NPCS.md)**; el código, en [`Scripts/NPC/`](Assets/_Project/Scripts/NPC/README.md). En resumen:
+- **De día** hay civiles de todo tipo y pandilleros vendiendo o pasando el rato, y pocas incursiones de bloques rivales.
+- **De noche** apenas hay civiles, las tiendas cierran salvo las de licores, y los pandilleros están más activos (venden más y hay más incursiones).
+- **Con lluvia o nieve** pasa algo parecido: la gente se refugia, pero se mantienen las reglas del día o de la noche.
+- **Esquinas y lugares habituales** para cada grupo, aunque se les puede encontrar por otras partes.
+
+- **Facciones** (ficticias): el bloque del jugador es Ash Block, con Kessler Courts y Crestline como aliados; Dunmore y Larkin Street son enemigos (y aliados entre sí). El HUD dice en qué barrio estás.
+- **Enemigos:** en su barrio, si te reconocen, primero te miran, luego te encaran y al final sacan el arma. Fuera de su barrio solo atacan en incursiones o si les provocas.
+- **Aliados:** no te atacan (salvo que les dispares) y defienden su zona de los enemigos.
+- **Incursiones:** de noche, a veces, 3 o 4 armados del barrio enemigo más cercano entran en el tuyo.
+
+Está hecho por fases: ya funcionan la vida del barrio (población por hora y tiempo, sitios habituales, tiendas que cierran), los territorios, el combate básico de los NPC y las incursiones. Capturas en `ingame/npc/`.
+
 ## Mapa del código
 
 Todo lo propio está en `Assets/_Project/`. Cada carpeta tiene su propio README con los detalles.
@@ -38,14 +53,15 @@ Todo lo propio está en `Assets/_Project/`. Cada carpeta tiene su propio README 
 | Carpeta | Qué hay | README |
 |---|---|---|
 | `Scripts/Input/` | `GameInput`: todas las acciones de input, definidas en código | [→](Assets/_Project/Scripts/Input/README.md) |
-| `Scripts/Player/` | `PlayerMovement` (con inercia, esprint con energía y daño por caída), `PlayerVitals` (energía, regeneración, muerte y reaparición), `PlayerClimb` (escalar, sin salto), `PlayerCover` (cobertura), `PlayerHud`, `PlayerOutfit` y `Clothing` (ropa con textura, con gafas y cadena; pinta según `img/gang.png`), `PlayerAnimator` (animación procedural: andar, correr, cobertura, escalar, pistola, puñetazos); lógica pura en `MovementMath` y `ClimbMath` | [→](Assets/_Project/Scripts/Player/README.md) |
+| `Scripts/Player/` | `PlayerMovement` (con inercia, esprint con energía, agacharse con C y daño por caída), `PlayerVitals` (energía, regeneración, muerte y reaparición), `PlayerClimb` (escalar, sin salto), `PlayerCover` (cobertura), `PlayerHud`, `PlayerOutfit` y `Clothing` (ropa con textura, con gafas y cadena; pinta según `img/gang.png`), `PlayerAnimator` (animación procedural: andar, correr, agachado, cobertura, escalar, pistola, puñetazos); lógica pura en `MovementMath` y `ClimbMath` | [→](Assets/_Project/Scripts/Player/README.md) |
 | `Scripts/Camera/` | `ThirdPersonCamera`: cámara orbital con colisión | [→](Assets/_Project/Scripts/Camera/README.md) |
 | `Scripts/Vehicles/` | `VehicleController`: coche con WheelColliders. `VehicleLock`: cerradura de los coches ajenos, que se fuerza para robarlos | [→](Assets/_Project/Scripts/Vehicles/README.md) |
 | `Scripts/Interaction/` | `VehicleEntry`: subir y bajar del coche, y forzar la puerta de los ajenos. `Interactable` y `PlayerInteractor`: lo que se usa con F a pie y los viajes en ascensor con fundido | [→](Assets/_Project/Scripts/Interaction/README.md) |
 | `Scripts/Home/` | Casa del jugador: `Elevator` (ascensor del portal de T2 al piso y vuelta), `Wardrobe` (armario: cambiarse de ropa), `SafeBox` y `Stash` (caja fuerte para dinero, armas y objetos) | [→](Assets/_Project/Scripts/Home/README.md) |
-| `Scripts/World/` | `ElevatedTrain` y `TrainMotion`: tren elevado decorativo que circula por la avenida. `HighwayCar` y `HighwayLoop`: tráfico decorativo de la autopista hundida. `GameLayers`, `SolidVisual`, `NoClimb`, `NoCover`: capas y marcas de obstáculos para escalar y cubrirse | [→](Assets/_Project/Scripts/World/README.md) |
+| `Scripts/World/` | `WeatherSystem`, `DayCycleMath`, `WeatherMath` y `NightLight`: día de 20 min, noche con farolas, lluvia y nieve al azar y cielo gris. `ElevatedTrain` y `TrainMotion`: tren elevado decorativo que circula por la avenida. `HighwayCar` y `HighwayLoop`: tráfico decorativo de la autopista hundida. `GameLayers`, `SolidVisual`, `NoClimb`, `NoCover`: capas y marcas de obstáculos para escalar y cubrirse | [→](Assets/_Project/Scripts/World/README.md) |
 | `Scripts/Combat/` | `Health` (vida y chaleco de cualquier cosa herible), `PlayerCombat` (puños con combo y pistola: apuntar, dispersión, retroceso, recarga), `TrainingDummy` (dianas), `ProceduralSfx` (sonidos provisionales). Lógica pura: `HealthPool`, `StaminaPool`, `CombatMath` | [→](Assets/_Project/Scripts/Combat/README.md) |
 | `Scripts/Inventory/` | `Inventory` (casillas, lógica pura), `ItemCatalog` (objetos en código), `PlayerInventory` (dinero, arma equipada, cargadores y panel con Tab), `ItemPickup` (objetos en el suelo) | [→](Assets/_Project/Scripts/Inventory/README.md) |
+| `Scripts/NPC/` | `NpcPopulation` (aparece y quita gente alrededor del jugador según la hora y el tiempo, y lanza las incursiones), `NpcBrain` (cabeza de cada NPC: sitios, huir, sospechar, encarar, pelear), `NpcAnimator` (animación procedural con el cuerpo del jugador), `NpcSpot` (sitios inteligentes), `ShopHours` (horario de los locales), `NpcAlerts` (disparos y golpes que se oyen). Lógica pura: `FactionCatalog` (facciones, relaciones, territorios y ropa) y `NpcMath` | [→](Assets/_Project/Scripts/NPC/README.md) |
 | `Scripts/Music/` | `RecordingStudio`: micro del estudio casero (se graba pulsando F a tiempo). `StudioSession` y `MusicCareer`: sesión de grabación y progresión musical (temas, fama y rangos), en lógica pura | [→](Assets/_Project/Scripts/Music/README.md) |
 | `Editor/` | `PrototypeSceneBuilder` (clase `partial`, un archivo por zona; ver *Zonas del mundo*): genera la escena prototipo, el URP y los materiales. `PrototypeSceneBuilder.Body.cs`: cuerpo del jugador (piezas de anillos facetados con ropa y cara pintadas). `ProceduralTextures`: texturas generadas en código. `IngameScreenshots`: capturas de cada zona en `ingame/` | [→](Assets/_Project/Editor/README.md) |
 | `mapa/` (raíz) | `mapa.png`: plano cenital del mundo con coordenadas, que sirve de referencia para modificarlo. `generar_mapa.py` lo regenera (Python + Pillow) y copia las medidas del generador. Las casas las lee de `edificios_casas.json`, que Unity escribe al construir la escena | [→](ESTRUCTURAS.md) |
@@ -90,11 +106,12 @@ Con el editor abierto: **GTAChiraq > Capturas in-game (todas)**. El plano se reg
 
 ```
 GameInput.Actions (singleton)
-   ├─► PlayerMovement ──► CharacterController      (a pie; Locked = otra habilidad manda)
+   ├─► PlayerMovement ──► CharacterController      (a pie; Locked = otra habilidad manda; C agacha: más bajo y lento)
    │      ├─ PlayerClimb (Espacio): toma el control y recorre el obstáculo
    │      ├─ PlayerCover (Q): toma el control y se mueve pegado a la pared
    │      └─ PlayerVitals: energía; al morir bloquea y reaparece
    ├─► PlayerCombat ──► Health de lo que golpea    (puños / pistola de PlayerInventory)
+   │      └─ NpcAlerts.Gunshot / Hit: los NPC lo oyen (civiles huyen, grupos responden)
    │      └─ ThirdPersonCamera.SetAiming / AddRecoil / AimRay
    ├─► PlayerInventory (Tab, rueda) ──► GameUi.MenuOpen bloquea el resto
    ├─► ThirdPersonCamera ──► sigue a su target     (jugador o coche)
@@ -106,6 +123,14 @@ GameInput.Actions (singleton)
           │          SetDriver(true), cámara en modo Vehicle
           └─ salir:  desemparenta, coloca al jugador en el ExitPoint,
                      reactiva el control a pie, cámara en modo OnFoot
+
+NpcPopulation (cada 1 s, según WeatherSystem: hora, lluvia, nieve)
+   ├─ saca civiles y grupos fuera de la vista en NpcSpot y quita los lejanos
+   ├─ cada minuto tira la incursión (si estás en un barrio de tu bando)
+   └─► NpcBrain (cada 0.2 s) ──► NavMeshAgent       (sitio → quedarse → otro sitio)
+          ├─ oye NpcAlerts: civil huye; grupo responde o ayuda a su bando
+          ├─ enemigo que te ve en su barrio: mirar → encarar → disparar
+          └─► NpcAnimator (pose según lo que hace) y Health
 ```
 
 ## Assemblies
@@ -113,9 +138,9 @@ GameInput.Actions (singleton)
 | asmdef | Ruta | Depende de |
 |---|---|---|
 | `GTAChiraq.Runtime` | `Scripts/` | Unity.InputSystem |
-| `GTAChiraq.Editor` | `Editor/` (solo editor) | Runtime, URP Runtime, SRP Core |
+| `GTAChiraq.Editor` | `Editor/` (solo editor) | Runtime, URP Runtime, SRP Core, AI Navigation |
 | `GTAChiraq.Tests.EditMode` | `Tests/EditMode/` | Runtime, NUnit |
-| `GTAChiraq.Tests.PlayMode` | `Tests/PlayMode/` | Runtime, InputSystem (+TestFramework), NUnit |
+| `GTAChiraq.Tests.PlayMode` | `Tests/PlayMode/` | Runtime, InputSystem (+TestFramework), AI Navigation, NUnit |
 
 ## Tests
 

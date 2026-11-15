@@ -753,6 +753,7 @@ namespace GTAChiraq.Editor
             light.spotAngle = 95f;
             light.intensity = 3f;
             light.shadows = LightShadows.None;
+            light.gameObject.AddComponent<NightLight>(); // apagada de día, encendida al anochecer
         }
     }
 }

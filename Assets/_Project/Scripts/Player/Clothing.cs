@@ -70,6 +70,19 @@ namespace GTAChiraq
             Add("zapatillas_negras", "Zapatillas negras", ClothingSlot.Feet, ClothingStyle.Sneakers, new Color(0.05f, 0.05f, 0.06f));
             Add("botas_trabajo", "Botas de trabajo", ClothingSlot.Feet, ClothingStyle.Boots, new Color(0.62f, 0.45f, 0.22f));
 
+            // Colores de grupo (NPCS.md): granate Kessler, mostaza Dunmore, verde oscuro Larkin; y ropa de civil.
+            Add("gorra_blanca", "Gorra blanca", ClothingSlot.Head, ClothingStyle.Cap, new Color(0.88f, 0.88f, 0.86f));
+            Add("gorra_granate", "Gorra granate", ClothingSlot.Head, ClothingStyle.Cap, new Color(0.38f, 0.07f, 0.1f));
+            Add("gorra_verde", "Gorra verde oscuro", ClothingSlot.Head, ClothingStyle.Cap, new Color(0.1f, 0.22f, 0.13f));
+            Add("gorro_mostaza", "Gorro de lana mostaza", ClothingSlot.Head, ClothingStyle.Beanie, new Color(0.72f, 0.55f, 0.12f));
+            Add("sudadera_granate", "Sudadera granate", ClothingSlot.Torso, ClothingStyle.Hoodie, new Color(0.38f, 0.07f, 0.1f));
+            Add("camiseta_granate", "Camiseta granate XL", ClothingSlot.Torso, ClothingStyle.Tee, new Color(0.42f, 0.08f, 0.11f));
+            Add("sudadera_mostaza", "Sudadera mostaza", ClothingSlot.Torso, ClothingStyle.Hoodie, new Color(0.72f, 0.55f, 0.12f));
+            Add("sudadera_verde", "Sudadera verde oscuro", ClothingSlot.Torso, ClothingStyle.Hoodie, new Color(0.1f, 0.22f, 0.13f));
+            Add("sudadera_azul", "Sudadera azul", ClothingSlot.Torso, ClothingStyle.Hoodie, new Color(0.16f, 0.24f, 0.45f));
+            Add("plumifero_azul", "Plumífero azul marino", ClothingSlot.Torso, ClothingStyle.Puffer, new Color(0.08f, 0.11f, 0.24f));
+            Add("abrigo_marron", "Plumífero marrón", ClothingSlot.Torso, ClothingStyle.Puffer, new Color(0.32f, 0.21f, 0.13f));
+
             // Complementos: el color es el de la montura o el metal (los cristales siempre son oscuros).
             Add("gafas_negras", "Gafas de sol negras", ClothingSlot.Face, ClothingStyle.Sunglasses, new Color(0.04f, 0.04f, 0.05f));
             Add("gafas_doradas", "Gafas de sol doradas", ClothingSlot.Face, ClothingStyle.Sunglasses, new Color(0.8f, 0.64f, 0.26f));
@@ -122,6 +135,20 @@ namespace GTAChiraq
             var o = new Outfit();
             foreach (var id in ClothingCatalog.StarterWardrobe) o.owned.Add(id);
             foreach (var id in ClothingCatalog.StarterOutfit) o.equipped[ClothingCatalog.Get(id).Slot] = id;
+            return o;
+        }
+
+        /// <summary>Un conjunto ya puesto con esas prendas (los NPC): las tiene y las lleva.</summary>
+        public static Outfit Of(IEnumerable<string> ids)
+        {
+            var o = new Outfit();
+            foreach (var id in ids)
+            {
+                var def = ClothingCatalog.Get(id);
+                if (def == null) continue;
+                o.owned.Add(id);
+                o.equipped[def.Slot] = id;
+            }
             return o;
         }
 

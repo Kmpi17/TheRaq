@@ -96,6 +96,21 @@ namespace GTAChiraq.Editor
             ("reunion", "01_barbacoa_y_canasta", new Vector3(-26f, 2.2f, 17f), new Vector3(-26f, 0.8f, 27f)),
             ("aereas", "01_manzana_central", new Vector3(-60f, 70f, -150f), new Vector3(10f, 0f, 0f)),
             ("aereas", "02_barrios_norte", new Vector3(110f, 85f, 20f), new Vector3(110f, 0f, 150f)),
+            // Hora y tiempo (WeatherSystem.Preview, ver Weathers): la misma calle a varias horas y con lluvia o nieve.
+            ("tiempo", "calle", new Vector3(-10f, 2.4f, -78f), new Vector3(30f, 5f, -60f)),
+            ("tiempo", "avenida", new Vector3(104.5f, 1.9f, -45f), new Vector3(110f, 6f, 30f)),
+        };
+
+        // Para el elemento "tiempo": cada vista se captura con cada uno de estos (sufijo, hora, lluvia, nieve).
+        static readonly (string suffix, float hour, float rain, float snow)[] Weathers =
+        {
+            ("1_mediodia", 12f, 0f, 0f),
+            ("2_atardecer", 19.4f, 0f, 0f),
+            ("3_noche", 23f, 0f, 0f),
+            ("4_lluvia_dia", 12f, 1f, 0f),
+            ("5_nieve_dia", 12f, 0f, 1f),
+            ("6_lluvia_noche", 23f, 1f, 0f),
+            ("7_nieve_noche", 23f, 0f, 1f),
         };
 
         public static IEnumerable<string> Elements => Views.Select(v => v.element).Distinct();
@@ -137,7 +152,7 @@ namespace GTAChiraq.Editor
             var camera = go.AddComponent<Camera>();
             var main = Camera.main;
             if (main) camera.CopyFrom(main);
-            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.clearFlags = main ? main.clearFlags : CameraClearFlags.SolidColor; // el cielo gris
             camera.backgroundColor = RenderSettings.fogColor;
             camera.fieldOfView = 60f;
             camera.nearClipPlane = 0.1f;
@@ -149,20 +164,25 @@ namespace GTAChiraq.Editor
             camera.targetTexture = target;
             try
             {
+                camera.Render(); // el primer fotograma tras abrir la escena sale quemado: se descarta
                 foreach (var element in selected)
                 {
                     string dir = NextVersionDir(element, change);
                     Directory.CreateDirectory(dir);
                     File.WriteAllText(Path.Combine(dir, "cambio.txt"),
                         $"Fecha: {DateTime.Now:yyyy-MM-dd HH:mm}\nCambio: {(string.IsNullOrWhiteSpace(change) ? "(sin descripción)" : change)}\n");
+                    var weather = Object.FindAnyObjectByType<WeatherSystem>();
+                    var states = element == "tiempo" && weather ? Weathers : new[] { ("", 12f, 0f, 0f) };
                     foreach (var (_, name, from, to) in Views.Where(v => v.element == element))
+                    foreach (var (suffix, hour, rain, snow) in states)
                     {
                         go.transform.SetPositionAndRotation(from, Quaternion.LookRotation(to - from, Vector3.up));
+                        if (weather) weather.Preview(hour, rain, snow, camera);
                         camera.Render();
                         RenderTexture.active = target;
                         readback.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
                         readback.Apply();
-                        File.WriteAllBytes(Path.Combine(dir, name + ".png"), readback.EncodeToPNG());
+                        File.WriteAllBytes(Path.Combine(dir, name + (suffix.Length > 0 ? "_" + suffix : "") + ".png"), readback.EncodeToPNG());
                     }
                     Debug.Log($"[GTAChiraq] Capturas de '{element}' en {dir}");
                 }

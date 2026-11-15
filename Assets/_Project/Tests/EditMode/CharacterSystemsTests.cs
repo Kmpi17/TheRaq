@@ -118,6 +118,7 @@ namespace GTAChiraq.Tests
         {
             Assert.That(CombatMath.Spread(1f, false, 0f, 0f), Is.GreaterThan(CombatMath.Spread(1f, true, 0f, 0f)));
             Assert.That(CombatMath.Spread(1f, true, 4f, 2f), Is.GreaterThan(CombatMath.Spread(1f, true, 0f, 0f)));
+            Assert.That(CombatMath.Spread(1f, true, 0f, 0f, crouched: true), Is.LessThan(CombatMath.Spread(1f, true, 0f, 0f))); // agachado apunta mejor
             var dir = new Vector3(0.3f, 0.1f, 1f).normalized;
             foreach (var disc in new[] { Vector2.zero, Vector2.right, new Vector2(-0.7f, 0.7f), Vector2.down })
                 Assert.That(Vector3.Angle(dir, CombatMath.Scatter(dir, 5f, disc)), Is.LessThanOrEqualTo(5.01f));
