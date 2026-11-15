@@ -66,7 +66,7 @@ namespace GTAChiraq.Editor
             var buildings = new GameObject("Edificios").transform;
             buildings.SetParent(group, false);
             HighRise(buildings, "Torre_T1", new Vector3(-62f, 0f, 40f), 180f, 12, LoadMat("FachadaLadrillo"), rng);
-            HighRise(buildings, "Torre_T2", new Vector3(0f, 0f, 2f), 0f, 14, LoadMat("FachadaLadrilloAire"), rng);
+            HighRise(buildings, "Torre_T2", T2Center, 0f, T2Floors, LoadMat("FachadaLadrilloAire"), rng, T2Openings()); // vestíbulo y piso (Apartment.cs)
             HighRise(buildings, "Torre_T3", new Vector3(65f, 0f, 10f), -90f, 11, aptFacadeA, rng);
 
             // Adosadas: origen en el centro de la fachada, +Z local hacia dentro. Las del oeste se miran a través del eje;
@@ -97,6 +97,7 @@ namespace GTAChiraq.Editor
             // Césped en toda la manzana menos los aparcamientos y sus entradas.
             var holes = new List<Rect>(TowersLots);
             holes.AddRange(TowersDriveways);
+            holes.Add(StudioStairwell); // escalera del estudio del sótano (Studio.cs)
             foreach (var r in RectMinus(Rect.MinMaxRect(-BlockHalfX, -BlockHalfZ, BlockHalfX, BlockHalfZ), holes))
                 TexturedBox("Cesped", group, new Vector3(r.center.x, LawnTop / 2f, r.center.y), new Vector3(r.width, LawnTop, r.height),
                     lawnMat, Vector2.one * ProceduralTextures.GrassTile);
@@ -178,8 +179,22 @@ namespace GTAChiraq.Editor
 
         // ---------- Torre ----------
 
+        /// <summary>
+        /// Huecos de una torre por dentro (la T2: vestíbulo y piso del jugador). <see cref="Holes"/>: celdas de fachada
+        /// (cara, vano, planta) que se dejan abiertas; cara 0 = −Z (portal), 1 = +X, 2 = +Z, 3 = −X; el vano cuenta desde
+        /// −X (caras 0 y 2) o desde −Z (caras 1 y 3). <see cref="Voids"/>: cajas locales sin collider (las salas).
+        /// <see cref="OpenPortal"/>: el portal es un hueco de verdad (marco sin puerta), no una puerta pintada.
+        /// </summary>
+        sealed class TowerOpenings
+        {
+            public readonly HashSet<(int face, int bay, int floor)> Holes = new();
+            public readonly List<Bounds> Voids = new();
+            public bool OpenPortal;
+        }
+
         /// <summary>Torre de ladrillo de W × D con el portal en la cara −Z local y los balcones en la +Z.</summary>
-        static void HighRise(Transform parent, string name, Vector3 center, float yaw, int floors, Material facade, System.Random rng)
+        static void HighRise(Transform parent, string name, Vector3 center, float yaw, int floors, Material facade, System.Random rng,
+            TowerOpenings openings = null)
         {
             var root = new GameObject(name).transform;
             root.SetParent(parent, false);
@@ -189,8 +204,27 @@ namespace GTAChiraq.Editor
             float H = floors * F, front = -D / 2f, back = D / 2f;
             var facadeTile = new Vector2(ProceduralTextures.FacadeBay, F);
 
-            TexturedBox("Muros", root, new Vector3(0f, H / 2f, 0f), new Vector3(W, H, D), facade, facadeTile, sidesOnly: true);
-            Box("Zocalo", root, new Vector3(0f, 0.45f, 0f), new Vector3(W + 0.15f, 0.9f, D + 0.15f), concreteMat);
+            if (openings == null)
+            {
+                TexturedBox("Muros", root, new Vector3(0f, H / 2f, 0f), new Vector3(W, H, D), facade, facadeTile, sidesOnly: true);
+                Box("Zocalo", root, new Vector3(0f, 0.45f, 0f), new Vector3(W + 0.15f, 0.9f, D + 0.15f), concreteMat);
+            }
+            else
+            {
+                // Fachada por piezas con las celdas abiertas, y el collider de la torre en trozos que dejan libres las salas.
+                OpenFacade(root, W, D, floors, facade, facadeTile, openings);
+                foreach (var piece in SubtractBounds(new Bounds(new Vector3(0f, H / 2f, 0f), new Vector3(W, H, D)), openings.Voids))
+                    ColliderBox(root, "Volumen", piece.center, piece.size);
+                root.gameObject.AddComponent<SolidVisual>(); // esos colliders cuentan como visibles (escalar, cubrirse)
+                // Zócalo en anillo, abierto en el portal.
+                const float zt = 0.4f, zo = 0.075f;
+                float zx = W / 2f + zo, zz = D / 2f + zo;
+                Box("Zocalo", root, new Vector3((-zx - 1.5f) / 2f, 0.45f, front - zo + zt / 2f), new Vector3(zx - 1.5f, 0.9f, zt), concreteMat);
+                Box("Zocalo", root, new Vector3((zx + 1.5f) / 2f, 0.45f, front - zo + zt / 2f), new Vector3(zx - 1.5f, 0.9f, zt), concreteMat);
+                Box("Zocalo", root, new Vector3(0f, 0.45f, back + zo - zt / 2f), new Vector3(2f * zx, 0.9f, zt), concreteMat);
+                foreach (float sx in new[] { -1f, 1f })
+                    Box("Zocalo", root, new Vector3(sx * (zx - zt / 2f), 0.45f, 0f), new Vector3(zt, 0.9f, 2f * zz), concreteMat);
+            }
             // Cantos de forjado vistos en cada planta y pilastras de hormigón en las esquinas, como en las torres de la referencia.
             for (int f = 1; f < floors; f++)
                 Box("Forjado", root, new Vector3(0f, f * F, 0f), new Vector3(W + 0.16f, 0.22f, D + 0.16f), concreteMat, collider: false);
@@ -205,9 +239,25 @@ namespace GTAChiraq.Editor
             Primitive(PrimitiveType.Cylinder, "Deposito", root, new Vector3(-W * 0.25f, H + 2f, 1.5f), new Vector3(2.6f, 1.3f, 2.6f), garageWalls[0], keepCollider: false);
             Strut("Antena", root, new Vector3(-W * 0.38f, H + 0.6f, -4f), new Vector3(-W * 0.38f, H + 5f, -4f), 0.08f, ironMat, cylinder: true);
 
-            // Portal con marquesina, luz y escalón.
-            Box("MarcoPortal", root, new Vector3(0f, 1.6f, front - 0.03f), new Vector3(3.6f, 3.2f, 0.06f), concreteMat, collider: false);
-            Box("Puerta", root, new Vector3(0f, 1.45f, front - 0.09f), new Vector3(2.6f, 2.7f, 0.06f), darkGlass, collider: false);
+            // Portal con marquesina, luz y escalón. En una torre con vestíbulo, el marco rodea un hueco de 2.6 × 2.6 m con la
+            // puerta abierta hacia dentro; en las demás, la puerta es un cristal oscuro pintado en la fachada.
+            if (openings is { OpenPortal: true })
+            {
+                foreach (float sx in new[] { -1f, 1f })
+                    Box("MarcoPortal", root, new Vector3(sx * 1.55f, 1.6f, front - 0.03f), new Vector3(0.5f, 3.2f, 0.06f), concreteMat, collider: false);
+                Box("MarcoPortal", root, new Vector3(0f, 2.9f, front - 0.03f), new Vector3(3.6f, 0.6f, 0.06f), concreteMat, collider: false);
+                var hinge = new GameObject("Bisagra").transform;
+                hinge.SetParent(root, false);
+                hinge.localPosition = new Vector3(1.25f, 0f, front + 0.32f);
+                hinge.localRotation = Quaternion.Euler(0f, 100f, 0f); // abierta hacia dentro, contra la pared
+                Box("PuertaAbierta", hinge, new Vector3(-0.62f, 1.5f, 0f), new Vector3(1.2f, 2.3f, 0.05f), darkGlass, collider: false);
+                Box("MarcoPuerta", hinge, new Vector3(-0.62f, 1.5f, 0f), new Vector3(1.26f, 2.36f, 0.04f), ironMat, collider: false);
+            }
+            else
+            {
+                Box("MarcoPortal", root, new Vector3(0f, 1.6f, front - 0.03f), new Vector3(3.6f, 3.2f, 0.06f), concreteMat, collider: false);
+                Box("Puerta", root, new Vector3(0f, 1.45f, front - 0.09f), new Vector3(2.6f, 2.7f, 0.06f), darkGlass, collider: false);
+            }
             Box("Marquesina", root, new Vector3(0f, 3.15f, front - 1.1f), new Vector3(4.6f, 0.22f, 2.2f), concreteMat, collider: false);
             Box("LuzPortal", root, new Vector3(0f, 2.99f, front - 0.7f), new Vector3(0.6f, 0.1f, 0.3f),
                 EmissiveMat("LuzPortalTorre", new Color(1f, 0.86f, 0.62f), 2f), collider: false);
@@ -242,6 +292,7 @@ namespace GTAChiraq.Editor
                 if (rng.NextDouble() > (f == 0 ? 0.25 : 0.04)) continue;
                 float x = -W / 2f + (i + 0.5f) * bay;
                 if (face < 0f && f == 0 && Mathf.Abs(x) < 3f) continue;                                   // portal
+                if (openings != null && openings.Holes.Contains((face < 0f ? 0 : 2, i, f))) continue;     // ventana abierta
                 if (face > 0f && f > 0 && (Mathf.Abs(x - 6f) < 2.6f || Mathf.Abs(x + 6f) < 2.6f)) continue; // balcones
                 var board = Box("Tablon", root, new Vector3(x, f * F + F * 0.53f, face * (D / 2f + 0.1f)), new Vector3(bay * 0.45f, F * 0.52f, 0.05f), plywood, collider: false);
                 board.transform.localRotation = Quaternion.Euler(0f, 0f, Range(rng, -4f, 4f));
@@ -251,8 +302,10 @@ namespace GTAChiraq.Editor
             var dish = Mat("AntenaParabolica", new Color(0.78f, 0.78f, 0.76f));
             for (int i = 0; i < 6; i++)
             {
-                float x = -W / 2f + (rng.Next(bays) + 0.5f) * bay + 0.9f;
-                SatelliteDish(root, new Vector3(x, rng.Next(1, floors) * F + 1f, front - 0.05f), Vector3.back, dish);
+                int dishBay = rng.Next(bays), dishFloor = rng.Next(1, floors);
+                if (openings != null && openings.Holes.Contains((0, dishBay, dishFloor))) continue; // no tapa una ventana abierta
+                float x = -W / 2f + (dishBay + 0.5f) * bay + 0.9f;
+                SatelliteDish(root, new Vector3(x, dishFloor * F + 1f, front - 0.05f), Vector3.back, dish);
             }
 
             // Grafitis en la planta baja.
@@ -291,6 +344,99 @@ namespace GTAChiraq.Editor
                 SnowMound(root, new Vector3(Range(rng, -W / 2f + 3f, W / 2f - 3f), LawnTop, back + 2.6f), new Vector3(Range(rng, 3f, 5f), Range(rng, 0.3f, 0.5f), 1.4f), 0f);
 
             towersOccupied.Add(FrameRect(root, -W / 2f - 0.8f, front - 3f, W / 2f + 4.5f, back + 2f));
+        }
+
+        /// <summary>
+        /// Fachada de una torre con huecos: cada cara es una lámina por tramos de vanos (los vanos enteros sin huecos van
+        /// juntos, de arriba abajo; los que tienen alguna celda abierta, por tramos de plantas). Los tramos empiezan y
+        /// acaban en vanos y plantas enteros, así que la textura (un vano × una planta) cuadra igual que en una caja.
+        /// </summary>
+        static void OpenFacade(Transform root, float W, float D, int floors, Material facade, Vector2 tile, TowerOpenings openings)
+        {
+            const float F = ProceduralTextures.FacadeFloor, skin = 0.02f;
+            for (int face = 0; face < 4; face++)
+            {
+                bool alongX = face % 2 == 0;
+                float len = alongX ? W : D;
+                int bays = Mathf.RoundToInt(len / ProceduralTextures.FacadeBay);
+                float bay = len / bays;
+                float plane = face switch { 0 => -D / 2f, 2 => D / 2f, 1 => W / 2f, _ => -W / 2f };
+                bool HasHole(int b)
+                {
+                    for (int f = 0; f < floors; f++) if (openings.Holes.Contains((face, b, f))) return true;
+                    return false;
+                }
+                void Slab(int b0, int b1, int f0, int f1)
+                {
+                    float a0 = -len / 2f + b0 * bay, a1 = -len / 2f + b1 * bay, y0 = f0 * F, y1 = f1 * F;
+                    float c = (a0 + a1) / 2f, along = a1 - a0, h = y1 - y0;
+                    var pos = alongX ? new Vector3(c, (y0 + y1) / 2f, plane) : new Vector3(plane, (y0 + y1) / 2f, c);
+                    var size = alongX ? new Vector3(along, h, skin) : new Vector3(skin, h, along);
+                    TexturedBox("Muros", root, pos, size, facade, tile, collider: false, sidesOnly: true);
+                }
+                int i = 0;
+                while (i < bays)
+                {
+                    if (!HasHole(i))
+                    {
+                        int j = i;
+                        while (j < bays && !HasHole(j)) j++;
+                        Slab(i, j, 0, floors);
+                        i = j;
+                        continue;
+                    }
+                    int f = 0;
+                    while (f < floors)
+                    {
+                        if (openings.Holes.Contains((face, i, f))) { f++; continue; }
+                        int g = f;
+                        while (g < floors && !openings.Holes.Contains((face, i, g))) g++;
+                        Slab(i, i + 1, f, g);
+                        f = g;
+                    }
+                    i++;
+                }
+            }
+        }
+
+        /// <summary>Resta cajas alineadas con los ejes: devuelve trozos que cubren <paramref name="whole"/> menos los huecos.</summary>
+        static List<Bounds> SubtractBounds(Bounds whole, IEnumerable<Bounds> holes)
+        {
+            static Bounds MinMax(Vector3 a, Vector3 b)
+            {
+                var bounds = new Bounds();
+                bounds.SetMinMax(a, b);
+                return bounds;
+            }
+            var result = new List<Bounds> { whole };
+            foreach (var hole in holes)
+            {
+                var next = new List<Bounds>();
+                foreach (var b in result)
+                {
+                    Vector3 min = b.min, max = b.max;
+                    bool overlaps = hole.min.x < max.x && hole.max.x > min.x && hole.min.y < max.y && hole.max.y > min.y && hole.min.z < max.z && hole.max.z > min.z;
+                    if (!overlaps)
+                    {
+                        next.Add(b);
+                        continue;
+                    }
+                    Vector3 hmin = Vector3.Max(hole.min, min), hmax = Vector3.Min(hole.max, max);
+                    var parts = new List<Bounds>
+                    {
+                        MinMax(min, new Vector3(hmin.x, max.y, max.z)),
+                        MinMax(new Vector3(hmax.x, min.y, min.z), max),
+                        MinMax(new Vector3(hmin.x, min.y, min.z), new Vector3(hmax.x, hmin.y, max.z)),
+                        MinMax(new Vector3(hmin.x, hmax.y, min.z), new Vector3(hmax.x, max.y, max.z)),
+                        MinMax(new Vector3(hmin.x, hmin.y, min.z), new Vector3(hmax.x, hmax.y, hmin.z)),
+                        MinMax(new Vector3(hmin.x, hmin.y, hmax.z), new Vector3(hmax.x, hmax.y, max.z)),
+                    };
+                    foreach (var part in parts)
+                        if (part.size.x > 0.01f && part.size.y > 0.01f && part.size.z > 0.01f) next.Add(part);
+                }
+                result = next;
+            }
+            return result;
         }
 
         /// <summary>Antena parabólica con su brazo, pegada a la pared en <paramref name="wallPoint"/> y mirando hacia fuera y un poco arriba.</summary>
@@ -496,6 +642,14 @@ namespace GTAChiraq.Editor
             PortableHoop(group, new Vector3(pad.x, 0.15f, pad.z + 3.3f), 0f, galvanized,
                 Mat("TableroPortatil", new Color(0.85f, 0.85f, 0.82f)), Mat("AroCanastaPortatil", new Color(0.75f, 0.25f, 0.08f)));
             towersOccupied.Add(RectAround(pad.x, pad.z, 11f, 9f));
+
+            // Vida del bloque (Studio.cs): reunión junto a la canasta, memorial del eje y estudio en el sótano de T1.
+            // Van antes de las farolas y bancos del eje para que esos respeten su sitio. Semilla propia: no mueve el resto.
+            var lifeRng = new System.Random(1017);
+            BuildHangout(group, pad, lifeRng);
+            BuildMemorial(group, lifeRng);
+            BuildStudio(group);
+            BuildApartment(group); // Apartment.cs: ascensor en el portal de T2 y el piso del jugador
 
             // Tendederos detrás de las adosadas y de T1.
             foreach (var (a, b) in new[]

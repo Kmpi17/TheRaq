@@ -10,6 +10,11 @@ Cámara orbital propia (no usa Cinemachine) que va en `Main Camera`. Se actualiz
 
 ## API
 - `SetTarget(Transform target, Mode mode)`: la usa `VehicleEntry` para cambiar entre el jugador (`OnFoot`) y el coche (`Vehicle`).
+- `SetAiming(bool)`: solo a pie. Pasa en unos 0.15 s (`aimBlendSpeed`) al perfil `aim`, al hombro: el pivote se aparta `aimShoulder` (0.6 m) a la derecha, sin meterse en paredes. El campo de visión baja a `aimFieldOfView` (46°) y la sensibilidad a `aimSensitivity` (×0.6).
+- `AddRecoil(up, side)`: retroceso de un disparo, en grados.
+- `AimRay`: rayo por el centro de la pantalla, donde está la mira.
+- `Yaw` y `AimBlend`.
+- Con `GameUi.MenuOpen` no se mueve la vista ni se bloquea el cursor.
 
 ## Perfiles (`Profile`)
 
@@ -17,6 +22,7 @@ Cámara orbital propia (no usa Cinemachine) que va en `Main Camera`. Se actualiz
 |---|---|---|---|
 | `onFoot` | 4 m | 1.6 m | −30…70° |
 | `vehicle` | 7.5 m | 2 m | −10…60° |
+| `aim` | 1.9 m | 1.55 m | −50…60° |
 
 ## Colisión
-`collisionMask` ignora por defecto la capa 2 (`Ignore Raycast`). El generador pone al jugador y a los coches en esa capa para que la cámara no choque con ellos. Si añades personajes o vehículos nuevos, ponlos también en la capa 2 o ajusta la máscara.
+`collisionMask` ignora por defecto la capa 2 (`Ignore Raycast`, el jugador) y la 6 (`Vehiculo`, todos los coches conducibles), para que la cámara no choque con ellos (`GameLayers`). La escalada, la cobertura y las balas sí ven la capa 6. Si añades personajes, ponlos en la capa 2; los vehículos, en la 6.

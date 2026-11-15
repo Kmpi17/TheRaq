@@ -71,7 +71,7 @@ NW_LAWNS = [(-100.5, 226, 3, 248), (13, 226, 100, 248), (-100.5, 258, 100, 288)]
 
 # ---------- Dibujo ----------
 S = 4                                    # píxeles por metro
-X0, X1, Z0, Z1 = -305, 262, -112, 302    # zona del mundo que se dibuja
+X0, X1, Z0, Z1 = -305, 262, -228, 302    # zona del mundo que se dibuja
 
 # ---------- Barrio de casas (PrototypeSceneBuilder.Houses.cs), rectángulos (x0, z0, x1, z1) ----------
 H_ROADS = [(117, 117, 207, 127), (207, 92, 217, 202), (117, 183, 173, 193), (163, 171, 207, 181), (163, 181, 173, 183)]
@@ -192,6 +192,26 @@ for z0_, z1_ in ((Z0, -outer_z - ROAD), (-outer_z, outer_z), (outer_z + ROAD, Z1
 box(far_x - 1.5, D_ROAD / 2, far_x + 1.5, Z1, C["sidewalk"])                    # acera de enfrente E (cortada)
 box(far_x - 1.5, -D_ROAD / 2, far_x + 1.5, Z0, C["sidewalk"])
 
+# ---------- Cocheras del tren (PrototypeSceneBuilder.RailYard.cs), constantes ----------
+YARD_MIN_X, YARD_MAX_X, YARD_NORTH_Z, YARD_SOUTH_Z = -74, 100, -91.5, -222
+YARD_GATE = (-1, 7)
+SHED = (-34, -160, -6, -104)
+SHED_TRACKS = [-28, -20, -12]
+STORAGE_TRACKS = [8, 13.5, 19, 24.5, 30, 35.5, 41, 46.5, 52, 57.5]
+STORAGE_NORTH_Z = -100
+LADDER_E, LADDER_W = (78, -206), (-30, -214.2)
+YARD_LEAD = [(105.5, -92), (90, -130), (84, -178), LADDER_E]
+CONTAINER_COLS = [-70.6, -68.1, -65.6, -58.1, -55.6, -53.1, -45.6, -43.1]
+CONTAINER_FIRST_Z, CONTAINER_STEP, CONTAINER_ROWS = -104.1, 15.2, 7
+YARD_TRAINS = [(8, -140, 4), (13.5, -168, 4), (24.5, -132, 4), (30, -176, 2), (41, -128, 4), (46.5, -158, 4), (57.5, -170, 2), (-20, -128, 2)]
+YARD_FLOODS = [(-37.5, -112), (-37.5, -190), (66, -112), (66, -195)]
+
+
+def ladder_z(x):
+    t = min(1, max(0, (x - LADDER_W[0]) / (LADDER_E[0] - LADDER_W[0])))
+    return LADDER_W[1] + (LADDER_E[1] - LADDER_W[1]) * t
+
+
 # ---------- Manzana central: conjunto de torres (PrototypeSceneBuilder.Towers.cs) ----------
 T_LOTS = [(-92, -64, -50, -47), (-22, -64, 22, -30), (36, -64, 76, -47)]
 T_DRIVEWAYS = [(-75, -73, -67, -64), (12, -73, 20, -64), (64, -73, 72, -64)]
@@ -298,6 +318,21 @@ for a, b in T_CLOTHESLINES:
     for p in (a, b):
         dot(*p, 2, (90, 90, 90))
 rect(50, -30, 2.2, 1.2, (230, 130, 40), outline=(90, 50, 10))                     # sofá
+# Vida del bloque (PrototypeSceneBuilder.Studio.cs)
+box(-77.5, 38, -63, 49.5, None, outline=(170, 90, 255), width=2)                  # estudio en el sótano (bajo T1)
+box(-80.3, 40, -77.7, 48.5, (70, 70, 75), outline=(170, 90, 255), width=2)        # escalera de bajada
+label(-86, 52, "estudio (sótano)", F_S, fill=(220, 190, 255), halo=False)
+# Casa del jugador (PrototypeSceneBuilder.Apartment.cs): vestíbulo en la planta baja de T2 (x -5…5, z -5.2…1.5) con el
+# ascensor, y el piso en la esquina sureste de la última planta (x 4.8…13.2, z -5.2…2.5), con ventanas al sur y al este.
+box(-5, -5.2, 5, 1.5, None, outline=(90, 220, 200), width=2)
+box(4.8, -5.2, 13.2, 2.5, None, outline=(255, 170, 60), width=2)
+dot(2.7, 0.6, 4, (90, 220, 200), outline=(20, 70, 60))
+label(0, -12.5, "portal y vestíbulo: ascensor a casa", F_S, fill=(170, 250, 235), halo=False)
+label(16, 6, "piso (planta 14)", F_S, fill=(255, 210, 150), halo=False)
+box(-19.1, -5.7, -15.9, -3.4, (255, 200, 90), outline=(120, 60, 10))             # memorial con velas y globos
+label(-17.5, -1.5, "memorial", F_S)
+box(-30.5, 22, -21.5, 25.5, (200, 120, 60), outline=(90, 50, 10))               # zona de reunión: sillas, barbacoa, altavoz
+label(-26, 20, "reunión / barbacoa", F_S)
 label(50, -34, "sofá", F_S)
 dot(6.5, -10.6, 3, (60, 120, 255))                                                 # cámara
 for x in T_PARK_LAMPS:
@@ -328,9 +363,11 @@ while x <= 200:
         for side in (1, -1):
             if side > 0:
                 continue  # al norte: oeste lejano, ampliación oeste, negocios y barrios de casas
+            if YARD_MIN_X - 5 < x < BLOCK_HALF_X + SIDEWALK:
+                continue  # al sur, las cocheras (RailYard.cs); quedan los de la esquina oeste
             rect(x, side * row_z, 10, 14, C["house"], outline=(70, 50, 40))
     x += 13
-label(-60, -row_z, "two-flats (2 plantas, color liso)", F_S)
+label(-150, -row_z - 12, "two-flats (2 plantas, color liso)", F_S)
 rect(-avenue_x - 20, -row_z, 16, 14, C["store"], outline=(30, 30, 30), width=2)
 box(-avenue_x - 26, -row_z + 7, -avenue_x - 14, -row_z + 7.6, (30, 70, 160))
 label(-avenue_x - 20, -row_z - 10, "tienda de esquina", F_S)
@@ -620,6 +657,90 @@ label(40, 76, "negocios: 1 iglesia · 2 lavandería · P parking · 3 barbería 
 label(18, 94, "P", F_S)
 label(232, 128.5, "pasaje", F_S)
 
+# ---------- Autopista hundida (PrototypeSceneBuilder.Highway.cs), borde oeste x −300…−275 ----------
+HW_X0, HW_X1, HW_WALL = -300, -275, 1                # caras exteriores de los muros
+HW_MEDIAN = -287.5
+HW_OPEN = [(Z0, -90), (-70, 70)]                     # tramos al aire libre (entre puentes y al sur)
+HW_BRIDGES = [(70, 90), (-90, -70)]                  # puentes de las calles z = ±80
+HW_TUNNEL = (90, 130)                                # túnel bajo el oeste lejano
+for z0_, z1_ in HW_OPEN:
+    box(HW_X0, z0_, HW_X1, z1_, (150, 148, 140))                                   # muros y pretiles
+    box(HW_X0 + HW_WALL, z0_, HW_X1 - HW_WALL, z1_, (58, 58, 62))                  # calzadas a −7 m
+    box(HW_MEDIAN - 0.4, z0_, HW_MEDIAN + 0.4, z1_, (190, 188, 180))               # mediana
+    for lx in (-298.2, -295.1, -292.0, -288.9, -286.1, -283.0, -279.9, -276.8):
+        d.line([px(lx, z0_), px(lx, z1_)], fill=(200, 200, 190, 120), width=1)
+for z0_, z1_ in HW_BRIDGES:
+    for z in (z0_, z1_):
+        if z != 90:
+            d.line([px(HW_X0, z), px(HW_X1, z)], fill=(30, 30, 30), width=3)       # pretil con malla del puente
+tx0, ty0 = px(HW_X0 + HW_WALL, HW_TUNNEL[1])
+tx1, ty1 = px(HW_X1 - HW_WALL, HW_TUNNEL[0])
+for k in range(0, int(ty1 - ty0), 10):                                             # túnel: contorno discontinuo
+    for x_ in (tx0, tx1):
+        d.line([(x_, ty0 + k), (x_, ty0 + k + 5)], fill=(30, 30, 30), width=2)
+d.line([(tx0, ty0), (tx1, ty0)], fill=(30, 30, 30), width=2)
+label(-287.5, 112, "túnel", F_S)
+label(-287.5, 20, "AUTOPISTA" + chr(10) + "HUNDIDA" + chr(10) + "(−7 m)", F_S)
+label(-287.5, -30, "pórtico", F_S)
+d.line([px(HW_X0 + 1, -30), px(HW_X1 - 1, -30)], fill=(40, 120, 70), width=3)
+
+# ---------- Instituto (PrototypeSceneBuilder.School.cs), x −275…−120, z −70…70 ----------
+SC_AREA = (-275, -70, -120, 70)
+SC_FIELD_C = (-197, -35.5)
+SC_FIELD_HALF, SC_FIELD_W, SC_GOAL = 45.6, 20.27, 38.0            # campo a escala 0.76 m por yarda
+SC_TRACK_S, SC_TRACK_RI, SC_TRACK_RO = 34, 24.5, 31.1
+SC_FENCE = (-265, -68.5, -129, 6)
+SC_GATES = [(-228, -224), (-170, -166)]
+SC_BLEACHERS = (-222, -2.6, -172, 3.4)
+SC_MAIN, SC_WING, SC_GYM = (-252, 38, -176, 56), (-232, 20, -214, 38), (-176, 22, -152, 56)
+SC_LOT, SC_BUS_BAY, SC_SERVICE = (-141, 4, -124, 66), (-150, 4, -141, 22), (-252, 26, -232, 38)
+SC_DRIVES = [(-124, 58, -117, 66), (-124, 4, -117, 12)]
+SC_WALKS = [(-216, 58.8, -212, 70), (-226, 56.6, -202, 58.8), (-202, 58.8, -141, 61.3), (-152, 38, -141, 40.5),
+            (-246, 9, -156, 19.6), (-166, 19.6, -162, 22), (-197.5, 19.6, -193.5, 38), (-228, 6, -224, 9), (-170, 6, -166, 9)]
+box(*SC_AREA, C["lawn_d"])
+for z in (71.5, -71.5):
+    box(-300, z - 1.5, -120, z + 1.5, C["sidewalk"])
+for r in [SC_LOT, SC_BUS_BAY, SC_SERVICE] + SC_DRIVES:
+    box(*r, C["lot"])
+for r in SC_WALKS:
+    box(*r, C["path"])
+cx, cz = SC_FIELD_C
+a, b = px(cx - SC_TRACK_S - SC_TRACK_RO, cz + SC_TRACK_RO), px(cx + SC_TRACK_S + SC_TRACK_RO, cz - SC_TRACK_RO)
+d.rounded_rectangle([a, b], radius=SC_TRACK_RO * S, fill=(150, 70, 52))                      # pista de 6 calles
+a, b = px(cx - SC_TRACK_S - SC_TRACK_RI, cz + SC_TRACK_RI), px(cx + SC_TRACK_S + SC_TRACK_RI, cz - SC_TRACK_RI)
+d.rounded_rectangle([a, b], radius=SC_TRACK_RI * S, fill=(112, 128, 76))
+box(cx - SC_FIELD_HALF, cz - SC_FIELD_W, cx + SC_FIELD_HALF, cz + SC_FIELD_W, (104, 132, 72), outline=(235, 235, 225))
+for sgn in (-1, 1):
+    box(cx + sgn * SC_GOAL, cz - SC_FIELD_W, cx + sgn * SC_FIELD_HALF, cz + SC_FIELD_W, (120, 36, 34), outline=(235, 235, 225))
+    d.line([px(cx + sgn * (SC_FIELD_HALF + 1.8), cz - 2.8), px(cx + sgn * (SC_FIELD_HALF + 1.8), cz + 2.8)], fill=(220, 180, 30), width=3)
+for k in range(-45, 46, 5):
+    x = cx + k * 0.76
+    d.line([px(x, cz - SC_FIELD_W), px(x, cz + SC_FIELD_W)], fill=(235, 235, 225, 140), width=1)
+f0, fz0, f1, fz1 = SC_FENCE
+xs = [f0] + [v for g in SC_GATES for v in g] + [f1]
+for xa, xb in zip(xs[0::2], xs[1::2]):
+    d.line([px(xa, fz1), px(xb, fz1)], fill=C["fence"], width=2)
+d.line([px(f0, fz1), px(f0, fz0), px(f1, fz0), px(f1, fz1)], fill=C["fence"], width=2)
+box(*SC_BLEACHERS, (190, 192, 195), outline=(80, 80, 80))
+label(-197, 0.4, "gradas", F_S)
+box(-269, cz - 4.2, -268, cz + 4.2, (20, 20, 22))                                                # marcador
+for sx in (-1, 1):
+    for z in (SC_FENCE[1] + 0.8, cz + 32.4):
+        dot(cx + sx * 52, z, 4, (230, 230, 200), outline=(40, 40, 40))                         # torres de focos
+for r, name in ((SC_MAIN, "INSTITUTO" + chr(10) + "3 pl."), (SC_WING, "ala" + chr(10) + "2 pl."), (SC_GYM, "gimnasio")):
+    box(*r, (196, 160, 108), outline=(70, 50, 30), width=2)
+    label((r[0] + r[2]) / 2, (r[1] + r[3]) / 2, name, F_S)
+box(-219.6, 56, -208.4, 58.8, (200, 196, 186), outline=(70, 50, 30))                          # portal y escalinata
+for x in (-147.7, -144.1):
+    box(x - 1.2, 7.7, x + 1.2, 19.2, (225, 160, 20), outline=(40, 40, 40))                     # autobuses escolares
+label(-132.5, 35, "P", F_M)
+d.line([px(-274.6, 69.4), px(-216.2, 69.4)], fill=C["fence"], width=1)
+d.line([px(-211.8, 69.4), px(-120.6, 69.4), px(-120.6, 66)], fill=C["fence"], width=1)
+d.line([px(-120.6, 58), px(-120.6, 12)], fill=C["fence"], width=1)
+d.line([px(-120.6, 4), px(-120.6, -69.4), px(-274.6, -69.4)], fill=C["fence"], width=1)
+dot(-203, 65, 3, (40, 40, 160))
+label(cx, cz, "CAMPO DE FÚTBOL AMERICANO" + chr(10) + "con pista", F_S, fill=(255, 255, 255), halo=False)
+
 # ---------- Tren elevado (PrototypeSceneBuilder.Train.cs) sobre la avenida x = 110 ----------
 TRAIN_W, TRAIN_E = 101.8, 118.2
 TRAIN_CROSSINGS = [(80, 7), (-80, 7), (0, 6), (122, 5), (188, 5), (128, 5), (194, 5), (253, 5), (293, 5)]
@@ -645,7 +766,71 @@ label(110, 50, "ESTACIÓN", F_S)
 label(110, 150, "tren\nelevado", F_S)
 label(110, -25, "tren\nelevado", F_S)
 
+# ---------- Cocheras del tren (PrototypeSceneBuilder.RailYard.cs) ----------
+YARD_C = dict(gravel=(122, 116, 106), track=(84, 66, 52), shed=(132, 140, 132), container=(150, 80, 60), train=(176, 178, 182))
+box(YARD_MIN_X, YARD_SOUTH_Z, YARD_MAX_X, YARD_NORTH_Z, YARD_C["gravel"])
+box(100, Z0, 103, -90, C["sidewalk"])
+box(-103, Z0, -100, -110, C["sidewalk"])
+box(-5.5, -200, 5, YARD_NORTH_Z, C["asphalt"])                                     # camino de servicio
+
+
+def track(a, b):
+    d.line([px(*a), px(*b)], fill=YARD_C["track"], width=int(2.6 * S))
+    d.line([px(*a), px(*b)], fill=(200, 200, 205), width=1)
+
+
+for x in STORAGE_TRACKS:
+    track((x, STORAGE_NORTH_Z), (x, ladder_z(x)))
+    rect(x, STORAGE_NORTH_Z - 0.7, 2.4, 0.6, (160, 30, 25))
+for x in SHED_TRACKS:
+    track((x, SHED[3] - 1), (x, ladder_z(x)))
+track(LADDER_W, LADDER_E)
+# Rampa desde el elevado: viaducto arriba y terraplén abajo.
+for a, b in zip(YARD_LEAD, YARD_LEAD[1:]):
+    d.line([px(*a), px(*b)], fill=(70, 80, 76), width=int(4.4 * S))
+    d.line([px(*a), px(*b)], fill=YARD_C["track"], width=int(2.6 * S))
+label(93, -150, "rampa" + chr(10) + "del elevado", F_S)
+# Nave de mantenimiento, oficina, caseta y coche.
+box(*SHED, YARD_C["shed"], outline=(40, 44, 40), width=2)
+for x in SHED_TRACKS:
+    box(x - 2.5, SHED[1] - 0.4, x + 2.5, SHED[1] + 0.4, YARD_C["track"])           # portones
+label(-20, -132, "NAVE DE" + chr(10) + "MANTENIMIENTO", F_S)
+box(-25, -98.5, -15, -95.5, (205, 203, 195), outline=(60, 60, 60))
+label(-20, -101.5, "oficina", F_S)
+box(8.7, -96.6, 10.9, -94.4, (205, 203, 195), outline=(60, 60, 60))
+rect(-30, -97.5, 4.5, 1.9, C["car"])
+# Trenes aparcados (vagones de 14.6 m con fuelle de 0.6 m).
+for x, zc, cars in YARD_TRAINS:
+    half = (cars * 15.2 - 0.6) / 2
+    box(x - 1.45, zc - half, x + 1.45, zc + half, YARD_C["train"], outline=(60, 60, 64))
+    for k in range(1, cars):
+        zz = zc - half + k * 15.2 - 0.3
+        d.line([px(x - 1.45, zz), px(x + 1.45, zz)], fill=(60, 60, 64), width=1)
+# Patio de contenedores: pilas de 0–3 alturas al azar (se dibuja el hueco de cada pila).
+for row in range(CONTAINER_ROWS):
+    z = CONTAINER_FIRST_Z - row * CONTAINER_STEP
+    for x in CONTAINER_COLS:
+        box(x - 1.22, z - 6.1, x + 1.22, z + 6.1, YARD_C["container"] + (150,), outline=(70, 40, 30))
+label(-57, -96.5, "CONTENEDORES", F_S)
+# Valla con concertina (huecos: entrada, agujeros al oeste y al sur).
+fence_runs = [((YARD_MIN_X, YARD_NORTH_Z), (YARD_GATE[0], YARD_NORTH_Z)), ((YARD_GATE[1], YARD_NORTH_Z), (YARD_MAX_X, YARD_NORTH_Z)),
+              ((YARD_MIN_X, YARD_NORTH_Z), (YARD_MIN_X, -112)), ((YARD_MIN_X, -114), (YARD_MIN_X, YARD_SOUTH_Z)),
+              ((YARD_MIN_X, YARD_SOUTH_Z), (28, YARD_SOUTH_Z)), ((30.2, YARD_SOUTH_Z), (YARD_MAX_X, YARD_SOUTH_Z)),
+              ((YARD_MAX_X, YARD_SOUTH_Z), (YARD_MAX_X, YARD_NORTH_Z))]
+for a, b in fence_runs:
+    d.line([px(*a), px(*b)], fill=C["fence"], width=2)
+for x in YARD_GATE:
+    rect(x, YARD_NORTH_Z, 0.8, 0.8, C["fence"])
+label(3, YARD_NORTH_Z + 2.5, "entrada", F_S)
+for x, z in YARD_FLOODS:
+    dot(x, z, 5, (255, 240, 170), outline=(60, 60, 60))
+label(20, -217, "COCHERAS DEL TREN ELEVADO", F_M)
+
 # ---------- Spawns ----------
+for x in (-8.5, -7, -5.5, -4, -2.5, -1):                                             # objetos para recoger (Training.cs)
+    dot(x, -71.8, 2, (90, 200, 90))
+for x in (5, 7.5, 10):                                                               # dianas de prácticas
+    dot(x, -71.6, 3, (200, 170, 110), outline=(120, 40, 30))
 dot(-10, -BLOCK_HALF_Z - 1.5, 6, C["player"], outline=(255, 255, 255))
 rect(-16, -BLOCK_HALF_Z - SIDEWALK - 3, 4.5, 2, (200, 40, 40), outline=(255, 255, 255))
 label(-13, -BLOCK_HALF_Z - 12, "inicio: jugador + coche", F_S)
@@ -657,11 +842,11 @@ label(road_x, -55, "avenida principal\nx = 110", F_S)
 label(-road_x, 30, "calle\nx = −110", F_S)
 
 # ---------- Cuadrícula y ejes ----------
-for gx in range(-200, 261, 20):
+for gx in range(-300, 261, 20):
     x_, _ = px(gx, 0)
     d.line([(x_, px(0, Z1)[1]), (x_, px(0, Z0)[1])], fill=C["grid"] + (40,), width=1)
     d.text((x_, px(0, Z0)[1] + 6), str(gx), font=F_S, fill=C["text"], anchor="mt")
-for gz in range(-100, Z1 - 1, 20):
+for gz in range(-220, Z1 - 1, 20):
     _, y_ = px(0, gz)
     d.line([(px(X0, 0)[0], y_), (px(X1, 0)[0], y_)], fill=C["grid"] + (40,), width=1)
     d.text((px(X0, 0)[0] - 6, y_), str(gz), font=F_S, fill=C["text"], anchor="rm")
@@ -725,9 +910,21 @@ legend("line", C["wood"], "valla de madera")
 legend("rect", C["garage"], "garaje")
 legend("rect", C["porch"], "porche trasero de madera")
 legend("rect", C["train"], "tren elevado (tablero y pórticos)")
+legend("rect", (122, 116, 106), "cocheras: grava, vías y rampa del elevado")
+legend("rect", (176, 178, 182), "tren aparcado en las cocheras", outline=(60, 60, 64))
+legend("rect", (150, 80, 60), "pila de contenedores (0–3 de alto, al azar)")
+legend("dot", (255, 240, 170), "torre de focos", outline=(60, 60, 60))
 legend("rect", (190, 186, 175), "andén de la estación")
+legend("rect", (58, 58, 62), "autopista hundida (trinchera, −7 m)", outline=(150, 148, 140))
+legend("rect", (150, 70, 52), "pista de atletismo / campo")
+legend("rect", (196, 160, 108), "instituto (ladrillo claro)")
 legend("dot", (60, 120, 255), "cámara de vigilancia")
+legend("rect", (70, 70, 75), "estudio casero en el sótano de T1", outline=(170, 90, 255))
+legend("dot", (90, 220, 200), "vestíbulo de T2: ascensor al piso de la planta 14 (naranja)", outline=(20, 70, 60))
+legend("rect", (255, 200, 90), "memorial (velas, globos, peluches)", outline=(120, 60, 10))
+legend("rect", (200, 120, 60), "zona de reunión (sillas, barbacoa)", outline=(90, 50, 10))
 legend("dot", C["player"], "inicio del jugador", outline=(255, 255, 255))
+legend("dot", (200, 170, 110), "dianas y objetos de prácticas", outline=(120, 40, 30))
 ly += 14
 notes = [
     "Sale al azar (semilla fija) y no se dibuja:",

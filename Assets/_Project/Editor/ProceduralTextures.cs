@@ -877,6 +877,285 @@ namespace GTAChiraq.Editor
             }
         }
 
+        // ---------- Autopista hundida ----------
+
+        public const float HighwayTile = 12f;                              // metros a lo largo por repetición (un trazo de 3 m cada 12 m)
+        public const float HighwayShoulderLeft = 0.8f, HighwayLane = 3.1f; // arcén del lado de la mediana y carriles
+        public const float WallTileWidth = 8f, WallTileHeight = 7f;        // muro de contención: dos paneles de 4 m × alto de la trinchera
+
+        /// <summary>
+        /// Una calzada de la autopista (un sentido), de <paramref name="width"/> m de ancho y <see cref="HighwayTile"/> m a lo
+        /// largo (512 px). u cruza la calzada (u = 0 junto a la mediana) y v va a lo largo. Arcén izquierdo con línea amarilla
+        /// continua, tres carriles con separadores discontinuos (3 m de trazo cada 12 m) y arcén derecho con línea blanca
+        /// y bandas sonoras. Asfalto gastado de invierno: rodadas, sal, grietas selladas, suciedad en los arcenes.
+        /// </summary>
+        public static Texture2D Highway(string name, float width, int seed)
+        {
+            const int S = 512;
+            var px = new Color[S * S];
+            var white = new Color(0.8f, 0.8f, 0.76f);
+            var yellow = new Color(0.8f, 0.62f, 0.15f);
+            var tar = new Color(0.12f, 0.12f, 0.13f);
+            var salt = new Color(0.6f, 0.6f, 0.58f);
+            float W = width, L = HighwayTile;
+            float leftLine = HighwayShoulderLeft, rightLine = HighwayShoulderLeft + 3f * HighwayLane;
+            const float lineW = 0.15f, dash = 3f;
+            var wheels = new List<float>();
+            for (int k = 0; k < 3; k++)
+            {
+                float c = leftLine + (k + 0.5f) * HighwayLane;
+                wheels.Add(c - 0.85f);
+                wheels.Add(c + 0.85f);
+            }
+
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float u = (float)x / S, v = (float)y / S;
+                float a = u * W, b = v * L;
+                var c = AsphaltPixel(u, v, x, y, 2, seed) * 0.96f;
+
+                float track = 0f;
+                foreach (float wheel in wheels) track = Mathf.Max(track, 1f - Mathf.Clamp01(Mathf.Abs(a - wheel) / 0.45f));
+                track *= Mathf.Lerp(0.6f, 1f, Fbm(u, v, 4, 2, seed + 31));
+                c *= 1f - 0.14f * track;
+
+                // Arcenes: más sucios, con gravilla y bandas sonoras fresadas junto a la línea.
+                bool shoulder = a < leftLine || a > rightLine;
+                if (shoulder)
+                {
+                    c *= 0.9f + 0.08f * (Hash01(x, y, seed + 3) - 0.5f);
+                    float fromLine = a < leftLine ? leftLine - a : a - rightLine;
+                    if (fromLine > 0.15f && fromLine < 0.55f && (b % 0.4f) < 0.16f) c *= 0.72f;
+                    if (Fbm(u, v, 8, 3, seed + 4) > 0.6f) c = Color.Lerp(c, new Color(0.3f, 0.27f, 0.22f), 0.35f); // barro y hojas
+                }
+
+                // Sal de invierno.
+                float saltNoise = Fbm(u, v, 5, 3, seed + 40);
+                float saltMask = Mathf.SmoothStep(0.5f, 0.72f, saltNoise) * (1f - track);
+                if (shoulder) saltMask = Mathf.Max(saltMask, 0.6f * saltNoise);
+                c = Color.Lerp(c, salt, 0.3f * saltMask);
+
+                // Grietas longitudinales selladas con alquitrán en las juntas de carril y alguna transversal.
+                float wobble = 0.2f * (Fbm(0.37f, v, 4, 2, seed + 50) - 0.5f);
+                bool tarCrack = false;
+                for (int k = 1; k <= 2; k++)
+                    tarCrack |= Mathf.Abs(a - (leftLine + k * HighwayLane + 0.35f) - wobble) < 0.05f && Fbm(u, v, 2, 2, seed + 52 + k) > 0.45f;
+                tarCrack |= Mathf.Abs(b - 5.5f - 1.2f * (Fbm(u, 0.61f, 6, 3, seed + 51) - 0.5f)) < 0.05f && Fbm(u, 0.2f, 3, 2, seed + 54) > 0.55f;
+                if (tarCrack) c = Color.Lerp(c, tar, 0.75f);
+
+                // Pintura gastada.
+                float wear = Fbm(u, v, 16, 3, seed + 20);
+                float amount = Mathf.SmoothStep(0.25f, 0.48f, wear) * Mathf.Lerp(1f, 0.5f, track);
+                Color? mark = null;
+                if (Mathf.Abs(a - leftLine) < lineW / 2f) mark = yellow;
+                if (Mathf.Abs(a - rightLine) < lineW / 2f) mark = white;
+                if (b < dash)
+                    for (int k = 1; k <= 2; k++)
+                        if (Mathf.Abs(a - (leftLine + k * HighwayLane)) < lineW / 2f) mark = white;
+                if (mark.HasValue) c = Color.Lerp(c, mark.Value, 0.88f * amount);
+
+                c.a = 1f;
+                px[y * S + x] = c;
+            }
+            return Save(name, S, px);
+        }
+
+        /// <summary>
+        /// Muro de contención de hormigón de la trinchera: <see cref="WallTileWidth"/> × <see cref="WallTileHeight"/> m
+        /// (512 px; v = 0 abajo). Juntas de dilatación cada 4 m, marcas del encofrado, mechinales de drenaje con su mancha,
+        /// chorretones de agua y óxido desde arriba, eflorescencias blancas, y la parte de abajo ennegrecida y con sal por
+        /// el agua que levantan los coches.
+        /// </summary>
+        public static Texture2D RetainingWall(string name, int seed)
+        {
+            const int S = 512;
+            var px = new Color[S * S];
+            var rust = new Color(0.42f, 0.28f, 0.18f);
+            var salt = new Color(0.72f, 0.72f, 0.7f);
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float u = (float)x / S, v = (float)y / S;
+                float a = u * WallTileWidth, h = v * WallTileHeight;
+                float g = 0.55f + 0.07f * (Fbm(u, v, 4, 4, seed) - 0.5f) * 2f + 0.04f * (Hash01(x, y, seed + 1) - 0.5f);
+                var c = new Color(g, g * 0.99f, g * 0.95f);
+
+                // Marcas horizontales del encofrado y coronación algo más clara.
+                if (h % 0.6f < 0.025f) c *= 0.93f;
+                if (h > WallTileHeight - 0.18f) c *= 1.07f;
+
+                // Juntas de dilatación cada 4 m y eflorescencias blancas junto a ellas.
+                float joint = Mathf.Min(a % 4f, 4f - a % 4f);
+                if (joint < 0.03f) c *= 0.42f;
+                else if (joint < 0.06f) c *= 0.8f;
+                else if (joint < 0.5f && Fbm(u, v, 6, 3, seed + 9) > 0.62f) c = Color.Lerp(c, salt, 0.35f);
+
+                // Chorretones desde la coronación: por columnas, de largo y fuerza distintos.
+                int col = x / 5;
+                float strength = Hash01(col, 0, seed + 5), length = 0.15f + 0.6f * Hash01(col, 1, seed + 6);
+                float t = (v - (1f - length)) / length;
+                if (strength > 0.55f && t > 0f)
+                {
+                    float s = t * (strength - 0.55f) / 0.45f * (0.6f + 0.4f * Fbm(u, v, 10, 2, seed + 7));
+                    c = Hash01(col, 2, seed + 8) > 0.75f ? Color.Lerp(c, rust, 0.6f * s) : c * (1f - 0.3f * s);
+                }
+
+                // Mechinales de drenaje a 0.6 m, cada 2 m, con su mancha debajo.
+                float hole = Mathf.Abs((a + 1f) % 2f - 1f);
+                if (hole < 0.06f && h > 0.55f && h < 0.67f) c *= 0.25f;
+                else if (hole < 0.12f && h < 0.6f && h > 0.2f) c *= 0.8f;
+
+                // Abajo, suciedad y sal de lo que salpican los coches.
+                float spray = Mathf.Clamp01(1f - h / 1.8f) * (0.7f + 0.3f * Fbm(u, v, 8, 3, seed + 11));
+                c *= 1f - 0.45f * spray;
+                if (h < 0.45f) c = Color.Lerp(c, salt, 0.25f * Fbm(u, v, 12, 2, seed + 12));
+
+                c.a = 1f;
+                px[y * S + x] = c;
+            }
+            return Save(name, S, px);
+        }
+
+        // ---------- Instituto: campo de fútbol americano con pista ----------
+
+        public const float FieldYard = 0.76f;                    // yarda del campo, algo menor que la real (0.914 m) para que quepa con la pista
+        public const float FieldHalfLength = 60f * FieldYard;    // 45.6 m: 100 yardas + dos zonas de anotación de 10
+        public const float FieldHalfWidth = 26.67f * FieldYard;  // 20.27 m
+        public const float FieldGoalLine = 50f * FieldYard;      // 38 m desde el centro
+        public const float TrackHalfStraight = 34f, TrackInnerRadius = 24.5f, TrackLaneWidth = 1.1f;
+        public const int TrackLanes = 6;
+        public const float FieldMargin = 1.4f;
+        public static float TrackOuterRadius => TrackInnerRadius + TrackLanes * TrackLaneWidth;
+        /// <summary>Metros que cubre la textura del campo (X a lo largo del campo, Z a lo ancho): la pista y un margen.</summary>
+        public static Vector2 FieldTextureSize => new(2f * (TrackHalfStraight + TrackOuterRadius + FieldMargin), 2f * (TrackOuterRadius + FieldMargin));
+
+        /// <summary>
+        /// Campo de fútbol americano con la pista de atletismo alrededor, en una sola textura de 2048 × 1024 que cubre
+        /// <see cref="FieldTextureSize"/> (u a lo largo del campo, v a lo ancho; el centro del campo es el de la textura).
+        /// Hierba de invierno amarillenta con calvas de barro entre los hashes y en las porterías, zonas de anotación
+        /// granates con franjas, líneas cada 5 yardas, hashes, números (se leen desde cada banda), pista de caucho rojo
+        /// con 6 calles y bordillo, línea de meta y placas de nieve. La pintura está gastada.
+        /// </summary>
+        public static Texture2D FootballField(string name, int seed)
+        {
+            const int TW = 2048, TH = 1024;
+            var px = new Color[TW * TH];
+            var size = FieldTextureSize;
+            var paint = new Color(0.88f, 0.88f, 0.84f);
+            var endZone = new Color(0.42f, 0.13f, 0.12f);
+            var mud = new Color(0.33f, 0.27f, 0.2f);
+            var snow = new Color(0.85f, 0.87f, 0.9f);
+            var rubber = new Color(0.5f, 0.23f, 0.17f);
+            var curb = new Color(0.62f, 0.61f, 0.58f);
+            const float cell = 0.21f, gap = 0.3f;     // números: punto de 21 cm (1.05 × 1.47 m), a 30 cm de la línea
+            float numberZ = FieldHalfWidth - 8.5f;
+
+            bool Number(float mx, float mz)
+            {
+                if (Mathf.Abs(Mathf.Abs(mz) - numberZ) > 0.8f) return false;
+                for (int n = 1; n <= 9; n++)
+                {
+                    float line = -FieldGoalLine + n * 10f * FieldYard;
+                    if (Mathf.Abs(mx - line) > gap + 5f * cell + 0.1f) continue;
+                    int value = (n <= 5 ? n : 10 - n) * 10;
+                    char tens = (char)('0' + value / 10), ones = '0';
+                    bool south = mz < 0f;
+                    // Desde la banda sur se lee con la parte de arriba hacia el centro (+Z); desde la norte, girado 180°.
+                    int row = south ? Mathf.FloorToInt((-numberZ + 0.735f - mz) / cell) : Mathf.FloorToInt((mz - (numberZ - 0.735f)) / cell);
+                    float leftX0 = line - gap - 5f * cell, rightX0 = line + gap;
+                    if (mx >= leftX0 && mx < line - gap)
+                    {
+                        int col = south ? Mathf.FloorToInt((mx - leftX0) / cell) : Mathf.FloorToInt((line - gap - mx) / cell);
+                        return GlyphDot(south ? tens : ones, col, row);
+                    }
+                    if (mx >= rightX0 && mx < rightX0 + 5f * cell)
+                    {
+                        int col = south ? Mathf.FloorToInt((mx - rightX0) / cell) : Mathf.FloorToInt((rightX0 + 5f * cell - mx) / cell);
+                        return GlyphDot(south ? ones : tens, col, row);
+                    }
+                }
+                return false;
+            }
+
+            for (int y = 0; y < TH; y++)
+            for (int x = 0; x < TW; x++)
+            {
+                float u = (x + 0.5f) / TW, v = (y + 0.5f) / TH;
+                float mx = (u - 0.5f) * size.x, mz = (v - 0.5f) * size.y;
+                float nv = v * size.y / size.x; // ruido con la misma escala en los dos ejes
+                float dx = Mathf.Max(Mathf.Abs(mx) - TrackHalfStraight, 0f);
+                float dist = Mathf.Sqrt(dx * dx + mz * mz);
+                float wear = Fbm(u, nv, 40, 3, seed + 20);
+                float amount = 0.9f * Mathf.SmoothStep(0.26f, 0.46f, wear);
+                Color c;
+
+                if (dist >= TrackInnerRadius && dist <= TrackOuterRadius)
+                {
+                    // Pista de caucho: más gastada (clara y con calvas negras) en las calles de dentro.
+                    float lane = (dist - TrackInnerRadius) / TrackLaneWidth;
+                    c = rubber * (0.88f + 0.2f * Fbm(u, nv, 30, 3, seed + 1) + 0.06f * (Hash01(x, y, seed + 2) - 0.5f));
+                    if (lane < 2f && Fbm(u, nv, 20, 2, seed + 3) > 0.62f) c *= 0.6f;
+                    float f = Mathf.Abs(lane - Mathf.Round(lane)) * TrackLaneWidth;
+                    bool line = f < 0.035f && lane > 0.5f;
+                    line |= mz < 0f && Mathf.Abs(mx - TrackHalfStraight) < 0.05f;                 // meta, al final de la recta sur
+                    if (line) c = Color.Lerp(c, paint, amount);
+                }
+                else if (dist < TrackInnerRadius && dist > TrackInnerRadius - 0.18f)
+                    c = curb * (0.9f + 0.15f * Hash01(x, y, seed + 4));
+                else
+                {
+                    // Hierba de invierno: amarillenta, con rodales más verdes.
+                    float g = Fbm(u, nv, 16, 4, seed + 5);
+                    c = Color.Lerp(new Color(0.46f, 0.45f, 0.29f), new Color(0.34f, 0.41f, 0.24f), Mathf.SmoothStep(0.4f, 0.65f, g));
+                    c *= 0.9f + 0.18f * (Hash01(x, y, seed + 6) - 0.5f);
+
+                    bool inField = Mathf.Abs(mx) <= FieldHalfLength + 0.06f && Mathf.Abs(mz) <= FieldHalfWidth + 0.06f;
+                    if (inField)
+                    {
+                        // Calvas de barro: entre los hashes, en el centro y delante de cada portería.
+                        float trample = Mathf.Clamp01(1f - Mathf.Abs(mz) / 7f) * (0.55f + 0.45f * Mathf.Clamp01(1f - Mathf.Abs(Mathf.Abs(mx) - 30f) / 14f));
+                        trample = Mathf.Max(trample, Mathf.Clamp01(1f - new Vector2(Mathf.Abs(mx) - FieldGoalLine + 4f, mz).magnitude / 6f));
+                        float mudNoise = Fbm(u, nv, 24, 3, seed + 7);
+                        c = Color.Lerp(c, mud * (0.85f + 0.3f * mudNoise), Mathf.SmoothStep(0.35f, 0.75f, trample * (0.4f + mudNoise)));
+
+                        // Zonas de anotación granates con franjas diagonales.
+                        if (Mathf.Abs(mx) > FieldGoalLine && Mathf.Abs(mx) < FieldHalfLength)
+                        {
+                            float stripe = ((mx + mz) % 3f + 3f) % 3f < 1.5f ? 1f : 0.82f;
+                            c = Color.Lerp(c, endZone * stripe, 0.6f * amount);
+                        }
+
+                        bool mark = Mathf.Abs(Mathf.Abs(mx) - FieldHalfLength) < 0.07f || Mathf.Abs(Mathf.Abs(mz) - FieldHalfWidth) < 0.07f;
+                        float yards = mx / FieldYard;
+                        int k = Mathf.RoundToInt(yards);
+                        float off = Mathf.Abs(mx - k * FieldYard);
+                        if (Mathf.Abs(k) <= 50)
+                        {
+                            if (k % 5 == 0) mark |= off < (Mathf.Abs(k) == 50 ? 0.09f : 0.055f);
+                            else
+                            {
+                                float am = Mathf.Abs(mz);
+                                bool hashRow = (am > 2.1f && am < 2.55f) || (am > FieldHalfWidth - 0.75f && am < FieldHalfWidth - 0.3f);
+                                mark |= hashRow && off < 0.04f;
+                            }
+                        }
+                        mark |= Number(mx, mz);
+                        if (mark) c = Color.Lerp(c, paint, amount);
+                    }
+                }
+
+                // Placas de nieve: más fuera de la pista y en los bordes; casi nada en el centro pisoteado.
+                float snowNoise = Fbm(u, nv, 10, 4, seed + 30);
+                float threshold = dist > TrackOuterRadius ? 0.56f : dist > TrackInnerRadius ? 0.64f : 0.66f;
+                c = Color.Lerp(c, snow * (0.92f + 0.08f * Hash01(x, y, seed + 31)), Mathf.SmoothStep(threshold, threshold + 0.05f, snowNoise));
+
+                c.a = 1f;
+                px[y * TW + x] = c;
+            }
+            return Save(name, TW, TH, px, clamp: true);
+        }
+
         // ---------- Ruido tileable ----------
 
         static float Hash01(int x, int y, int seed)
@@ -952,7 +1231,21 @@ namespace GTAChiraq.Editor
             ['Y'] = new[] { "#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.." },
             ['Z'] = new[] { "#####", "....#", "...#.", "..#..", ".#...", "#....", "#####" },
             ['&'] = new[] { ".##..", "#..#.", "#.#..", ".#...", "#.#.#", "#..#.", ".##.#" },
+            ['0'] = new[] { ".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###." },
+            ['1'] = new[] { "..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###." },
+            ['2'] = new[] { ".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####" },
+            ['3'] = new[] { "####.", "....#", "....#", ".###.", "....#", "....#", "####." },
+            ['4'] = new[] { "...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#." },
+            ['5'] = new[] { "#####", "#....", "####.", "....#", "....#", "#...#", ".###." },
+            ['6'] = new[] { "..##.", ".#...", "#....", "####.", "#...#", "#...#", ".###." },
+            ['7'] = new[] { "#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..." },
+            ['8'] = new[] { ".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###." },
+            ['9'] = new[] { ".###.", "#...#", "#...#", ".####", "....#", "...#.", ".##.." },
         };
+
+        /// <summary>¿Está encendido el punto (col, fila desde arriba) de la letra <paramref name="c"/> de la fuente 5×7?</summary>
+        static bool GlyphDot(char c, int col, int row) =>
+            col >= 0 && col < 5 && row >= 0 && row < 7 && Glyphs.TryGetValue(c, out var glyph) && glyph[row][col] == '#';
 
         /// <summary>
         /// Letrero de caja de luz: fondo de color con borde, texto en la fuente 5×7 (6 px por punto) y algo de suciedad.
@@ -977,7 +1270,7 @@ namespace GTAChiraq.Editor
                 if (!border && row >= 0 && row < 7 && col >= 0)
                 {
                     int letter = col / 6, inLetter = col % 6;
-                    if (letter < text.Length && inLetter < 5 && Glyphs.TryGetValue(text[letter], out var glyph) && glyph[row][inLetter] == '#')
+                    if (letter < text.Length && GlyphDot(text[letter], inLetter, row))
                         c = ink;
                 }
                 float grime = Fbm(u, v, 6, 3, seed);
@@ -1021,6 +1314,337 @@ namespace GTAChiraq.Editor
             for (int x = 0; x < S; x++)
             {
                 var c = colors[((x + y) / 8) % 4];
+                c.a = 1f;
+                px[y * S + x] = c;
+            }
+            return Save(name, S, S, px);
+        }
+
+        // ---------- Cocheras del tren ----------
+
+        public const float BallastTile = 2f;                       // metros por repetición de la grava
+        public const float CorrugatedTileU = 1.2f, CorrugatedTileV = 2.6f; // 8 ondas por 1.2 m; alto de un contenedor
+
+        /// <summary>
+        /// Balasto de vía: grava gris parda de piedras sueltas, con manchas de aceite y óxido. 128 px = <see cref="BallastTile"/> m.
+        /// </summary>
+        public static Texture2D Ballast(string name, int seed)
+        {
+            const int S = 128;
+            var px = new Color[S * S];
+            var stone = new Color(0.43f, 0.41f, 0.38f);
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float u = (float)x / S, v = (float)y / S;
+                // Piedras: celdas de 4 px con tono propio y junta oscura.
+                int cx = x / 4, cy = (y + (cx % 2) * 2) / 4;
+                float rock = Hash01(cx, cy, seed);
+                bool joint = x % 4 == 0 || (y + (cx % 2) * 2) % 4 == 0;
+                var c = stone * (0.72f + 0.5f * rock) * (joint ? 0.7f : 1f);
+                c = Color.Lerp(c, new Color(0.38f, 0.27f, 0.2f), Mathf.SmoothStep(0.6f, 0.8f, Fbm(u, v, 3, 3, seed + 2)) * 0.5f); // óxido
+                c *= 1f - Mathf.SmoothStep(0.68f, 0.85f, Fbm(u, v, 2, 3, seed + 5)) * 0.45f; // aceite
+                c.a = 1f;
+                px[y * S + x] = c;
+            }
+            return Save(name, S, S, px);
+        }
+
+        /// <summary>
+        /// Chapa ondulada (contenedores y nave): ondas verticales con brillo y sombra, casi blanca para teñirla con el
+        /// material, con chorretones de óxido y suciedad abajo. 64×128 px = <see cref="CorrugatedTileU"/> × <see cref="CorrugatedTileV"/> m.
+        /// </summary>
+        public static Texture2D Corrugated(string name, int seed)
+        {
+            const int W = 64, H = 128;
+            var px = new Color[W * H];
+            for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                float u = (float)x / W, v = (float)y / H;
+                float wave = 0.78f + 0.22f * Mathf.Sin(u * 8f * 2f * Mathf.PI);
+                float c = wave * (0.95f + 0.06f * Hash01(x, y, seed));
+                // Chorretones de óxido que bajan desde arriba en algunas ondas.
+                float streak = Fbm(u, 0.5f, 6, 2, seed + 3) > 0.62f ? Mathf.SmoothStep(0.3f, 1f, v) : 0f;
+                float grime = (1f - v) * 0.25f * Fbm(u, v, 4, 3, seed + 7);
+                var col = new Color(c, c, c) * (1f - grime);
+                col = Color.Lerp(col, new Color(0.45f, 0.27f, 0.16f), streak * 0.45f);
+                col.a = 1f;
+                px[y * W + x] = col;
+            }
+            return Save(name, W, H, px);
+        }
+
+        // ---------- Ropa y piel del personaje ----------
+
+        /// <summary>Tejido de una prenda. Las texturas son casi blancas: el color lo pone la prenda (PlayerOutfit lo tiñe).</summary>
+        public enum ClothPattern { Knit, Denim, Puffer, Cotton, Twill, Suede, Sneaker, Satin, Stripes }
+
+        /// <summary>
+        /// Tejido de ropa, tileable, de 128 px (U alrededor de la pieza, V a lo largo, de abajo arriba), pintado al estilo
+        /// de PS2 como en img/gang.png: poca trama y mucha sombra horneada (pliegues con cresta clara y surco oscuro,
+        /// costuras con pespunte, desgaste y bordes). Valores cerca del blanco para que el tinte de la prenda mande:
+        /// algodón con caídas en diagonal (camiseta XL), vaquero con hebra vertical, desgaste claro y el bajo amontonado
+        /// en arrugas abajo (V≈0 es el tobillo en la espinilla y la rodilla en el muslo), felpa con puño de canalé abajo
+        /// (sudadera, gorro, chándal), plumífero acolchado, sarga de gorra y caqui con costuras, nobuk de bota de trabajo
+        /// con rozaduras y cuello acolchado arriba, zapatilla con pespuntes, raso con brillo y polo de rayas anchas de
+        /// colores (la única con color propio; la prenda la tiñe casi de blanco).
+        /// </summary>
+        public static Texture2D Cloth(string name, ClothPattern pattern, int seed)
+        {
+            const int S = 128;
+            var px = new Color[S * S];
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float u = (float)x / S, v = (float)y / S;
+                float grain = Hash01(x, y, seed) - 0.5f;
+                float broad = Fbm(u, v, 2, 3, seed + 7) - 0.5f; // luz y sombra pintadas, a manchas grandes
+                float c;
+                switch (pattern)
+                {
+                    case ClothPattern.Cotton:
+                    {
+                        // Camiseta: caídas en diagonal cruzadas y, en la mitad de abajo, pliegues verticales del faldón.
+                        float f = Fold(u, v, 2, 1, 0.5f, seed + 1) * Mask(u, v, seed + 2)
+                                + Fold(u, v, -1, 2, 0.4f, seed + 3) * Mask(u, v, seed + 4) * 0.8f
+                                + Fold(u, v, 5, 0, 0.35f, seed + 5) * Mathf.SmoothStep(0.55f, 0f, v) * 0.9f;
+                        c = 0.97f + 0.3f * f + 0.07f * broad + 0.015f * grain;
+                        if (y < 4) c *= 0.86f; // dobladillo
+                        break;
+                    }
+                    case ClothPattern.Denim:
+                    {
+                        // Hebra vertical (a lo largo de la pierna), desgaste claro a manchas, costuras laterales con
+                        // pespunte claro y arrugas apiladas abajo (bajo amontonado) y algunas arriba.
+                        float warp = (Hash01(x, 7, seed) - 0.5f) * 0.1f + (Hash01(x, y / 6, seed + 9) - 0.5f) * 0.05f;
+                        float fade = Mathf.SmoothStep(0.4f, 0.75f, Fbm(u, v, 2, 3, seed + 3)) * 0.24f;
+                        float stack = Fold(u, v, 1, 9, 0.6f, seed + 11) * Mathf.SmoothStep(0.4f, 0.05f, v)
+                                    + Fold(u, v, -1, 5, 0.6f, seed + 12) * Mathf.SmoothStep(0.75f, 1f, v) * 0.7f
+                                    + Fold(u, v, 1, 2, 0.5f, seed + 13) * Mask(u, v, seed + 14) * 0.5f;
+                        c = 0.74f + warp + fade + 0.32f * stack + 0.06f * broad + 0.03f * grain;
+                        int sx = x % (S / 2);
+                        if (sx < 2) c *= 0.72f;                        // costura
+                        else if (sx == 3 && y % 4 < 2) c = 0.98f;      // pespunte
+                        break;
+                    }
+                    case ClothPattern.Knit:
+                    {
+                        // Felpa: pliegues blandos y anchos, apenas trama, y el puño de canalé abajo.
+                        float f = Fold(u, v, 1, 2, 0.6f, seed + 1) * Mask(u, v, seed + 2)
+                                + Fold(u, v, 2, -1, 0.5f, seed + 3) * Mask(u, v, seed + 4) * 0.7f
+                                + Fold(u, v, 0, 6, 0.5f, seed + 5) * Mathf.SmoothStep(0.35f, 0.12f, v) * 0.8f;
+                        c = 0.92f + 0.26f * f + 0.08f * broad + 0.02f * grain;
+                        if (y < 12) c = (x % 4 < 2 ? 0.8f : 0.92f) + 0.05f * broad;
+                        else if (y == 12) c *= 0.75f;
+                        break;
+                    }
+                    case ClothPattern.Puffer:
+                    {
+                        // Franjas acolchadas abombadas, con la costura hundida y arrugas cortas junto a ella.
+                        const int band = 32;
+                        float t = (y % band) / (float)(band - 1);
+                        float puff = Mathf.Sin(t * Mathf.PI);
+                        float pinch = Fold(u, v, 12, 0, 0.3f, seed + 1) * (1f - puff) * 0.5f;
+                        c = 0.58f + 0.38f * Mathf.Pow(puff, 0.7f) + 0.12f * pinch + 0.06f * broad + 0.015f * grain;
+                        if (y % band < 2) c = 0.38f;
+                        break;
+                    }
+                    case ClothPattern.Twill:
+                    {
+                        // Gorra y caqui: sarga casi lisa, pliegues finos y costuras de panel con pespunte.
+                        float f = Fold(u, v, 1, 3, 0.5f, seed + 1) * Mask(u, v, seed + 2)
+                                + Fold(u, v, 0, 7, 0.4f, seed + 3) * Mathf.SmoothStep(0.35f, 0.05f, v) * 0.7f;
+                        c = 0.92f + 0.24f * f + 0.07f * broad + 0.02f * grain;
+                        int sx = x % (S / 4);
+                        if (sx < 2) c *= 0.7f;
+                        else if (sx == 3 && y % 4 < 2) c *= 0.85f;
+                        break;
+                    }
+                    case ClothPattern.Satin:
+                    {
+                        // Raso: liso, con vetas de brillo largas a lo largo de la tela y arrugas tirantes.
+                        float sheen = Mathf.Pow(Mathf.Abs(Mathf.Sin((u * 3f + Fbm(u, v, 2, 2, seed + 9) * 0.8f) * Mathf.PI)), 6f);
+                        c = 0.8f + 0.2f * sheen + 0.06f * Fold(u, v, 2, 1, 0.5f, seed + 1) + 0.01f * grain;
+                        break;
+                    }
+                    case ClothPattern.Stripes:
+                    {
+                        // Polo: rayas anchas de colores separadas por filetes crema, con los pliegues de la camiseta.
+                        Color[] bands =
+                        {
+                            new(0.12f, 0.14f, 0.3f), new(0.86f, 0.82f, 0.7f), new(0.62f, 0.12f, 0.1f),
+                            new(0.86f, 0.82f, 0.7f), new(0.82f, 0.62f, 0.16f), new(0.16f, 0.32f, 0.2f),
+                            new(0.86f, 0.82f, 0.7f), new(0.12f, 0.14f, 0.3f),
+                        };
+                        const int bandH = 16;
+                        float f = Fold(u, v, 2, 1, 0.5f, seed + 1) * Mask(u, v, seed + 2)
+                                + Fold(u, v, -1, 2, 0.4f, seed + 3) * Mask(u, v, seed + 4) * 0.8f;
+                        var col = bands[(y / bandH) % bands.Length] * (1f + 0.26f * f + 0.06f * broad + 0.015f * grain);
+                        if (y % bandH == 0) col *= 0.85f;
+                        px[y * S + x] = new Color(Mathf.Clamp01(col.r), Mathf.Clamp01(col.g), Mathf.Clamp01(col.b), 1f);
+                        continue;
+                    }
+                    case ClothPattern.Suede:
+                    {
+                        // Bota de trabajo: nobuk a manchas, rozaduras oscuras, arrugas en el empeine, doble pespunte y
+                        // el cuello acolchado (más oscuro) arriba.
+                        float mottle = Fbm(u, v, 6, 3, seed + 5) - 0.5f;
+                        float scuff = Mathf.SmoothStep(0.62f, 0.78f, Fbm(u, v, 4, 2, seed + 6)) * 0.22f;
+                        float crease = Fold(u, v, 0, 5, 0.5f, seed + 1) * Mask(u, v, seed + 2) * 0.07f;
+                        c = 0.86f + 0.16f * mottle - scuff + crease + 0.04f * broad + 0.03f * grain;
+                        int sy = y % 64;
+                        if ((sy == 10 || sy == 14 || sy == 52) && x % 5 < 3) c *= 0.62f;
+                        if (y >= S - 14) c = 0.55f + 0.08f * Fbm(u, v, 8, 2, seed + 8);
+                        break;
+                    }
+                    default: // zapatilla: piel lisa con sombra de arrugas, pespuntes y agujeros de ventilación
+                    {
+                        float crease = Fold(u, v, 1, 4, 0.5f, seed + 1) * Mask(u, v, seed + 2) * 0.08f;
+                        c = 0.94f + crease + 0.05f * broad + 0.01f * grain;
+                        int sy = y % 64;
+                        if ((sy == 12 || sy == 52) && x % 6 < 3) c *= 0.7f;
+                        if (sy > 22 && sy < 42 && x % 10 == 0 && y % 6 == 0) c *= 0.55f;
+                        break;
+                    }
+                }
+                c = Mathf.Clamp01(c);
+                px[y * S + x] = new Color(c, c, c, 1f);
+            }
+            return Save(name, S, S, px);
+        }
+
+        /// <summary>
+        /// Pliegue pintado, tileable (a y b enteros: vueltas en U y en V): cresta clara a un lado y surco oscuro y estrecho
+        /// al otro, ondulado con ruido. Devuelve aprox. [-1, 0.35].
+        /// </summary>
+        static float Fold(float u, float v, int a, int b, float wobble, int seed)
+        {
+            float w = (Fbm(u, v, 2, 2, seed) - 0.5f) * wobble * 2f;
+            float s = Mathf.Sin(2f * Mathf.PI * (a * u + b * v + w));
+            float groove = Mathf.Pow((1f - s) * 0.5f, 5f);
+            float ridge = Mathf.Pow((1f + s) * 0.5f, 2f);
+            return 0.35f * ridge - groove;
+        }
+
+        /// <summary>Máscara suave para que los pliegues salgan a zonas y no por toda la tela.</summary>
+        static float Mask(float u, float v, int seed) => Mathf.SmoothStep(0.35f, 0.65f, Fbm(u, v, 2, 2, seed));
+
+        /// <summary>Piel con algo de grano y tono irregular, para que no quede plana. Blanca: el color lo pone el material.</summary>
+        public static Texture2D Skin(string name, int seed)
+        {
+            const int S = 64;
+            var px = new Color[S * S];
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float u = (float)x / S, v = (float)y / S;
+                float c = (0.9f + 0.1f * Fbm(u, v, 4, 3, seed)) * (0.97f + 0.04f * Hash01(x, y, seed + 1));
+                px[y * S + x] = new Color(c, c * 0.98f, c * 0.97f, 1f);
+            }
+            return Save(name, S, S, px);
+        }
+
+        /// <summary>Pelo rapado: puntitos oscuros muy juntos sobre un fondo algo más claro.</summary>
+        public static Texture2D BuzzCut(string name, int seed)
+        {
+            const int S = 64;
+            var px = new Color[S * S];
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float h = Hash01(x, y, seed);
+                float c = h > 0.45f ? 0.25f : 0.55f + 0.2f * Hash01(x, y, seed + 2);
+                px[y * S + x] = new Color(c, c, c, 1f);
+            }
+            return Save(name, S, S, px);
+        }
+
+        /// <summary>
+        /// Cara pintada a todo color para la cabeza por anillos del personaje (PrototypeSceneBuilder.Body): U da la vuelta
+        /// a la cabeza (0.5 es el frente) y V va de la barbilla (0) a la coronilla (1). Como las caras de PS2 de
+        /// img/gang.png: sombra horneada (cuencas, laterales, bajo la mandíbula), ojos almendrados con párpado, cejas,
+        /// orificios de la nariz, labios, bigote y perilla cortos, y pelo rapado con la línea de la frente marcada.
+        /// No imita a nadie: es una cara genérica.
+        /// </summary>
+        public static Texture2D Face(string name, Color skin, Color hair, int seed)
+        {
+            const int S = 256;
+            var px = new Color[S * S];
+            var eyeWhite = new Color(0.8f, 0.76f, 0.7f);
+            var iris = new Color(0.12f, 0.07f, 0.05f);
+            var lid = new Color(0.07f, 0.045f, 0.035f);
+            var lipTop = new Color(0.24f, 0.13f, 0.11f);
+            var lipBottom = new Color(0.31f, 0.18f, 0.15f);
+
+            // Distancia elíptica normalizada (1 en el borde).
+            float E(float du, float dv, float cu, float cv, float ru, float rv)
+            {
+                float a = (du - cu) / ru, b = (dv - cv) / rv;
+                return a * a + b * b;
+            }
+
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float u = (x + 0.5f) / S, v = (y + 0.5f) / S;
+                float du = u - 0.5f, adu = Mathf.Abs(du);
+                float d = adu * 2f; // 0 delante, 1 detrás
+                float grain = Hash01(x, y, seed) - 0.5f;
+
+                // Piel con luz pintada: frente y caballete de la nariz más claros, pómulos, laterales y bajo la
+                // mandíbula más oscuros, y las cuencas de los ojos hundidas.
+                float light = 1f
+                    + 0.08f * Mathf.Exp(-(du * du) / 0.004f) * Mathf.SmoothStep(0.3f, 0.6f, v)
+                    + 0.06f * Mathf.Exp(-E(adu, v, 0.1f, 0.42f, 0.05f, 0.06f))
+                    - 0.2f * Mathf.SmoothStep(0.12f, 0.3f, adu)
+                    - 0.22f * Mathf.SmoothStep(0.2f, 0f, v) * Mathf.SmoothStep(0.03f, 0.12f, adu)
+                    - 0.16f * Mathf.Exp(-E(adu, v, 0.068f, 0.53f, 0.055f, 0.045f))
+                    - 0.12f * Mathf.Exp(-E(adu, v, 0.03f, 0.36f, 0.015f, 0.08f)) // sombra a los lados de la nariz
+                    + 0.04f * (Fbm(u, v, 6, 3, seed + 3) - 0.5f) + 0.025f * grain;
+                var c = skin * light;
+
+                // Ojos: blanco almendrado, iris oscuro, párpado de arriba marcado y pliegue de abajo suave.
+                float eye = E(adu, v, 0.068f, 0.535f, 0.03f, 0.015f);
+                if (eye < 1f)
+                {
+                    c = eyeWhite * (0.85f + 0.15f * (1f - eye));
+                    if (E(adu, v, 0.064f, 0.533f, 0.011f, 0.014f) < 1f) c = iris;
+                }
+                if (adu > 0.036f && adu < 0.1f && v > 0.546f && v < 0.556f && E(adu, v, 0.068f, 0.535f, 0.034f, 0.024f) < 1f) c = lid;
+                if (E(adu, v, 0.07f, 0.515f, 0.03f, 0.006f) < 1f) c *= 0.8f;
+
+                // Cejas, algo inclinadas hacia fuera.
+                float browV = 0.625f - (adu - 0.07f) * 0.15f;
+                if (E(adu, v, 0.07f, browV, 0.038f, 0.011f) < 1f && Hash01(x, y, seed + 5) > 0.15f) c = Color.Lerp(c, hair, 0.9f);
+
+                // Orificios de la nariz (la nariz es de malla).
+                if (E(adu, v, 0.021f, 0.31f, 0.01f, 0.008f) < 1f) c = skin * 0.35f;
+
+                // Boca: labio de arriba más oscuro, de abajo más lleno, y la comisura.
+                if (E(du, v, 0f, 0.228f, 0.046f, 0.012f) < 1f) c = lipTop * (0.95f + 0.05f * grain);
+                if (E(du, v, 0f, 0.202f, 0.04f, 0.015f) < 1f) c = lipBottom * (1f + 0.08f * (1f - E(du, v, 0f, 0.205f, 0.04f, 0.015f)));
+                if (adu < 0.046f && Mathf.Abs(v - 0.216f) < 0.003f) c = lid;
+
+                // Barba corta: bigote, perilla y una sombra de barba por la mandíbula.
+                float stubble = Hash01(x, y, seed + 7);
+                if (E(du, v, 0f, 0.262f, 0.052f, 0.013f) < 1f && stubble > 0.2f) c = Color.Lerp(c, hair, 0.85f);
+                if (E(du, v, 0f, 0.13f, 0.032f, 0.055f) < 1f && stubble > 0.2f) c = Color.Lerp(c, hair, 0.85f);
+                float jaw = Mathf.SmoothStep(0.26f, 0.12f, v) * Mathf.SmoothStep(0.2f, 0.08f, adu);
+                if (stubble > 1f - 0.5f * jaw) c = Color.Lerp(c, hair, 0.3f);
+
+                // Pelo rapado: la línea de la frente está alta y recta delante, baja por las sienes y por detrás llega
+                // a la nuca. Puntitos de pelo con la piel asomando.
+                float hairline = Mathf.Lerp(0.79f, 0.27f, Mathf.SmoothStep(0.14f, 0.85f, d));
+                float edge = v - hairline;
+                if (edge > 0f)
+                {
+                    float density = Mathf.SmoothStep(0f, 0.012f, edge);
+                    var scalp = Color.Lerp(hair, skin * 0.8f, 0.45f);
+                    var h = Hash01(x, y, seed + 9) > 0.4f ? hair : scalp;
+                    c = Color.Lerp(c, h * (0.95f + 0.1f * Fbm(u, v, 8, 2, seed + 11)), density);
+                }
+
                 c.a = 1f;
                 px[y * S + x] = c;
             }

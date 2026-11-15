@@ -64,15 +64,20 @@ namespace GTAChiraq.Editor
             BuildProjectsDistrict(world);
             BuildHousesDistrict(world); // PrototypeSceneBuilder.Houses.cs (después del barrio: usa sus materiales)
             BuildTowersBlock(world);    // PrototypeSceneBuilder.Towers.cs: la manzana central (usa los materiales de los dos barrios)
+            BuildHighway(world);        // PrototypeSceneBuilder.Highway.cs: autopista hundida en el borde oeste (el tráfico va fuera de "Mundo")
+            BuildSchool(world);         // PrototypeSceneBuilder.School.cs: instituto entre la autopista y la calle x = −110
             BuildElevatedTrain(world);  // PrototypeSceneBuilder.Train.cs (los trenes quedan fuera de "Mundo": se mueven)
+            BuildRailYard(world);       // PrototypeSceneBuilder.RailYard.cs: cocheras al sur de la calle z = −80 (usa los materiales del tren)
             BuildStreetLights(world);
             BuildSnow(world);
             BuildMainRoadDetails(world); // PrototypeSceneBuilder.MainRoads.cs: alcantarillas, sumideros, nieve y manchas
+            BuildDrivableParkedCars();   // PrototypeSceneBuilder.Cars.cs: los aparcados salen de "Mundo" y se pueden robar
             MarkStatic(world);
 
             var player = BuildPlayer(new Vector3(-10f, 0.2f, -BlockHalfZ - 1.5f));
             BuildCar(new Vector3(-16f, 0.4f, -BlockHalfZ - SidewalkWidth - 3f), Quaternion.Euler(0f, -90f, 0f));
             BuildCamera(player);
+            BuildTrainingArea(); // PrototypeSceneBuilder.Training.cs: dianas y objetos junto al inicio (fuera de "Mundo")
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddSceneToBuild(ScenePath);
@@ -123,7 +128,10 @@ namespace GTAChiraq.Editor
             var asphalt = Mat("Asfalto", new Color(0.17f, 0.17f, 0.18f));
             var concrete = Mat("Hormigon", new Color(0.6f, 0.59f, 0.56f));
 
-            Box("Suelo", world, new Vector3(0f, -0.1f, 0f), new Vector3(600f, 0.2f, 600f), asphalt);
+            // El suelo acaba en la autopista hundida (x −300…−275): ahí ponen el suelo los puentes y el techo del túnel (Highway.cs).
+            // Lleva un hueco para la escalera del estudio del sótano de T1 (Studio.cs).
+            foreach (var r in RectMinus(Rect.MinMaxRect(HighwayMaxX, -300f, 300f, 300f), new List<Rect> { StudioStairwell }))
+                Box("Suelo", world, new Vector3(r.center.x, -0.1f, r.center.y), new Vector3(r.width, 0.2f, r.height), asphalt);
 
             // El césped y la acera de la manzana central los pone BuildTowersBlock (PrototypeSceneBuilder.Towers.cs).
             float outerX = BlockHalfX + SidewalkWidth, outerZ = BlockHalfZ + SidewalkWidth;
@@ -160,6 +168,7 @@ namespace GTAChiraq.Editor
             var westStrip = Rect.MinMaxRect(-farX - SidewalkWidth / 2f, -300f, -farX + SidewalkWidth / 2f, 300f);
             var crossStreets = new List<Rect> { Rect.MinMaxRect(-300f, outerZ, 300f, outerZ + RoadWidth), Rect.MinMaxRect(-300f, -outerZ - RoadWidth, 300f, -outerZ) };
             crossStreets.AddRange(FarWestWestSidewalkCuts); // calles D, E, F, H del oeste lejano y entrada de la gasolinera
+            crossStreets.AddRange(SchoolDriveways);         // salidas del aparcamiento del instituto (School.cs)
             foreach (var piece in StripMinus(westStrip, crossStreets))
                 Box("AceraEnfrente_O", world, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
 
@@ -188,6 +197,7 @@ namespace GTAChiraq.Editor
                 foreach (float side in new[] { 1f, -1f })
                 {
                     if (side > 0f) continue; // al norte: el oeste lejano, la ampliación oeste, los negocios y los barrios de casas
+                    if (x > YardMinX - 5f && x < BlockHalfX + SidewalkWidth) continue; // al sur, las cocheras (RailYard.cs); quedan los de la esquina oeste
 
                     float height = rng.NextDouble() < 0.7 ? 8f : 5f;
                     var size = new Vector3(10f, height, 14f);
@@ -430,14 +440,46 @@ namespace GTAChiraq.Editor
             controller.center = new Vector3(0f, 0.9f, 0f);
             controller.stepOffset = 0.4f;
 
+            // Sistemas del personaje (Scripts/Player, Combat, Inventory). El orden importa poco: cada uno busca a los demás.
+            player.AddComponent<Health>();
+            player.AddComponent<PlayerVitals>();
             player.AddComponent<PlayerMovement>();
+            player.AddComponent<PlayerClimb>();
+            player.AddComponent<PlayerCover>();
+            player.AddComponent<PlayerInventory>();
+            var combat = player.AddComponent<PlayerCombat>();
+            player.AddComponent<PlayerHud>();
             player.AddComponent<VehicleEntry>();
+            player.AddComponent<PlayerInteractor>(); // ascensor, armario y caja fuerte (Scripts/Home)
 
-            var hoodie = Mat("Sudadera", new Color(0.12f, 0.12f, 0.13f));
-            var cap = Mat("Gorra", new Color(0.7f, 0.1f, 0.1f));
-            Primitive(PrimitiveType.Capsule, "Cuerpo", player.transform, new Vector3(0f, 0.9f, 0f), new Vector3(0.7f, 0.9f, 0.7f), hoodie, keepCollider: false);
-            // La visera indica hacia dónde mira el personaje.
-            Primitive(PrimitiveType.Cube, "Visera", player.transform, new Vector3(0f, 1.62f, 0.3f), new Vector3(0.3f, 0.06f, 0.25f), cap, keepCollider: false);
+            // Modelo (hijo propio: la cobertura lo agacha y al morir se tumba).
+            var model = new GameObject("Modelo").transform;
+            model.SetParent(player.transform, false);
+            BuildPlayerBody(model);
+
+            // Pistola de prueba (genérica) con la boca del cañón. La mano derecha la empuña (IK de PlayerAnimator), así
+            // que ya no hay un puño suelto para pegar: los puñetazos los anima el brazo.
+            var gunMetal = Mat("PistolaMetal", new Color(0.08f, 0.08f, 0.09f));
+            var pistol = new GameObject("Pistola").transform;
+            pistol.SetParent(model, false);
+            pistol.localPosition = new Vector3(0.32f, 1.0f, 0.18f);
+            Box("Corredera", pistol, new Vector3(0f, 0.05f, 0.04f), new Vector3(0.05f, 0.05f, 0.22f), gunMetal, collider: false);
+            Box("Empunadura", pistol, new Vector3(0f, -0.04f, -0.04f), new Vector3(0.045f, 0.13f, 0.06f), gunMetal, collider: false)
+                .transform.localRotation = Quaternion.Euler(-15f, 0f, 0f);
+            var muzzle = new GameObject("BocaCanon").transform;
+            muzzle.SetParent(pistol, false);
+            muzzle.localPosition = new Vector3(0f, 0.05f, 0.17f);
+            pistol.gameObject.SetActive(false);
+            SetReference(combat, "muzzle", muzzle);
+            SetReference(combat, "pistolModel", pistol.gameObject);
+
+            // La ropa se pinta al arrancar (PlayerOutfit busca las piezas de BuildPlayerBody por nombre) y las
+            // articulaciones las mueve PlayerAnimator (andar, correr, cobertura, escalar, pistola, puñetazos…).
+            var outfit = player.AddComponent<PlayerOutfit>();
+            outfit.SetTextures(clothTextures, skinTexture);
+            outfit.PreviewInEditor(); // vestido con la ropa de inicio también en el editor y las capturas
+            EditorUtility.SetDirty(outfit);
+            player.AddComponent<PlayerAnimator>();
 
             SetLayerRecursively(player, IgnoreRaycastLayer);
             return player;
@@ -445,24 +487,18 @@ namespace GTAChiraq.Editor
 
         static void BuildCar(Vector3 position, Quaternion rotation)
         {
-            var car = new GameObject("Coche_Sedan");
-            car.transform.SetPositionAndRotation(position, rotation);
-
-            var body = car.AddComponent<Rigidbody>();
-            body.mass = 1400f;
-            body.linearDamping = 0.05f;
-            body.angularDamping = 0.5f;
-            body.interpolation = RigidbodyInterpolation.Interpolate;
-            var vehicle = car.AddComponent<VehicleController>();
-
             // Carrocería: el sedán grande de Cars.cs, con llantas cromadas y faros encendidos. Su suelo queda donde
-            // apoyan las ruedas en reposo (centro del WheelCollider menos la compresión de reposo y el radio).
-            const float wheelY = 0.4f, suspension = 0.25f, springTarget = 0.5f;
+            // apoyan las ruedas en reposo (CarGroundY). Es del jugador: no lleva VehicleLock.
             var spec = Spec(CarStyle.Sedan);
-            float radius = spec.WheelRadius;
-            float groundY = wheelY - suspension * (1f - springTarget) - radius;
-            CarModel(car.transform, "Modelo", new Vector3(0f, groundY, 0f), 0f, CarStyle.Sedan, carPlayerPaint, new System.Random(5),
+            float groundY = CarGroundY(spec), radius = spec.WheelRadius;
+            var model = CarModel(null, "Modelo", position + Vector3.up * groundY, rotation.eulerAngles.y, CarStyle.Sedan, carPlayerPaint, new System.Random(5),
                 wheels: false, weathered: false, lightsOn: true);
+            float halfTrack = spec.Width / 2f - 0.12f, halfBase = spec.Wheelbase / 2f;
+            foreach (float z in new[] { halfBase, -halfBase })
+            foreach (float side in new[] { -1f, 1f })
+                CarWheel(model, "Rueda", new Vector3(side * halfTrack, radius, z), radius, side, carChrome);
+            var car = MakeDrivable(model, CarStyle.Sedan, "Coche_Sedan", null);
+
             foreach (float side in new[] { -1f, 1f })
             {
                 var beam = new GameObject("LuzFaro").AddComponent<Light>();
@@ -475,43 +511,8 @@ namespace GTAChiraq.Editor
                 beam.spotAngle = 55f;
                 beam.intensity = 3f;
                 beam.shadows = LightShadows.None;
+                beam.gameObject.layer = GameLayers.Vehicle;
             }
-
-            float halfTrack = spec.Width / 2f - 0.12f, halfBase = spec.Wheelbase / 2f;
-            var wheels = new List<VehicleController.Wheel>();
-            foreach (var (name, local, front) in new[]
-                     {
-                         ("DelIzq", new Vector3(-halfTrack, wheelY, halfBase), true),
-                         ("DelDer", new Vector3(halfTrack, wheelY, halfBase), true),
-                         ("TrasIzq", new Vector3(-halfTrack, wheelY, -halfBase), false),
-                         ("TrasDer", new Vector3(halfTrack, wheelY, -halfBase), false),
-                     })
-            {
-                var colliderObject = new GameObject($"WheelCollider_{name}");
-                colliderObject.transform.SetParent(car.transform, false);
-                colliderObject.transform.localPosition = local;
-                var wheelCollider = colliderObject.AddComponent<WheelCollider>();
-                wheelCollider.radius = radius;
-                wheelCollider.mass = 20f;
-                wheelCollider.suspensionDistance = suspension;
-                wheelCollider.suspensionSpring = new JointSpring { spring = 35000f, damper = 4500f, targetPosition = springTarget };
-
-                var pivot = CarWheel(car.transform, $"Rueda_{name}", local, radius, Mathf.Sign(local.x), carChrome);
-
-                // Tracción trasera, como un sedán americano antiguo.
-                wheels.Add(new VehicleController.Wheel
-                {
-                    collider = wheelCollider, visual = pivot, steer = front, drive = !front, handbrake = !front,
-                });
-            }
-
-            var exit = new GameObject("PuntoSalida").transform;
-            exit.SetParent(car.transform, false);
-            exit.localPosition = new Vector3(-2f, 0.1f, 0.3f);
-
-            vehicle.Configure(wheels.ToArray(), exit);
-            EditorUtility.SetDirty(vehicle);
-            SetLayerRecursively(car, IgnoreRaycastLayer);
         }
 
         static void BuildCamera(GameObject player)
@@ -530,6 +531,7 @@ namespace GTAChiraq.Editor
             SetReference(follow, "target", player.transform);
             SetReference(player.GetComponent<PlayerMovement>(), "cameraTransform", cameraObject.transform);
             SetReference(player.GetComponent<VehicleEntry>(), "followCamera", follow);
+            SetReference(player.GetComponent<PlayerCombat>(), "followCamera", follow);
         }
 
         // ---------- Utilidades ----------

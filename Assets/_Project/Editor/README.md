@@ -8,9 +8,18 @@
 - `PrototypeSceneBuilder.HousesWestExt.cs`: ampliación de la copia oeste del barrio de casas hasta la calle x = −110.
 - `PrototypeSceneBuilder.HousesNorth.cs`: ampliación de los barrios de casas hacia el norte (z hasta 298), a los dos lados de la avenida.
 - `PrototypeSceneBuilder.FarWest.cs`: oeste lejano, al otro lado de la calle x = −110 (casas, gasolinera, negocios, cancha y descampado).
+- `PrototypeSceneBuilder.Highway.cs`: autopista hundida en el borde oeste (x −300…−275), con puentes, túnel y tráfico.
+- `PrototypeSceneBuilder.School.cs`: instituto entre la autopista y la calle x = −110.
+- `PrototypeSceneBuilder.Training.cs`: zona de prácticas junto al inicio (dianas y objetos para recoger).
+- `PrototypeSceneBuilder.Studio.cs`: vida del bloque en la manzana central (estudio en el sótano de T1, memorial y zona de reunión).
 - `PrototypeSceneBuilder.MainRoads.cs`: calzadas texturizadas de las cuatro calles grandes (z = ±80, x = ±110), cruces, pasos de cebra y su detalle.
 - `PrototypeSceneBuilder.Towers.cs`: manzana central (conjunto de torres, adosadas y aparcamientos).
 - `PrototypeSceneBuilder.Train.cs`: tren elevado sobre la avenida principal.
+- `PrototypeSceneBuilder.RailYard.cs`: cocheras del tren al sur de la calle z = −80 (ver *Cocheras*).
+- `PrototypeSceneBuilder.Apartment.cs`: casa del jugador. Define `T2Center`, `T2Floors` y `T2Openings()` (los huecos que se le pasan a `HighRise` para T2). `BuildApartment` (desde `BuildTowersBlock`, después del estudio) construye:
+  - **Vestíbulo** (`BuildLobby`, coordenadas locales de la torre): sala de x −5…5, z −7.2…−0.5, suelo a `LobbyFloor` 0.25 y techo a 2.75 m, por debajo del forjado de 2.89. Pared sur con el hueco del portal (2.6 × 2.6 m), buzones, escalera, dos ascensores y el `Elevator` que sube en `LobbyLiftCall`; telefonillo por fuera.
+  - **Piso** (`BuildApartmentRoom`), con origen en `ApartmentCenter` (9, 39.12, −3.35) local de la torre: suelo encima del forjado de 39 m, sala de ±`AptHalfX` × ±`AptHalfZ` (4.2 × 3.85) y 2.7 m de alto. Las fachadas sur (z −4.15) y este (x 4.5) se hacen con `FacadeWall`: en cada celda abierta de la torre, ladrillo liso por fuera, pared pintada por dentro y una ventana de 2 m (alféizar a `AptSill` 0.75, dintel a `AptHead` 2.45) con marco y cristal `GlassMat` (URP transparente) con collider, `NoClimb` y `NoCover`. Ascensor en la pared oeste (el `Elevator` que baja), salón, sillón mirando a la ventana sur, cocina, cama, `Wardrobe`, `SafeBox` y tres luces sin sombras.
+- `PrototypeSceneBuilder.Body.cs`: cuerpo del personaje (`BuildPlayerBody`) y `LoftMesh`/`Loft`, la malla low-poly por anillos (superelipses de N lados, sombreado suave, tapas opcionales; U alrededor con el frente en 0.5, V de abajo arriba) con la que se hace. `FrontZ` da el frente del torso a una altura, para apoyar bolsillos, botonera, cordones y cadena.
 - `PrototypeSceneBuilder.Cars.cs`: modelos de coche (aparcados, el que se conduce y el abandonado).
 
 Menú **GTAChiraq > Construir escena prototipo**. Genera `Assets/_Project/Scenes/Prototype.unity` desde cero. Se puede ejecutar todas las veces que quieras: sobrescribe la escena y reutiliza los materiales.
@@ -22,17 +31,28 @@ Menú **GTAChiraq > Construir escena prototipo**. Genera `Assets/_Project/Scenes
 1. **`EnsureUrp()`**: si `GraphicsSettings.defaultRenderPipeline` no es URP, crea `Settings/URP_Renderer.asset` y `Settings/URP_Pipeline.asset` y los asigna.
 2. **`SetupLighting()`**: luz direccional fría y suave (cielo nublado), ambiente plano gris, niebla lineal de 25 a 260 m y sin skybox.
 3. **Mundo** (todo bajo el objeto `Mundo` y marcado como estático):
-   - `BuildStreets`: suelo de asfalto liso, aceras de enfrente y, con `BuildMainRoads`, las calzadas texturizadas de las calles grandes (ver *Calles grandes*). La acera norte se corta en la entrada del aparcamiento de los negocios y en el pasaje al callejón (`ShopsLotDriveway`, `ShopsAlleyLink`). El césped y la acera de la manzana central los pone `BuildTowersBlock`.
-   - `BuildSurroundings`: filas de casas de 2 plantas al otro lado de la calle sur (al norte ya no: está el oeste lejano), una tienda de esquina con letrero y coches aparcados estáticos.
+   - `BuildStreets`: suelo de asfalto liso (de x −275 a 300: encima de la autopista, el suelo lo ponen los puentes y el techo del túnel), aceras de enfrente y, con `BuildMainRoads`, las calzadas texturizadas de las calles grandes (ver *Calles grandes*). La acera norte se corta en la entrada del aparcamiento de los negocios y en el pasaje al callejón (`ShopsLotDriveway`, `ShopsAlleyLink`). El césped y la acera de la manzana central los pone `BuildTowersBlock`.
+   - `BuildSurroundings`: filas de casas de 2 plantas al otro lado de la calle sur (al norte ya no: está el oeste lejano; enfrente de la manzana central, tampoco: están las cocheras), una tienda de esquina con letrero y coches aparcados (se pueden robar).
    - `BuildProjectsDistrict`: barrio de viviendas **texturizado** al este de la avenida (ver abajo). Al final llama a `BuildDistrictProps` (detalle callejero).
    - `BuildHousesDistrict`: los dos barrios de casas (el del este y su copia oeste, girada 180°), la ampliación oeste, la ampliación norte y la franja de negocios (ver abajo).
    - `BuildTowersBlock`: manzana central (ver abajo). Va después de los dos barrios porque reutiliza sus materiales.
+   - `BuildHighway`: autopista hundida (ver *Autopista hundida*).
+   - `BuildSchool`: instituto (ver *Instituto*). Va después de `BuildHighway`.
    - `BuildElevatedTrain`: tren elevado y estación (ver abajo).
    - `BuildStreetLights`: farolas cada 30 m con luz puntual de sodio naranja, sin sombras.
    - `BuildSnow`: montones de nieve sucia junto al bordillo (salvo en las entradas de los aparcamientos).
    - `BuildMainRoadDetails`: alcantarillas, sumideros, nieve apartada y manchas en las calles grandes (va al final porque usa `Charco`, `Aceite` y `Suciedad`).
-4. **`BuildPlayer`**: crea el objeto `Jugador` (tag `Player`, capa 2) con CharacterController, PlayerMovement, VehicleEntry, una cápsula y una visera que marca hacia dónde mira.
-5. **`BuildCar`**: crea `Coche_Sedan` (capa 2) con Rigidbody de 1400 kg, el modelo de sedán de `Cars.cs` (pintura `CarroceriaJugador`, llantas cromadas, faros encendidos y dos focos), 4 WheelColliders con ruedas `CarWheel` y un `PuntoSalida` a la izquierda. El modelo se baja para que su suelo coincida con el apoyo de las ruedas en reposo (`0.4 − 0.25·(1 − 0.5) − radio`).
+4. **`BuildPlayer`**: crea el objeto `Jugador` (tag `Player`, capa 2) con:
+   - CharacterController;
+   - los sistemas del personaje: `Health`, `PlayerVitals`, `PlayerMovement`, `PlayerClimb`, `PlayerCover`, `PlayerInventory`, `PlayerCombat`, `PlayerHud` y `VehicleEntry`;
+   - `PlayerInteractor` (ascensor, armario y caja fuerte) y `PlayerOutfit` (ropa);
+   - `PlayerAnimator` (animación procedural);
+   - el hijo `Modelo`: el cuerpo de `BuildPlayerBody`, por articulaciones (pelvis, caderas, rodillas, tobillos, columna, cráneo, hombros y codos) y piezas (ver `Scripts/Player/README`), hecho con mallas por anillos (`PrototypeSceneBuilder.Body.cs`), con la cara y el pelo rapado pintados en `CaraPersonaje` (`ProceduralTextures.Face`) y los materiales `Ropa_<prenda>` de la ropa de inicio con su textura de tejido. Crea las texturas `Tejido_<estilo>` (`ProceduralTextures.Cloth`, 128 px pintadas con pliegues, costuras y desgaste; helpers `Fold` y `Mask`), `PielPersonaje` (`Skin`) y `PeloRapado` (`BuzzCut`) y se las pasa a `PlayerOutfit.SetTextures`; luego `PlayerOutfit.PreviewInEditor` lo viste con la ropa de inicio (piezas encendidas, holguras), la `Pistola` de prueba (oculta; su hijo `BocaCanon` es el `muzzle` de `PlayerCombat`) y el `Puno`, que sale al pegar.
+
+   `BuildCamera` le pasa la cámara a `PlayerCombat`.
+5. **`BuildCar`**: crea `Coche_Sedan` con el modelo de sedán de `Cars.cs` (pintura `CarroceriaJugador`, llantas cromadas, faros encendidos y dos focos) y lo pasa por `MakeDrivable` (`Cars.cs`): Rigidbody (masa según el modelo), `VehicleController`, `SolidVisual`, un WheelCollider por cada pivote `Rueda` del modelo y un `PuntoSalida` a la izquierda, todo en la capa 6 (`Vehiculo`). El modelo se baja para que su suelo coincida con el apoyo de las ruedas en reposo (`CarGroundY`: `0.4 − 0.25·(1 − 0.5) − radio`). Es del jugador: no lleva `VehicleLock`.
+
+   Antes, justo después de construir las zonas y antes de `MarkStatic`, **`BuildDrivableParkedCars`** saca de `Mundo` todos los coches que puso `ParkedCar` (los apunta en `parkedCars`), los mete en `CochesAparcados` y los pasa por `MakeDrivable` con un `VehicleLock` cerrado: se pueden robar forzando la puerta. Ya no son estáticos (no entran en el static batching).
 6. **`BuildCamera`**: crea `Main Camera` con ThirdPersonCamera y conecta las referencias con `SerializedObject`.
 7. Guarda la escena y la pone la primera en Build Settings.
 
@@ -258,7 +278,7 @@ Semilla: `System.Random(2010)`. Materiales nuevos: `EscaparateLuz`, `PersianaMet
   - de T2 a P2 y de P2 a la acera sur;
   - de T1 a la acera norte;
   - de T3 a la acera este y de T3 al eje.
-- **Torres** (`HighRise`, 27×15 m, 3 m por planta), con el portal en la cara −Z local:
+- **Torres** (`HighRise`, 27×15 m, 3 m por planta), con el portal en la cara −Z local. Con un `TowerOpenings` (solo T2) la torre se construye hueca por dentro: `OpenFacade` hace la fachada en láminas de vanos y plantas enteros dejando abiertas las celdas de `Holes` (cara 0 = −Z, 1 = +X, 2 = +Z, 3 = −X), `SubtractBounds` parte el collider macizo en cajas `Volumen` que dejan libres las salas de `Voids` (la raíz lleva `SolidVisual`), el zócalo va en anillo y, con `OpenPortal`, el portal es un hueco con la puerta abierta. Tablones y parabólicas no tapan los huecos:
   - **T1** (−62, 40): yaw 180, 12 plantas, `FachadaLadrillo`.
   - **T2** (0, 2): yaw 0, 14 plantas, `FachadaLadrilloAire`.
   - **T3** (65, 10): yaw −90, 11 plantas, `ApartamentoLadrillo`.
@@ -345,6 +365,19 @@ Coches low-poly genéricos de finales de los 90 y los 2000, **sin marcas ni logo
 | `AndenHormigon`, `BordeAnden`, `MarquesinaEstacion`, `LuzAnden` (emisivo) | Estación. |
 | `AceroTren` (metálico), `BajosTren`, `VentanasTren` y `FaroTren` (emisivos), `PuertasTren`, `FranjaTren` | Trenes. |
 
+## Cocheras: `PrototypeSceneBuilder.RailYard.cs`
+`BuildRailYard` se llama justo después de `BuildElevatedTrain`, porque usa sus materiales (`AceroTren`, `BajosTren`, `Traviesas`, `Rail`…), y antes de `BuildDrivableParkedCars` (el coche de la oficina se puede robar). Semilla 1902.
+
+- **Medidas**: recinto `YardMinX`…`YardMaxX` × `YardSouthZ`…`YardNorthZ` (x −74…100, z −222…−91.5), grava (`Ballast`) de 4 cm; raíles con la cara de arriba a `YardRailTop` = 0.36 m. Entrada `YardGateX0`…`YardGateX1`.
+- **Vías** (`YardTrack`): lecho de balasto, traviesas con recorte, raíles y, en las de estacionamiento, tercer carril con cubierta. `StorageTracksX` (10 vías) van de `StorageNorthZ` a la escalera de agujas; `ShedTracksX` (3) salen de la nave. La escalera es la recta `LadderWest`–`LadderEast` y `LadderZ(x)` da dónde acaba cada vía.
+- **Rampa** (`BuildYardLead`): la polilínea `YardLead`, del elevado (x 105.5, z −92, a `TrainRailTop`) al pie de la escalera, en tramos de 3 m con pendiente constante. Por encima de 2.6 m, vigas y pórticos de acero cada 4 tramos; por debajo, terraplén con `MuroContencion` (con collider).
+- **Nave** (`BuildYardShed`): muros de `PlainBrick` hasta 3 m y chapa `Corrugated` encima, tejado a dos aguas (dos cajas giradas) y hastiales con `GableMesh` (prisma triangular). Portones en el sur alineados con `ShedTracksX`, puerta de personal en el este, luces puntuales dentro.
+- **Trenes** (`BuildYardTrains`): `Train(..., cars)` de Train.cs con ventanas y faros apagados; cada vagón lleva un `BoxCollider` y el tren un `SolidVisual`.
+- **Contenedores** (`BuildYardContainers`, `Container`): `ContainerColumnsX` × `ContainerRows` huecos con pilas de 0–3 al azar; el de la fila 2, columna 6 es hueco y abierto (escondite). Palés al pie de algunas pilas para escalarlas (un contenedor mide 2.59 m, más que lo que se escala de un salto).
+- **Valla** (`BuildYardFence`): `FenceSegment` con `MallaMetalica` de 2.2 m y una concertina (cilindro de malla) encima; agujeros en el oeste (z −112…−114) y en el sur (x 28…30.2).
+- **Entrada** (`BuildYardEntrance`) y **detalles** (`BuildYardProps`): pórtico con `SignMat` "RAIL YARD", carteles "NO TRESPASSING", barrera, caseta con luz, oficina prefabricada, `FloodTower` (4, con foco real sin sombras), señales, pilas de traviesas (`SolidVisual` y un `ColliderBox`), carriles, ruedas, bidones, balasto, nieve y maleza.
+- Aceras nuevas a lo largo de x = ±101.5 hacia el sur (la oeste empieza en z −110, pasados los two-flats de la esquina).
+
 ## Oeste lejano: `PrototypeSceneBuilder.FarWest.cs`
 `BuildFarWest` (objeto `Barrio_Oeste_Lejano`), llamado al final de `BuildHousesDistrict`, **después de `BuildShopsStrip`** (usa `Storefront` y sus materiales). x de `FarWestMinX` (−300) a `FarWestMaxX` (−120), z 90–298, en coordenadas del mundo con `BuildHousesPatch` (semilla 2011):
 - `FarWestRoads`: J (`FarWestJ`, x −262…−252, z 87–298) y D, E, F, H de x −252 a −117 (siguen las de la ampliación oeste y la norte). `FarWestAlleys` siguen n2 y n3. `FarWestSidewalks`, `FarWestLawns` y `FarWestRows` (al oeste de J, filas con yaw 270: la parcela hacia −X).
@@ -354,6 +387,49 @@ Coches low-poly genéricos de finales de los 90 y los 2000, **sin marcas ni logo
 - `ShopKind` tiene los tipos nuevos `Wings`, `Pawn`, `Beauty`, `Tires` y `GasMart` (letreros, toldos, rejas y detalles propios en `Storefront`).
 - `Court(parent, center, gateSide)` y `Wreck(parent, ground, yaw, rng)` (StreetProps.cs) son la cancha y el coche abandonado del barrio de viviendas, ahora con posición como parámetro.
 - Huellas para el plano: `cancha`, `gasolinera`, `tienda` y `solar` (el descampado). Capturas: elemento `oeste_lejano`.
+
+## Autopista hundida: `PrototypeSceneBuilder.Highway.cs`
+`BuildHighway` (objeto `Autopista`, semilla 2016), llamado después de `BuildTowersBlock`. Trinchera de `HighwayDepth` = 7 m entre `HighwayMinX` (−300, el borde del mundo) y `HighwayMaxX` (−275), de z −300 (`HighwaySouthZ`, se pierde en la niebla) a `HighwayTunnelEndZ` = 130.
+- **Calzadas** (`TexturedBox` con colisión, arriba en y = −7): dos de `HighwayCarriageway` = 11.1 m con la textura `Autopista` (`ProceduralTextures.Highway`, tile 11.1 × 12 m). La del oeste va hacia el sur y está girada 180°, para que la línea amarilla quede junto a la mediana en las dos. Mediana de hormigón tipo New Jersey de 0.8 m en `HighwayMedianX` = −287.5.
+- **Muros de contención** de 1 m (`MuroContencion`, `ProceduralTextures.RetainingWall`, tile 8 × 7 m), de la calzada al nivel de la calle y en todo el largo.
+- **Puentes** (`BuildHighwayBridges`) de las calles z = ±80: `HighwayBridgeSouth` (z −90…−70), con tablero de 1.2 m, y `HighwayBridgeNorth` (z 70…90), cuyo tablero es el principio del techo del túnel. Vigas cada 2.5 m, pila en la mediana (cabecera y 3 pilares) y pretil con malla en los bordes que dan a la trinchera. Encima van, como en el resto, la calzada de la calle grande, las aceras y su detalle.
+- **Túnel** (`BuildHighwayTunnel`): techo de z 70 a 300 (es el suelo del oeste lejano), dintel en la boca (`HighwayTunnelZ` = 90), fluorescentes, una luz y un fondo negro en z 130, donde desaparecen los coches.
+- **Bordes** (`BuildHighwayEdges`): pretil de 0.9 m y malla de 1.8 m encima de los dos muros en los tramos al aire libre (`HighwayOpenStretches`), así que no se puede saltar dentro.
+- **Detalle** (`BuildHighwayFurniture`): farolas de doble brazo en la mediana cada 40 m; pórtico en z −30 con carteles verdes genéricos (EXPRESSWAY SOUTH / NORTH, EXIT ONLY); grafitis en los muros; basura, nieve y bolsas en los arcenes; manchas, y un coche averiado con triángulo.
+- **Tráfico** (`BuildHighwayTraffic`, semilla 2017): 3–4 coches por carril con `HighwayCar` (`Scripts/World/`), del sur a dentro del túnel o al revés, a 19–25 m/s (el carril junto a la mediana es el rápido), con los faros encendidos y sin colisión. Van en `Trafico_Autopista`, fuera de `Mundo`.
+- No hay rampas de entrada ni de salida: todavía no se puede circular por la autopista.
+
+## Instituto: `PrototypeSceneBuilder.School.cs`
+`BuildSchool` (objeto `Instituto`, semilla 2018), después de `BuildHighway`. Parcela `SchoolArea`: x −275…−120, z −70…70. `schoolOccupied` guarda lo ocupado, para que la nieve y la basura no caigan encima.
+- **Suelo** (`BuildSchoolGround`):
+  - aceras del lado del instituto en las calles z = ±80 (z ±70…73, de x −300 a −120, también sobre los puentes);
+  - asfalto (`Callejon`) del aparcamiento, la bahía de autobuses, la zona de servicio y las dos salidas (`SchoolDriveways`: cortan la acera oeste de la calle x = −110 en `BuildStreets` y cuentan como bocas en `MainRoadMouths`);
+  - césped en el resto (`RectMinus`), caminos de losas y valla de hierro por las tres calles.
+- **Edificios** (`SchoolBlock`: muros con la fachada `FachadaInstituto` de ladrillo claro, antepecho de ladrillo liso, albardilla, cornisa y zócalo):
+  - `SchoolMain` (x −252…−176, z 38…56): 3 plantas (9 m) y antepecho de 1.5 m. El portal de piedra tapa entera la planta baja de tres vanos y mide 3.6 m de alto, por debajo de las ventanas del primer piso. Lleva tres puertas de cristal, apliques, letrero de visitas, escalinata con barandillas y un remate de ladrillo sobre la entrada con la placa "HIGH SCHOOL" y "EST 1961". Además: rejas (`MallaMetalica`) en las ventanas de la planta baja, puerta trasera (`FacadeDoor`) con escalón, persiana y muelle de carga en la zona de servicio, algunas ventanas con contrachapado, climatizadores y grafitis.
+  - `SchoolWing` (x −232…−214, z 20…38): 2 plantas, puerta al patio con tejadillo, y rejas.
+  - `SchoolGym` (x −176…−152, z 22…56): 10 m de ladrillo liso, banda de bloque de vidrio con pilastras en las caras este y sur, letrero "GYMNASIUM" hacia la calle, puertas dobles rojas al este y al sur, y grafitis.
+- **Campo** (`BuildSchoolField`), con centro en `SchoolFieldCenter` (−197, −35.5): una sola caja con la textura `CampoFutbol` (`ProceduralTextures.FootballField`, 2048 × 1024, que cubre `FieldTextureSize` = 133 × 65 m). El campo va a escala de juego (`FieldYard` = 0.76 m por yarda, 91 × 40.5 m) para que quepa con la pista: 6 calles de 1.1 m, rectas de 68 m y radio interior de 24.5 m. Lleva porterías amarillas de cuello de cisne, banquillos, 4 torres de focos (emisivas, sin luz real), un marcador HOME/GUEST junto a la autopista y malla de 2.4 m (`SchoolFieldFence`) con dos entradas desde el patio.
+- **Gradas** (`SchoolBleachersBuild`, `SchoolBleachers`): 7 filas de aluminio de 50 m mirando al sur, con estructura, barandillas y palco de prensa. Se suben andando por una rampa invisible (`RampaGradas`, de unos 31°), y una barandilla con colisión cierra la parte de atrás.
+- **Aparcamiento** (`BuildSchoolParking`): dos filas de 17 plazas mirando al pasillo central, topes, coches en la mitad, nieve, flechas de sentido único, farolas, cartel "STAFF PARKING ONLY" y dos autobuses escolares (`SchoolBus`, genéricos, con "SCHOOL BUS" y brazo de stop) en la bahía.
+- **Patio y jardín** (`BuildSchoolYard`): mástil con bandera de franjas, cartel de bienvenida, aparcabicis, cámara de vigilancia, bancos y mesa de picnic en el patio trasero, contenedores y palés en la zona de servicio, 17 árboles (`DistrictTree`), farolas en las aceras del instituto, nieve, basura y atajos de barro.
+- Capturas: elementos `autopista` e `instituto`. El plano copia las medidas en las constantes `HW_*` y `SC_*` de `generar_mapa.py`.
+
+## Zona de prácticas: `PrototypeSceneBuilder.Training.cs`
+`BuildTrainingArea` se llama después de la cámara y crea el objeto `Practica` en la raíz de la escena, fuera de "Mundo" porque se mueve. Todo va en la acera sur de la manzana central, en z −71.6:
+- Tres **dianas** (`TrainingDummy` + `Health`) en x 5, 7.5 y 10, mirando al oeste, hacia el inicio. Tienen poste, torso, cabeza y círculo rojo; la esfera `Cabeza` cuenta como tiro en la cabeza.
+- Una fila de **objetos** (`ItemPickup`) en `TrainingPickups`, de x −8.5 a −1: munición, botiquín, alitas, bebida energética, chaleco y 50 $.
+
+## Vida del bloque: `PrototypeSceneBuilder.Studio.cs`
+`BuildTowersYard` llama a estas funciones justo después de la losa de la canasta, antes que las farolas y bancos del eje, para que esos respeten su sitio. Usan una semilla propia (1017), así que no mueven el resto del bloque.
+- **Estudio** (`BuildStudio`, objeto `Estudio_Sotano_T1`):
+  - Hueco de la escalera: `StudioStairwell` (x −80.3…−77.7, z 40…48.5), al oeste de T1 y al norte de sus contenedores. Se recorta del `Suelo` en `BuildStreets` (con `RectMinus`) y del césped en `BuildTowersGround`.
+  - La escalera baja hacia el sur hasta `StudioFloor` (−3.2), con peldaños macizos y una rampa invisible (`RampaEscalera`, la misma pendiente que la estación: `StairRunPerRise`). Las paredes del hueco son verticales y arriba hay una barandilla con colisión (`LimiteHueco`) por tres lados.
+  - Sala: `StudioRoom` (x −77.5…−63, z 38…49.5). El techo es el `Suelo` (−0.2) con un panel acústico debajo. La puerta está en la pared oeste, que comparte con el hueco.
+  - Cabina de voz en la esquina noreste, con el micro. Junto al micro va `Micro_Grabacion`, el `RecordingStudio`: su `pulseLight` es el `FocoCabina`, que late con el beat.
+- **Memorial** (`BuildMemorial`): centro (−17.5, −4.6), con un tramo de malla (`FenceSegment`) en z −3.4. Las cosas (velas, peluches, flores, globos) son primitivas sin colisión. La foto es una silueta; los carteles usan `SignMat` ("RIP", "LONG LIVE").
+- **Zona de reunión** (`BuildHangout`): 6.3 m al sur de la losa de la canasta. Sillas con colisión en el asiento, barbacoa de bidón (con colisión, brasas emisivas, luz y humo de esferas), altavoz con aros LED, nevera y vasos.
+- Capturas: elementos `estudio`, `memorial` y `reunion`. El plano lo dibuja en la sección *Vida del bloque* de `generar_mapa.py`.
 
 ## Calles grandes: `PrototypeSceneBuilder.MainRoads.cs`
 Las cuatro calles de 14 m alrededor de la manzana central (norte y sur en z = ±80, avenida y calle del oeste en x = ±110), de borde a borde del mundo (`MainRoadHalfLength` = 300). `MainRoadsList()` las da con su eje y dónde las cruzan las otras; `MainRoadPoint(alongX, center, t, across, y)` pasa de coordenadas de calle a mundo.
@@ -368,7 +444,7 @@ Las cuatro calles de 14 m alrededor de la manzana central (norte y sur en z = ±
 Saca capturas de 1920×1080 de las distintas zonas, **agrupadas por elemento y por versión**. Usa una cámara temporal con los ajustes de la `Main Camera` (niebla, fondo, 60° de FOV) y `Camera.Render()` sobre un RenderTexture; los trenes salen donde los deja el generador, porque no se entra en Play.
 
 - **Carpetas:** `ingame/<elemento>/vNN_<cambio>/`, con las imágenes y un `cambio.txt` (fecha y descripción). Cada vez que se cambia un elemento se capturan sus vistas en una versión nueva (NN = la última + 1), sin tocar las anteriores, para poder compararlas.
-- **Elementos** (los define la primera columna de `Views`): `manzana_central`, `avenida_tren`, `estacion`, `barrio_viviendas`, `barrio_casas`, `negocios`, `barrio_casas_oeste` y `aereas`. Para una zona nueva basta con añadir filas con otro nombre de elemento.
+- **Elementos** (los define la primera columna de `Views`): `manzana_central`, `avenida_tren`, `estacion`, `barrio_viviendas`, `barrio_casas`, `negocios`, `barrio_casas_oeste`, `oeste_lejano`, `calles_grandes`, `autopista`, `instituto` y `aereas`. Para una zona nueva basta con añadir filas con otro nombre de elemento.
 - Las vistas a pie van a ~2 m de alto, como la cámara en tercera persona.
 - Menú *GTAChiraq > Capturas in-game (todas)*: una versión nueva de todos los elementos, con la escena guardada.
 - Terminal (editor cerrado): `Unity.exe -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -capturar estacion,negocios -cambio "escaleras transitables" -quit` regenera la escena y captura solo esos elementos. Sin `-capturar`, todos. `CaptureFromCommandLine` hace lo mismo sin regenerar.
@@ -376,15 +452,18 @@ Saca capturas de 1920×1080 de las distintas zonas, **agrupadas por elemento y p
 ## `ProceduralTextures.cs`
 Genera las texturas del barrio en código (no se copian assets de ningún juego) y las guarda como PNG en `Assets/_Project/Textures/` con wrap *Repeat*, bilinear y mipmaps. Se regeneran en cada build.
 
+- `Ballast(name, seed)`: grava de vía (piedras de 4 px con junta, óxido y aceite), 128 px = `BallastTile` = 2 m. `Corrugated(name, seed)`: chapa ondulada casi blanca (se tiñe con el material) con chorretones de óxido, 64×128 px = `CorrugatedTileU` × `CorrugatedTileV` (1.2 × 2.6 m). Las dos, para las cocheras.
 - `BrickFacade(name, brickColor, airConditioner, seed)`: 256 px = un vano de 3 m × una planta de 3 m. Ladrillo a soga (32 hiladas), hilada a sardinel sobre la ventana, alféizar de hormigón, marco blanco, cristal con reflejo, persiana y chorretones.
 - `Road(name, roadWidth, seed)`: 512 px; U = ancho completo de la calle.
 - `MainRoad(name, roadWidth, seed, MainRoadPaint)`: 512 px = ancho × ancho (14 × 14 m) de las calles grandes. U cruza la calle y V va a lo largo. Asfalto con rodadas pulidas, sal de invierno, grietas selladas con alquitrán, un parche de obras, a veces una zanja y baches; la pintura se borra con el ruido y donde pisan las ruedas, y no va sobre los parches. `Lanes`: bordes blancos, doble amarilla y separadores de carril discontinuos (trazos de 3 m cada 7). `Approach` (V = 1 hacia el cruce): separadores continuos, línea de stop en los carriles de la derecha (u > 0.5) y paso de cebra de barras anchas. `None`: el cruce, solo asfalto.
 - `Sidewalk`, `DeadGrass`, `Roof`.
 - Tren elevado: `Ties(name, seed)`, con 4 traviesas cada `TiesTile` = 2.4 m y huecos transparentes.
+- Autopista: `Highway(name, width, seed)` (una calzada; `HighwayTile` = 12 m a lo largo) y `RetainingWall(name, seed)` (muro de contención, `WallTileWidth` × `WallTileHeight`).
+- Instituto: `FootballField(name, seed)` (campo y pista en una sola textura; las medidas están en `FieldYard`, `FieldHalfLength`, `TrackHalfStraight`, `TrackInnerRadius`…).
 - Barrio de casas: `WoodFence(name, seed)`, `Alley(name, seed)` y `Shingles(name, tint, seed)`. Las constantes `WoodFenceWidth/Height`, `AlleyTile` y `ShingleTile` dan los metros por repetición.
 - Vegetación: `Foliage(name, leaf, accent, seed)`, `Snow(name, seed)` y `TallGrass(name, dry, green, seedHeads, seed)` (briznas curvadas con alfa, sin repetir).
 - Porches: `PorchRail(name, wood, seed)` (barandilla de balaustres con alfa, 1 × 1 m).
-- Negocios: `Sign(name, text, background, ink, seed)` (letrero de caja de luz con una fuente de píxeles 5×7 propia: mayúsculas, `&` y espacio; ancho según el texto), `Shutter(name, seed)` (persiana de lamas, 1 m por repetición) y `BarberPole(name)` (espiral roja, blanca y azul).
+- Negocios: `Sign(name, text, background, ink, seed)` (letrero de caja de luz con una fuente de píxeles 5×7 propia: mayúsculas, cifras, `&` y espacio; ancho según el texto), `Shutter(name, seed)` (persiana de lamas, 1 m por repetición) y `BarberPole(name)` (espiral roja, blanca y azul).
 - Detalle callejero: `IronFence`, `ChainLink`, `Court(name, width, length, margin, seed)`, `Bush`, `Grime` (blanco con alfa: el color lo pone el material) y `Graffiti(name, seed)` (256×128, abstracto: no son letras ni nombres reales).
 - Las texturas con alfa se importan con `alphaIsTransparency` y `mipMapsPreserveCoverage`, para que las vallas no desaparezcan de lejos. Las que no se repiten (manchas, grafitis) usan wrap *Clamp*.
 - Las constantes `FacadeBay`, `FacadeFloor`, `SidewalkTile`, `GrassTile` y `RoofTile` dicen cuántos metros cubre una repetición; el generador de la escena las usa como `tile`.

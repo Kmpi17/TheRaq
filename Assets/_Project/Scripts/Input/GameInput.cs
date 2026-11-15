@@ -18,10 +18,18 @@ namespace GTAChiraq
         public readonly InputAction Move;
         public readonly InputAction LookMouse;
         public readonly InputAction LookStick;
-        public readonly InputAction Jump;
+        /// <summary>Escalar o saltar por encima de un obstáculo (el personaje no salta en el sitio).</summary>
+        public readonly InputAction Climb;
         public readonly InputAction Sprint;
         public readonly InputAction Interact;
         public readonly InputAction Handbrake;
+        public readonly InputAction Attack;
+        public readonly InputAction Aim;
+        public readonly InputAction Reload;
+        public readonly InputAction Cover;
+        public readonly InputAction Inventory;
+        /// <summary>Eje: positivo, arma siguiente; negativo, la anterior (rueda del ratón o cruceta).</summary>
+        public readonly InputAction WeaponScroll;
 
         readonly InputAction[] all;
 
@@ -39,12 +47,20 @@ namespace GTAChiraq
             LookMouse = new InputAction("LookMouse", InputActionType.Value, "<Mouse>/delta", expectedControlType: "Vector2");
             LookStick = new InputAction("LookStick", InputActionType.Value, "<Gamepad>/rightStick", expectedControlType: "Vector2");
 
-            Jump = Button("Jump", "<Keyboard>/space", "<Gamepad>/buttonSouth");
+            Climb = Button("Climb", "<Keyboard>/space", "<Gamepad>/buttonSouth");
             Sprint = Button("Sprint", "<Keyboard>/leftShift", "<Gamepad>/buttonEast");
             Interact = Button("Interact", "<Keyboard>/f", "<Gamepad>/buttonNorth");
             Handbrake = Button("Handbrake", "<Keyboard>/space", "<Gamepad>/rightShoulder");
+            Attack = Button("Attack", "<Mouse>/leftButton", "<Gamepad>/rightTrigger");
+            Aim = Button("Aim", "<Mouse>/rightButton", "<Gamepad>/leftTrigger");
+            Reload = Button("Reload", "<Keyboard>/r", "<Gamepad>/buttonWest");
+            Cover = Button("Cover", "<Keyboard>/q", "<Gamepad>/rightShoulder");
+            Inventory = Button("Inventory", "<Keyboard>/tab", "<Gamepad>/select");
+            WeaponScroll = new InputAction("WeaponScroll", InputActionType.Value, expectedControlType: "Axis");
+            WeaponScroll.AddBinding("<Mouse>/scroll/y");
+            WeaponScroll.AddCompositeBinding("1DAxis").With("Positive", "<Gamepad>/dpad/right").With("Negative", "<Gamepad>/dpad/left");
 
-            all = new[] { Move, LookMouse, LookStick, Jump, Sprint, Interact, Handbrake };
+            all = new[] { Move, LookMouse, LookStick, Climb, Sprint, Interact, Handbrake, Attack, Aim, Reload, Cover, Inventory, WeaponScroll };
             foreach (var action in all) action.Enable();
         }
 
@@ -69,6 +85,16 @@ namespace GTAChiraq
 
         // Necesario si "Enter Play Mode Options" desactiva el domain reload.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetOnLoad() => Reset();
+        static void ResetOnLoad()
+        {
+            Reset();
+            GameUi.MenuOpen = false;
+        }
+    }
+
+    /// <summary>Estado de la interfaz que bloquea el control (por ejemplo, el inventario abierto).</summary>
+    public static class GameUi
+    {
+        public static bool MenuOpen;
     }
 }

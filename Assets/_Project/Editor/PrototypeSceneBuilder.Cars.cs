@@ -103,14 +103,115 @@ namespace GTAChiraq.Editor
             carSnow = Glossy("NieveCoche", new Color(0.88f, 0.9f, 0.93f), 0.3f);
             carBagPlastic = Glossy("PlasticoVentana", new Color(0.15f, 0.15f, 0.16f), 0.6f);
             carMeshes.Clear();
+            parkedCars.Clear();
         }
 
-        /// <summary>Coche aparcado estático: modelo al azar, con el largo a lo largo de X local antes de girar (como antes).</summary>
+        // Coches aparcados que se van creando por las zonas. Al final (BuildDrivableParkedCars) se sacan de "Mundo"
+        // (que es estático) y se convierten en coches de verdad, cerrados: el jugador los puede robar forzando la puerta.
+        static readonly List<(Transform model, CarStyle style)> parkedCars = new();
+
+        // Ruedas de todos los coches que se conducen: centro del WheelCollider, recorrido y punto de reposo del muelle.
+        const float CarWheelY = 0.4f, CarSuspension = 0.25f, CarSpringTarget = 0.5f;
+
+        /// <summary>Altura del suelo del modelo respecto al coche: donde apoyan las ruedas en reposo.</summary>
+        static float CarGroundY(CarSpec s) => CarWheelY - CarSuspension * (1f - CarSpringTarget) - s.WheelRadius;
+
+        static float CarMass(CarStyle style) => style switch
+        {
+            CarStyle.Coupe => 1350f,
+            CarStyle.Suv => 1900f,
+            CarStyle.Van => 2000f,
+            _ => 1400f,
+        };
+
+        /// <summary>
+        /// Convierte un modelo de <see cref="CarModel"/> (con sus pivotes "Rueda") en un coche que se conduce: un objeto
+        /// nuevo con Rigidbody, <see cref="VehicleController"/>, un WheelCollider por rueda, punto de salida a la izquierda
+        /// y <see cref="SolidVisual"/> (sus colliders están en el modelo, sin Renderer). El modelo queda dentro, con su
+        /// suelo donde apoyan las ruedas. Todo va a la capa Vehiculo: la cámara no choca con él, pero se escala, se cubre
+        /// y recibe balas.
+        /// </summary>
+        static GameObject MakeDrivable(Transform model, CarStyle style, string name, Transform parent)
+        {
+            var spec = Spec(style);
+            float groundY = CarGroundY(spec);
+            var car = new GameObject(name);
+            car.transform.SetParent(parent, false);
+            car.transform.SetPositionAndRotation(model.position - Vector3.up * groundY, Quaternion.Euler(0f, model.eulerAngles.y, 0f));
+            var pivots = new List<Transform>();
+            foreach (Transform child in model)
+                if (child.name == "Rueda") pivots.Add(child);
+            model.SetParent(car.transform, true);
+            model.name = "Modelo";
+
+            var body = car.AddComponent<Rigidbody>();
+            body.mass = CarMass(style);
+            body.linearDamping = 0.05f;
+            body.angularDamping = 0.5f;
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+            var vehicle = car.AddComponent<VehicleController>();
+            car.AddComponent<SolidVisual>();
+
+            var wheels = new List<VehicleController.Wheel>();
+            for (int i = 0; i < pivots.Count; i++)
+            {
+                var pivot = pivots[i];
+                var local = car.transform.InverseTransformPoint(pivot.position);
+                local.y = CarWheelY;
+                bool front = local.z > 0f;
+                pivot.SetParent(car.transform, true);
+                pivot.name = $"Rueda_{(front ? "Del" : "Tras")}{(local.x < 0f ? "Izq" : "Der")}";
+
+                var colliderObject = new GameObject($"WheelCollider_{pivot.name.Substring(6)}");
+                colliderObject.transform.SetParent(car.transform, false);
+                colliderObject.transform.localPosition = local;
+                var wheelCollider = colliderObject.AddComponent<WheelCollider>();
+                wheelCollider.radius = spec.WheelRadius;
+                wheelCollider.mass = 20f;
+                wheelCollider.suspensionDistance = CarSuspension;
+                wheelCollider.suspensionSpring = new JointSpring { spring = 35000f, damper = 4500f, targetPosition = CarSpringTarget };
+
+                // Tracción trasera, como un coche americano antiguo.
+                wheels.Add(new VehicleController.Wheel { collider = wheelCollider, visual = pivot, steer = front, drive = !front, handbrake = !front });
+            }
+
+            var exit = new GameObject("PuntoSalida").transform;
+            exit.SetParent(car.transform, false);
+            exit.localPosition = new Vector3(-(spec.Width / 2f + 1.05f), 0.1f, 0.3f);
+
+            vehicle.Configure(wheels.ToArray(), exit);
+            EditorUtility.SetDirty(vehicle);
+            SetLayerRecursively(car, GameLayers.Vehicle);
+            return car;
+        }
+
+        /// <summary>
+        /// Saca de "Mundo" los coches aparcados de todas las zonas y los hace conducibles y cerrados (<see cref="VehicleLock"/>).
+        /// Se llama después de construir todas las zonas (las posiciones ya son las finales) y antes de marcar "Mundo"
+        /// como estático.
+        /// </summary>
+        static void BuildDrivableParkedCars()
+        {
+            var root = new GameObject("CochesAparcados").transform;
+            foreach (var (model, style) in parkedCars)
+            {
+                if (!model) continue;
+                var car = MakeDrivable(model, style, "CocheAparcado", root);
+                car.AddComponent<VehicleLock>().Configure(isLocked: true, seconds: 2.5f, chanceOfAlarm: 0.35f);
+            }
+            parkedCars.Clear();
+        }
+
+        /// <summary>
+        /// Coche aparcado: modelo al azar, con el largo a lo largo de X local antes de girar (como antes). Se apunta en
+        /// <see cref="parkedCars"/> y al final pasa a ser un coche conducible y cerrado que se puede robar.
+        /// </summary>
         static void ParkedCar(Transform parent, Vector3 ground, float yaw, System.Random rng)
         {
             double roll = rng.NextDouble();
             var style = roll < 0.4 ? CarStyle.Sedan : roll < 0.55 ? CarStyle.Coupe : roll < 0.85 ? CarStyle.Suv : CarStyle.Van;
-            CarModel(parent, "CocheAparcado", ground, yaw + 90f, style, carBodyPaints[rng.Next(carBodyPaints.Length)], rng);
+            var model = CarModel(parent, "CocheAparcado", ground, yaw + 90f, style, carBodyPaints[rng.Next(carBodyPaints.Length)], rng);
+            parkedCars.Add((model, style));
         }
 
         /// <summary>

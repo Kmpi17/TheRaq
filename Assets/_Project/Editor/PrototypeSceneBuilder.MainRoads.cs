@@ -46,6 +46,7 @@ namespace GTAChiraq.Editor
             foreach (var r in NorthWestRoads) Add(r);
             foreach (var r in FarWestRoads) Add(r);
             foreach (var r in GasDriveways) Add(r);
+            foreach (var r in SchoolDriveways) Add(r);
             foreach (var r in TowersDriveways) Add(r);
             Add(ShopsLotDriveway);
             Add(Rect.MinMaxRect(DistrictMinX - SidewalkWidth, -DistrictRoadWidth / 2f, DistrictMaxX, DistrictRoadWidth / 2f)); // calle del barrio de viviendas

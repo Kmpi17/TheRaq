@@ -272,9 +272,8 @@ namespace GTAChiraq.Editor
             south.AddComponent<ElevatedTrain>().Configure(southStart, southEnd, TrainTrackEndZ - StationCenterZ, 0f);
         }
 
-        static GameObject Train(string name, Material body, Material dark, Material windows, Material doors, Material stripe, Material headlight)
+        static GameObject Train(string name, Material body, Material dark, Material windows, Material doors, Material stripe, Material headlight, int cars = 4)
         {
-            const int cars = 4;
             const float carLength = 14.6f, gap = 0.6f, w = 2.9f;
             var root = new GameObject(name);
             for (int i = 0; i < cars; i++)

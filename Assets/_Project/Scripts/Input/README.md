@@ -16,10 +16,20 @@ if (input.Interact.WasPressedThisFrame()) { ... }
 | `Move` | Vector2 | WASD, flechas, stick izquierdo | `PlayerMovement`, `VehicleController` |
 | `LookMouse` | Vector2 | `<Mouse>/delta` | `ThirdPersonCamera` (× sensibilidad) |
 | `LookStick` | Vector2 | stick derecho | `ThirdPersonCamera` (× velocidad × dt) |
-| `Jump` | Button | Espacio, buttonSouth | `PlayerMovement` |
+| `Climb` | Button | Espacio, buttonSouth | `PlayerClimb` (escalar; no hay salto) |
 | `Sprint` | Button | Shift izquierdo, buttonEast | `PlayerMovement` |
 | `Interact` | Button | F, buttonNorth | `VehicleEntry` |
 | `Handbrake` | Button | Espacio, rightShoulder | `VehicleController` |
+| `Attack` | Button | Clic izquierdo, rightTrigger | `PlayerCombat` |
+| `Aim` | Button | Clic derecho, leftTrigger | `PlayerCombat` |
+| `Reload` | Button | R, buttonWest | `PlayerCombat` |
+| `Cover` | Button | Q, rightShoulder | `PlayerCover` |
+| `Inventory` | Button | Tab, select | `PlayerInventory` |
+| `WeaponScroll` | Axis | rueda del ratón, cruceta ← → | `PlayerInventory` |
+
+Algunas comparten tecla porque no se usan a la vez: `Climb` y `Handbrake` (a pie / en coche) y `Cover` y `Handbrake` en el mando. `Interact` (F) también sirve para grabar en el estudio.
+
+`GameUi.MenuOpen` (en el mismo archivo) indica que hay un menú abierto (el inventario). Mientras está activo, `PlayerMovement`, la cámara, el combate, la escalada, la cobertura y `VehicleEntry` no leen el input del juego.
 
 La vista va en dos acciones separadas porque el ratón da un delta en píxeles y el stick da una velocidad. Por eso se escalan de forma distinta.
 

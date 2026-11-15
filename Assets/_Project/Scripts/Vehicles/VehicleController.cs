@@ -33,6 +33,12 @@ namespace GTAChiraq
 
         Rigidbody body;
 
+        /// <summary>Todos los coches activos, para buscar el más cercano sin recorrer la escena.</summary>
+        public static readonly System.Collections.Generic.List<VehicleController> All = new();
+
+        void OnEnable() => All.Add(this);
+        void OnDisable() => All.Remove(this);
+
         public bool HasDriver { get; private set; }
         public Transform ExitPoint => exitPoint ? exitPoint : transform;
         public float ForwardSpeed => body ? Vector3.Dot(body.linearVelocity, transform.forward) : 0f;
