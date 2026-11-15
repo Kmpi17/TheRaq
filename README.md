@@ -36,10 +36,40 @@ Todo lo propio está en `Assets/_Project/`. Cada carpeta tiene su propio README 
 | `Scripts/Vehicles/` | `VehicleController`: coche con WheelColliders | [→](Assets/_Project/Scripts/Vehicles/README.md) |
 | `Scripts/Interaction/` | `VehicleEntry`: subir y bajar del coche | [→](Assets/_Project/Scripts/Interaction/README.md) |
 | `Scripts/World/` | `ElevatedTrain` y `TrainMotion`: tren elevado decorativo que circula por la avenida | [→](Assets/_Project/Scripts/World/README.md) |
-| `Editor/` | `PrototypeSceneBuilder`: genera la escena prototipo, el URP y los materiales. `PrototypeSceneBuilder.StreetProps`: detalle callejero del barrio. `PrototypeSceneBuilder.Vegetation`: árboles de invierno variados, restos de nieve y maleza. `PrototypeSceneBuilder.Houses`: barrio de casas bajas y apartamentos de 3 pisos con callejones (al norte, y una copia girada al oeste de la avenida); solares vallados o con vegetación. `PrototypeSceneBuilder.HousesWestExt`: ampliación de la copia oeste hasta la calle x = −110. `PrototypeSceneBuilder.HousesNorth`: ampliación de los barrios de casas hacia el norte. `PrototypeSceneBuilder.FarWest`: oeste lejano al otro lado de la calle x = −110 (casas, gasolinera, negocios, cancha y descampado). `PrototypeSceneBuilder.MainRoads`: calzadas texturizadas, cruces y pasos de cebra de las calles grandes. `PrototypeSceneBuilder.Shops`: franja de negocios sueltos (barbería, tienda de licores, lavandería…) delante de la copia oeste. `PrototypeSceneBuilder.Train`: tren elevado sobre la avenida principal, con estación. `PrototypeSceneBuilder.Cars`: modelos de coche low-poly (sedán, coupé, todoterreno, furgoneta) para los aparcados, el que se conduce y el abandonado. `PrototypeSceneBuilder.Towers`: manzana central (3 torres, casas adosadas, patios y 3 aparcamientos). `IngameScreenshots`: capturas de cada zona en `ingame/`. `ProceduralTextures`: texturas del barrio | [→](Assets/_Project/Editor/README.md) |
+| `Editor/` | `PrototypeSceneBuilder` (clase `partial`, un archivo por zona; ver *Zonas del mundo*): genera la escena prototipo, el URP y los materiales. `ProceduralTextures`: texturas generadas en código. `IngameScreenshots`: capturas de cada zona en `ingame/` | [→](Assets/_Project/Editor/README.md) |
 | `mapa/` (raíz) | `mapa.png`: plano cenital del mundo con coordenadas, que sirve de referencia para modificarlo. `generar_mapa.py` lo regenera (Python + Pillow) y copia las medidas del generador. Las casas las lee de `edificios_casas.json`, que Unity escribe al construir la escena | [→](ESTRUCTURAS.md) |
 | `Tests/` | Tests EditMode y PlayMode | [→](Assets/_Project/Tests/README.md) |
+| `ingame/` (raíz) | Capturas de cada zona, versionadas: `ingame/<elemento>/vNN_<cambio>/` con un `cambio.txt` | [→](Assets/_Project/Editor/README.md) |
+| `img/` (raíz) | Imágenes de referencia (`estructures/`) y capturas de bugs (`estrcuturebugs/`) | [→](ESTRUCTURAS.md) |
 | `Scenes/`, `Materials/`, `Textures/`, `Settings/` | Los crea el generador; no se editan a mano | — |
+
+## Zonas del mundo
+
+La escena se construye desde el menú **GTAChiraq > Construir escena prototipo**. Cada zona está en su archivo de `Assets/_Project/Editor/` (el plano completo, en [`mapa/mapa.png`](mapa/mapa.png)):
+
+| Zona | Archivo | Qué hay |
+|---|---|---|
+| Calles grandes | `PrototypeSceneBuilder.cs`, `.MainRoads.cs` | Calles de 14 m en z = ±80 y x = ±110, con textura gastada, cruces con stop y paso de cebra, alcantarillas, sumideros y nieve |
+| Manzana central | `.Towers.cs` | 3 torres, casas adosadas, patios y 3 aparcamientos |
+| Barrio de viviendas | `PrototypeSceneBuilder.cs`, `.StreetProps.cs`, `.Vegetation.cs` | Bloques y torres de ladrillo, cancha, plaza, parada de bus y detalle callejero |
+| Barrio de casas (este y copia oeste) | `.Houses.cs` | Casas bajas, greystones y apartamentos de 3 pisos con callejones, garajes, porches traseros y solares |
+| Ampliación oeste y norte | `.HousesWestExt.cs`, `.HousesNorth.cs` | Más barrio de casas hasta la calle x = −110 y hasta el borde norte |
+| Oeste lejano | `.FarWest.cs` | Barrio de casas con gasolinera, negocios, cancha y descampado |
+| Negocios | `.Shops.cs` | Locales sueltos con letreros genéricos frente a la calle norte |
+| Tren elevado | `.Train.cs` | Vía elevada sobre la avenida, estación y trenes que circulan |
+| Coches | `.Cars.cs` | Modelos low-poly para los aparcados, el que se conduce y el abandonado |
+
+## Capturas y plano
+
+Con el editor **cerrado** (Unity no deja abrir el proyecto dos veces):
+
+```powershell
+$unity = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
+# Regenera la escena y captura los elementos indicados (sin -capturar, todos) en una versión nueva
+& $unity -batchmode -projectPath . -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -capturar oeste_lejano,calles_grandes -cambio "lo que cambió" -quit -logFile capturas.log
+```
+
+Con el editor abierto: **GTAChiraq > Capturas in-game (todas)**. El plano se regenera con `python mapa/generar_mapa.py` (necesita Pillow) después de construir la escena, porque las casas salen de `mapa/edificios_casas.json`.
 
 ## Flujo en tiempo de juego
 
@@ -71,13 +101,9 @@ Desde el editor: **Window > General > Test Runner**. Para lanzarlos desde la ter
 ## Estado
 
 Hecho (prototipo, hito 1):
-- Movimiento a pie.
-- Cámara.
-- Conducción.
-- Subir y bajar del coche.
-- Manzana central: conjunto de torres con casas adosadas, patios y aparcamientos, con las texturas del barrio de viviendas.
-- Barrio de viviendas con texturas (ladrillo con ventanas, calle con doble línea amarilla, aceras, césped seco) al este de la avenida.
-- Detalle callejero en el barrio: vallas, cancha de baloncesto, plaza, parada de bus, postes con cables, arbustos, árboles, contenedores, basura, manchas, charcos y grafitis.
+- Movimiento a pie, cámara, conducción y subir y bajar del coche.
+- Mundo de unos 600 × 400 m con las zonas de *Zonas del mundo*: manzana central, barrio de viviendas, barrios de casas con sus ampliaciones, oeste lejano con gasolinera, negocios, tren elevado con estación y calles grandes texturizadas.
+- Texturas generadas en código (ladrillo con ventanas, asfalto, aceras, césped seco, letreros) y detalle callejero (vallas, canchas, basura, grafitis, nieve, coches aparcados).
 
 Pendiente:
 - NPCs y peatones (NavMesh).
@@ -85,5 +111,5 @@ Pendiente:
 - Armas y combate.
 - Misiones.
 - HUD.
-- Ampliar el mapa.
+- Ampliar el mapa (al sur de la calle sur y al este del barrio de viviendas solo hay asfalto liso).
 - Ajustar la estética con las referencias visuales.

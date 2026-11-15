@@ -61,7 +61,7 @@ namespace GTAChiraq.Editor
             ("oeste_lejano", "04_descampado", new Vector3(-200f, 5f, 186f), new Vector3(-230f, 0f, 220f)),
             ("oeste_lejano", "05_calle_d", new Vector3(-112f, 2f, 131.5f), new Vector3(-250f, 3f, 131.5f)),
             ("oeste_lejano", "06_calle_j", new Vector3(-257f, 2f, 95f), new Vector3(-257f, 3f, 290f)),
-            ("calles_grandes", "01_cruce_suroeste", new Vector3(-92f, 4f, -92f), new Vector3(-110f, 0f, -80f)),
+            ("calles_grandes", "01_cruce_suroeste", new Vector3(-95f, 3.5f, -88.5f), new Vector3(-112f, 0f, -78f)),
             ("calles_grandes", "02_calle_sur", new Vector3(-60f, 1.6f, -76f), new Vector3(40f, 1f, -82f)),
             ("calles_grandes", "03_cruce_noroeste_alto", new Vector3(-124f, 18f, 66f), new Vector3(-110f, 0f, 80f)),
             ("calles_grandes", "04_calle_oeste", new Vector3(-113f, 1.6f, -40f), new Vector3(-108f, 1f, 60f)),

@@ -36,3 +36,18 @@ sysinfo.txt
 
 # Resultados de tests en batchmode
 results*.xml
+
+# Logs de batchmode (capturas, builds) en la raíz
+/*.log
+
+# Python (mapa/generar_mapa.py)
+__pycache__/
+*.pyc
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Ajustes locales de Claude Code
+.claude/settings.local.json
