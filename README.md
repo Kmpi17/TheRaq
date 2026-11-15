@@ -9,7 +9,7 @@ Juego de mundo abierto 3D en tercera persona (género tipo GTA San Andreas), amb
 1. Instala Unity Hub y Unity 6 LTS.
 2. En Hub, ve a **Add > Add project from disk** y elige esta carpeta.
 3. Cuando el editor pregunte si quieres activar el nuevo sistema de input, di **Yes** (el editor se reinicia).
-4. En el menú, pulsa **GTAChiraq > Construir escena prototipo** y luego **Play**.
+4. En el menú, pulsa **GTAChiraq > Construir escena prototipo** y luego **Play**. La escena (`Assets/_Project/Scenes/Prototype.unity`) **no está en el repositorio**: pesa más de 100 MB y se genera siempre desde el código, así que hay que construirla después de clonar y cada vez que cambie el generador.
 
 | Acción | Teclado / ratón | Mando |
 |---|---|---|

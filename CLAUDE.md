@@ -38,7 +38,7 @@ Piezas clave y cómo encajan:
 - **Tren elevado**: `ElevatedTrain` (`Scripts/World/`) mueve los trenes decorativos de la avenida. La lógica pura está en `TrainMotion` (testeada en EditMode). Los trenes se generan fuera de `Mundo` porque `Mundo` se marca como estático.
 - **Barrios de casas y negocios**: `PrototypeSceneBuilder.Houses.cs` construye el barrio de casas dos veces (`BuildHousesVariant`): en su sitio y girado 180° al oeste de la avenida (`HousesWestOrigin`). Sus tablas de rectángulos están en coordenadas locales del barrio. Delante de la copia oeste va la franja de negocios (`PrototypeSceneBuilder.Shops.cs`).
 - **Manzana central**: `PrototypeSceneBuilder.Towers.cs` (torres, adosadas, aparcamientos). Se construye después del barrio de viviendas y del de casas porque reutiliza sus materiales (`LoadMat` y los estáticos de `PrepareHouses`/`PrepareVegetation`).
-- **Escena**: `Prototype.unity` **se genera** desde el menú *GTAChiraq > Construir escena prototipo* (`PrototypeSceneBuilder`). Para cambiar el mundo de prueba, edita el generador y regenera la escena; no edites la escena a mano, porque se sobrescribe. El generador también crea el URP asset si no hay ninguno y los materiales en `Assets/_Project/Materials/`.
+- **Escena**: `Prototype.unity` **se genera** desde el menú *GTAChiraq > Construir escena prototipo* (`PrototypeSceneBuilder`). Para cambiar el mundo de prueba, edita el generador y regenera la escena; no edites la escena a mano, porque se sobrescribe. No se versiona (está en `.gitignore`: pesa más de 100 MB, el límite de GitHub); se versiona su `.meta`. El generador también crea el URP asset si no hay ninguno y los materiales en `Assets/_Project/Materials/`.
 
 ## Comandos
 

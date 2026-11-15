@@ -51,3 +51,7 @@ desktop.ini
 
 # Ajustes locales de Claude Code
 .claude/settings.local.json
+
+# La escena prototipo se genera desde el menú GTAChiraq > Construir escena prototipo
+# (pesa más de 100 MB porque lleva dentro las mallas generadas). Su .meta sí se versiona.
+/Assets/_Project/Scenes/Prototype.unity
