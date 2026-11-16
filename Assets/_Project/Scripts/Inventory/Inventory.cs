@@ -37,7 +37,8 @@ namespace GTAChiraq
             {
                 Id = Pistol, Name = "Pistola 9 mm (prueba)", Kind = ItemKind.Weapon, Color = new Color(0.25f, 0.25f, 0.27f),
                 Description = "Pistola semiautomática de pruebas. Cargador de 12.",
-                AmmoId = Ammo9mm, MagazineSize = 12, Damage = 25f, FireInterval = 0.22f, Range = 70f,
+                AmmoId = Ammo9mm, MagazineSize = 12, Damage = 50f, // en el pecho; cabeza mata, brazos y piernas ×0.34 (DamageModel)
+                FireInterval = 0.22f, Range = 70f,
                 Spread = 0.6f, Bloom = 1.2f, MaxBloom = 5f, Recoil = 1.6f, ReloadSeconds = 1.4f,
             });
             Add(new ItemDef { Id = Ammo9mm, Name = "Munición 9 mm", Kind = ItemKind.Ammo, MaxStack = 120, Color = new Color(0.75f, 0.6f, 0.2f),
@@ -49,7 +50,7 @@ namespace GTAChiraq
             Add(new ItemDef { Id = EnergyDrink, Name = "Bebida energética", Kind = ItemKind.Consumable, MaxStack = 5, Stamina = 100f,
                 StaminaBoostSeconds = 20f, Color = new Color(0.3f, 0.85f, 0.3f), Description = "Llena la energía y la recupera más rápido durante 20 s." });
             Add(new ItemDef { Id = Vest, Name = "Chaleco", Kind = ItemKind.Consumable, MaxStack = 2, Armor = 50f, Color = new Color(0.2f, 0.3f, 0.55f),
-                Description = "Añade 50 de chaleco: para el 70 % del daño hasta gastarse." });
+                Description = "Añade 50 de chaleco: para el 70 % del daño en el tronco hasta gastarse. No protege la cabeza, los brazos ni las piernas." });
         }
 
         static void Add(ItemDef def) => items[def.Id] = def;

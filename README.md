@@ -30,7 +30,9 @@ Juego de mundo abierto 3D en tercera persona (género tipo GTA San Andreas), amb
 
 ## Mundo
 
-[`ESTRUCTURAS.md`](ESTRUCTURAS.md) es el cuaderno del mundo: estilo, zonas, estructuras y todo lo que se ha pedido sobre cómo debe sentirse cada sitio.
+[`ESTRUCTURAS.md`](ESTRUCTURAS.md) es el índice del cuaderno del mundo: estilo, zonas, estructuras y todo lo que se ha pedido sobre cómo debe sentirse cada sitio. El contenido está separado por tema en [`docs/estructuras/`](docs/estructuras/), con una ficha por zona.
+
+La documentación va **separada por tema**: los documentos grandes (`ESTRUCTURAS.md`, `NPCS.md`, `Editor/README.md`, `Scripts/Player/README.md`) son índices cortos que enlazan a un archivo por tema (`docs/…` o `Docs/` junto al README).
 
 ## NPC y facciones
 Diseño, investigación y facciones en **[NPCS.md](NPCS.md)**; el código, en [`Scripts/NPC/`](Assets/_Project/Scripts/NPC/README.md). En resumen:
@@ -58,8 +60,8 @@ Todo lo propio está en `Assets/_Project/`. Cada carpeta tiene su propio README 
 | `Scripts/Vehicles/` | `VehicleController`: coche con WheelColliders. `VehicleLock`: cerradura de los coches ajenos, que se fuerza para robarlos | [→](Assets/_Project/Scripts/Vehicles/README.md) |
 | `Scripts/Interaction/` | `VehicleEntry`: subir y bajar del coche, y forzar la puerta de los ajenos. `Interactable` y `PlayerInteractor`: lo que se usa con F a pie y los viajes en ascensor con fundido | [→](Assets/_Project/Scripts/Interaction/README.md) |
 | `Scripts/Home/` | Casa del jugador: `Elevator` (ascensor del portal de T2 al piso y vuelta), `Wardrobe` (armario: cambiarse de ropa), `SafeBox` y `Stash` (caja fuerte para dinero, armas y objetos) | [→](Assets/_Project/Scripts/Home/README.md) |
-| `Scripts/World/` | `WeatherSystem`, `DayCycleMath`, `WeatherMath` y `NightLight`: día de 20 min, noche con farolas, lluvia y nieve al azar y cielo gris. `ElevatedTrain` y `TrainMotion`: tren elevado decorativo que circula por la avenida. `HighwayCar` y `HighwayLoop`: tráfico decorativo de la autopista hundida. `GameLayers`, `SolidVisual`, `NoClimb`, `NoCover`: capas y marcas de obstáculos para escalar y cubrirse | [→](Assets/_Project/Scripts/World/README.md) |
-| `Scripts/Combat/` | `Health` (vida y chaleco de cualquier cosa herible), `PlayerCombat` (puños con combo y pistola: apuntar, dispersión, retroceso, recarga), `TrainingDummy` (dianas), `ProceduralSfx` (sonidos provisionales). Lógica pura: `HealthPool`, `StaminaPool`, `CombatMath` | [→](Assets/_Project/Scripts/Combat/README.md) |
+| `Scripts/World/` | `WeatherSystem`, `DayCycleMath`, `WeatherMath` y `NightLight`: día de 20 min, noche con farolas, lluvia y nieve al azar y cielo gris. `ElevatedTrain` y `TrainMotion`: tren elevado decorativo que circula por la avenida. `HighwayCar` y `HighwayLoop`: tráfico decorativo de la autopista hundida. `TrafficLight` y `TrafficSignalMath`: semáforos de los cruces de las calles grandes. `GameLayers`, `SolidVisual`, `NoClimb`, `NoCover`: capas y marcas de obstáculos para escalar y cubrirse | [→](Assets/_Project/Scripts/World/README.md) |
+| `Scripts/Combat/` | `Health` (vida y chaleco de cualquier cosa herible), `PlayerCombat` (puños con combo y pistola: apuntar, dispersión, retroceso, recarga), `TrainingDummy` (dianas), `ProceduralSfx` (sonidos provisionales). Lógica pura: `HealthPool`, `StaminaPool`, `CombatMath` y `DamageModel` (daño por zonas: cabeza, tronco, brazos y piernas) | [→](Assets/_Project/Scripts/Combat/README.md) |
 | `Scripts/Inventory/` | `Inventory` (casillas, lógica pura), `ItemCatalog` (objetos en código), `PlayerInventory` (dinero, arma equipada, cargadores y panel con Tab), `ItemPickup` (objetos en el suelo) | [→](Assets/_Project/Scripts/Inventory/README.md) |
 | `Scripts/NPC/` | `NpcPopulation` (aparece y quita gente alrededor del jugador según la hora y el tiempo, y lanza las incursiones), `NpcBrain` (cabeza de cada NPC: sitios, huir, sospechar, encarar, pelear), `NpcAnimator` (animación procedural con el cuerpo del jugador), `NpcSpot` (sitios inteligentes), `ShopHours` (horario de los locales), `NpcAlerts` (disparos y golpes que se oyen). Lógica pura: `FactionCatalog` (facciones, relaciones, territorios y ropa) y `NpcMath` | [→](Assets/_Project/Scripts/NPC/README.md) |
 | `Scripts/Music/` | `RecordingStudio`: micro del estudio casero (se graba pulsando F a tiempo). `StudioSession` y `MusicCareer`: sesión de grabación y progresión musical (temas, fama y rangos), en lógica pura | [→](Assets/_Project/Scripts/Music/README.md) |
@@ -83,11 +85,12 @@ La escena se construye desde el menú **GTAChiraq > Construir escena prototipo**
 | Barrio de casas (este y copia oeste) | `.Houses.cs` | Casas bajas, greystones y apartamentos de 3 pisos con callejones, garajes, porches traseros y solares |
 | Ampliación oeste y norte | `.HousesWestExt.cs`, `.HousesNorth.cs` | Más barrio de casas hasta la calle x = −110 y hasta el borde norte |
 | Oeste lejano | `.FarWest.cs` | Barrio de casas con gasolinera, negocios, cancha y descampado |
+| Barrio norte | `.North.cs`, `.NorthBuildings.cs` | Bulevar con mediana, calle en diagonal, calle sin salida con rotonda, mini centro comercial, tiendas sueltas, edificio en cuña, parque, bloque con patio, torre suelta, iglesia y terraplén del tren de mercancías con pasos inferiores y horizonte |
 | Autopista hundida | `.Highway.cs` | Trinchera de 7 m en el borde oeste (x −300…−275) con puentes en z = ±80, túnel al norte y tráfico |
 | Instituto | `.School.cs` | Edificio de 3 plantas, ala, gimnasio, campo de fútbol americano con pista y gradas, aparcamiento y autobuses |
 | Negocios | `.Shops.cs` | Locales sueltos con letreros genéricos frente a la calle norte |
 | Tren elevado | `.Train.cs` | Vía elevada sobre la avenida, estación y trenes que circulan |
-| Cocheras | `.RailYard.cs` | Playa de vías al sur del inicio: rampa desde el elevado, nave, trenes aparcados, contenedores, valla con concertina |
+| Cocheras | `.RailYard.cs` | Playa de vías girada 15° al sur del inicio: rampa recta desde el elevado, bucle, escalera de agujas, 12 vías y nave, trenes aparcados, contenedores, valla con lona y concertina |
 | Coches | `.Cars.cs` | Modelos low-poly para los aparcados, el que se conduce y el abandonado |
 
 ## Capturas y plano

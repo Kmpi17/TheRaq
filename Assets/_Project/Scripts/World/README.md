@@ -28,6 +28,13 @@ Coche decorativo de la autopista hundida, sin colisiones. Recorre en línea rect
 
 **Limitaciones:** no frenan ni cambian de carril y no se ven entre sí (pueden solaparse si sus velocidades son distintas). El salto del final al principio se hace fuera de la vista.
 
+## `TrafficLight` y `TrafficSignalMath`
+Semáforos de un cruce de las calles grandes. Los crea `PrototypeSceneBuilder.StreetDetail.cs` (uno por cruce, fuera de `Mundo`, que es estático) y los configura con `Configure(segundosDeDesfase)`. En `Awake` busca entre sus hijos las luces por nombre (`Luz_Roja_X`, `Luz_Ambar_X`, `Luz_Verde_X`, `Peaton_Anda_X`, `Peaton_Mano_X` y lo mismo con `_Z`) y en `Update` activa solo las que tocan (y solo cuando cambian).
+
+`TrafficSignalMath` es la lógica pura: con `SignalTiming` (verde 18 s, ámbar 3 s, todo rojo 2 s y 6 s de mano parpadeando, por defecto), `Vehicle(t, alongX)` da el color de cada dirección y `Pedestrian(t, alongX)` el semáforo de los peatones que cruzan en paralelo a ella. Primero va X y luego Z; el ciclo dura 46 s. `FlashOn` da el parpadeo (medio segundo de cada segundo).
+
+**Limitaciones:** solo es decorativo: no hay coches que paren ni NPC que esperen, y el ciclo va con `Time.time` (no con la hora del juego).
+
 ## `TrainMotion` (lógica pura)
 `TrainMotion.Step(state, dt, route)` avanza un `TrainState` y devuelve el nuevo estado. Las fases son:
 - `Running`: el tren arranca a velocidad de crucero y frena con `v = √(2·a·d)` (mínimo 0.6 m/s) hasta pararse justo en la estación.

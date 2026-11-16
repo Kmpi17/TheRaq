@@ -180,9 +180,10 @@ namespace GTAChiraq.Editor
 
         /// <summary>
         /// Calzada de barrio: u cruza la calle (una repetición = ancho completo), v va a lo largo.
-        /// Lleva bordes blancos, doble línea amarilla central y suciedad junto al bordillo.
+        /// Lleva bordes blancos, doble línea amarilla central y suciedad junto al bordillo. Con <paramref name="oneWay"/>
+        /// (las calzadas del bulevar, de un solo sentido), la central es una línea blanca discontinua: 3 m de trazo y 5 de hueco.
         /// </summary>
-        public static Texture2D Road(string name, float roadWidth, int seed)
+        public static Texture2D Road(string name, float roadWidth, int seed, bool oneWay = false)
         {
             const int S = 512;
             var px = new Color[S * S];
@@ -209,7 +210,13 @@ namespace GTAChiraq.Editor
                 if (Mathf.Abs(u - edge) < lineW / 2f || Mathf.Abs(u - (1f - edge)) < lineW / 2f)
                     c = Color.Lerp(c, white, 0.85f * paint);
                 float d = Mathf.Abs(u - 0.5f);
-                if (Mathf.Abs(d - (gap / 2f + lineW / 2f)) < lineW / 2f)
+                if (oneWay)
+                {
+                    // Una repetición mide roadWidth a lo largo: el trazo ocupa 3 m de cada 8.
+                    float along = v * roadWidth % 8f;
+                    if (d < lineW / 2f && along < 3f) c = Color.Lerp(c, white, 0.85f * paint);
+                }
+                else if (Mathf.Abs(d - (gap / 2f + lineW / 2f)) < lineW / 2f)
                     c = Color.Lerp(c, yellow, 0.9f * paint);
 
                 c.a = 1f;
@@ -1375,6 +1382,42 @@ namespace GTAChiraq.Editor
             return Save(name, W, H, px);
         }
 
+        public const float WindScreenTileU = 2f; // metros por repetición de la lona (el alto es el del paño)
+
+        /// <summary>
+        /// Lona de ocultación de valla (malla tupida de polietileno verde oscuro): trama fina, dobladillo con ollaos
+        /// arriba y abajo, zonas desteñidas por el sol y salpicaduras de barro y sal de la calle abajo. Con color propio.
+        /// 64×64 px = <see cref="WindScreenTileU"/> m de ancho por el alto del paño.
+        /// </summary>
+        public static Texture2D WindScreen(string name, int seed)
+        {
+            const int S = 64;
+            var px = new Color[S * S];
+            var green = new Color(0.1f, 0.17f, 0.12f);
+            var faded = new Color(0.26f, 0.31f, 0.26f);
+            var mud = new Color(0.3f, 0.26f, 0.2f);
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float u = (float)x / S, v = (float)y / S;
+                float weave = ((x + y) % 2 == 0 ? 1.06f : 0.94f) * (0.95f + 0.1f * Hash01(x, y, seed));
+                var c = Color.Lerp(green, faded, Mathf.SmoothStep(0.5f, 0.8f, Fbm(u, v, 2, 3, seed + 1)) * 0.7f) * weave;
+                // Pliegues verticales donde la lona cuelga entre bridas.
+                c *= 0.9f + 0.1f * Mathf.Sin(u * 4f * 2f * Mathf.PI);
+                // Barro y sal en la parte de abajo: franja sucia y motas sueltas (sin manchas grandes, que se ven repetidas).
+                float low = Mathf.SmoothStep(0.3f, 0f, v);
+                float speck = Hash01(x / 2, y / 2, seed + 2) > 0.72f ? 1f : 0f;
+                c = Color.Lerp(c, mud, low * (0.3f + 0.4f * speck));
+                // Dobladillo arriba y abajo, con un ollao cada 0.5 m.
+                bool hem = y < 3 || y >= S - 3;
+                if (hem) c = Color.Lerp(c, new Color(0.08f, 0.1f, 0.08f), 0.6f);
+                if ((y == 1 || y == S - 2) && x % 16 == 8) c = new Color(0.55f, 0.55f, 0.52f);
+                c.a = 1f;
+                px[y * S + x] = c;
+            }
+            return Save(name, S, S, px);
+        }
+
         // ---------- Ropa y piel del personaje ----------
 
         /// <summary>Tejido de una prenda. Las texturas son casi blancas: el color lo pone la prenda (PlayerOutfit lo tiñe).</summary>
@@ -1664,6 +1707,144 @@ namespace GTAChiraq.Editor
                     px[y * S + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(1f - Mathf.SmoothStep(0.35f, 1f, r)));
                 }
             return Save("Copo", S, S, px, alpha: true, clamp: true);
+        }
+
+        // ---------- Señales y marcas viales ----------
+
+        /// <summary>
+        /// Señal de STOP: octógono rojo con borde blanco y "STOP" en la fuente 5×7, transparente fuera (128 px).
+        /// Con <paramref name="back"/>, la trasera: el mismo octógono de aluminio gris, sin texto.
+        /// </summary>
+        public static Texture2D StopSign(string name, bool back, int seed)
+        {
+            const int S = 128, K = 4;
+            var px = new Color[S * S];
+            var red = new Color(0.62f, 0.07f, 0.06f);
+            var white = new Color(0.9f, 0.9f, 0.88f);
+            var metal = new Color(0.55f, 0.56f, 0.57f);
+            const string text = "STOP";
+            int textW = text.Length * 6 - 1, textH = 7;
+            int x0 = (S - textW * K) / 2, y0 = (S - textH * K) / 2;
+            for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float u = (x + 0.5f) / S * 2f - 1f, v = (y + 0.5f) / S * 2f - 1f;
+                // Octógono regular con apotema 0.98: |x|, |y| y (|x| + |y|)/√2 por debajo de la apotema.
+                float d = Mathf.Max(Mathf.Abs(u), Mathf.Abs(v), (Mathf.Abs(u) + Mathf.Abs(v)) * 0.70711f);
+                if (d > 0.98f) { px[y * S + x] = Color.clear; continue; }
+                Color c;
+                if (back) c = metal * (0.85f + 0.2f * Fbm(u * 0.5f + 0.5f, v * 0.5f + 0.5f, 4, 3, seed));
+                else
+                {
+                    c = d > 0.86f ? white : red;
+                    int col = (x - x0) / K, row = textH - 1 - (y - y0) / K;
+                    if (x >= x0 && y >= y0 && col < textW && row >= 0)
+                    {
+                        int letter = col / 6, inLetter = col % 6;
+                        if (letter < text.Length && GlyphDot(text[letter], inLetter, row)) c = white;
+                    }
+                    c *= 0.84f + 0.22f * Fbm(u * 0.5f + 0.5f, v * 0.5f + 0.5f, 5, 3, seed); // descolorida y sucia
+                }
+                c.a = 1f;
+                px[y * S + x] = c;
+            }
+            return Save(name, S, S, px, alpha: true, clamp: true);
+        }
+
+        /// <summary>
+        /// Placa de varias líneas centradas (SPEED / LIMIT / 30…) en la fuente 5×7, con borde del color de la tinta.
+        /// La proporción es (letras·6 + 3) : (líneas·8 + 3).
+        /// </summary>
+        public static Texture2D Placard(string name, string[] lines, Color background, Color ink, int seed)
+        {
+            const int K = 6, Pad = 2;
+            int maxLen = 0;
+            foreach (var l in lines) maxLen = Mathf.Max(maxLen, l.Length);
+            int cellsW = maxLen * 6 - 1 + Pad * 2, cellsH = lines.Length * 8 - 1 + Pad * 2;
+            int W = cellsW * K, H = cellsH * K;
+            var px = new Color[W * H];
+            for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                int cx = x / K, cy = cellsH - 1 - y / K; // cy: fila de celdas desde arriba
+                bool border = cx == 0 || cy == 0 || cx == cellsW - 1 || cy == cellsH - 1;
+                var c = border ? ink : background;
+                int line = (cy - Pad) / 8, row = (cy - Pad) % 8;
+                if (!border && cy >= Pad && line < lines.Length && row < 7)
+                {
+                    string text = lines[line];
+                    int start = Pad + (maxLen - text.Length) * 3; // centrada
+                    int col = cx - start;
+                    if (col >= 0 && col / 6 < text.Length && GlyphDot(text[col / 6], col % 6, row)) c = ink;
+                }
+                c *= 0.85f + 0.2f * Fbm((float)x / W, (float)y / H, 5, 3, seed);
+                c.a = 1f;
+                px[y * W + x] = c;
+            }
+            return Save(name, W, H, px, clamp: true);
+        }
+
+        /// <summary>
+        /// Paso de cebra de barras ("continental", como en Chicago) para una calzada de <paramref name="roadWidth"/> m:
+        /// u cruza la calle y v va en el sentido de la marcha. Barras de 0.6 m con huecos de 0.6 m y pintura gastada
+        /// donde pisan las ruedas. Blanco con transparencia: se usa como calcomanía.
+        /// </summary>
+        public static Texture2D Crosswalk(string name, float roadWidth, int seed)
+        {
+            const int W = 512, H = 128;
+            var px = new Color[W * H];
+            for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                float u = (float)x / W, v = (float)y / H;
+                float m = u * roadWidth - 0.3f;
+                bool bar = m >= 0f && m <= roadWidth - 0.6f && Mathf.Repeat(m, 1.2f) < 0.6f && v > 0.06f && v < 0.94f;
+                float a = 0f;
+                if (bar)
+                {
+                    float wear = Fbm(u, v, 12, 4, seed);
+                    float lane = Mathf.Abs(Mathf.Abs(u - 0.5f) - 0.25f) * roadWidth; // rodadas
+                    a = Mathf.SmoothStep(0.25f, 0.45f, wear) * (lane < 0.6f ? 0.55f : 0.95f);
+                }
+                px[y * W + x] = new Color(0.86f, 0.86f, 0.82f, a);
+            }
+            return Save(name, W, H, px, alpha: true, clamp: true);
+        }
+
+        /// <summary>
+        /// Flecha de carril pintada (v en el sentido de la marcha). <paramref name="turn"/>: −1 giro a la izquierda,
+        /// +1 a la derecha (las dos de proporción 1.6 : 2.8) y 0 recta (0.9 : 3.6). Blanco con transparencia y gastada.
+        /// </summary>
+        public static Texture2D LaneArrow(string name, int turn, int seed)
+        {
+            bool left = turn != 0;
+            int W = left ? 128 : 64, H = 256;
+            var px = new Color[W * H];
+            for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                float u = (x + 0.5f) / W, v = (y + 0.5f) / H;
+                if (turn > 0) u = 1f - u; // la de la derecha es la de la izquierda en espejo
+                bool inside;
+                if (!left)
+                {
+                    bool shaft = Mathf.Abs(u - 0.5f) < 0.11f && v > 0.02f && v < 0.64f;
+                    float hw = 0.46f * (1f - (v - 0.62f) / 0.36f);
+                    bool head = v >= 0.62f && v < 0.98f && Mathf.Abs(u - 0.5f) < hw;
+                    inside = shaft || head;
+                }
+                else
+                {
+                    bool shaft = Mathf.Abs(u - 0.66f) < 0.07f && v > 0.02f && v < 0.66f;
+                    bool arm = u > 0.34f && u < 0.73f && v > 0.54f && v < 0.66f;
+                    float hh = 0.16f * (u - 0.04f) / 0.3f; // punta hacia −u (la izquierda de quien va hacia v+)
+                    bool head = u > 0.04f && u <= 0.34f && Mathf.Abs(v - 0.6f) < hh;
+                    inside = shaft || arm || head;
+                }
+                float a = inside ? Mathf.SmoothStep(0.25f, 0.45f, Fbm(u, v, 6, 3, seed)) * 0.95f : 0f;
+                px[y * W + x] = new Color(0.86f, 0.86f, 0.82f, a);
+            }
+            return Save(name, W, H, px, alpha: true, clamp: true);
         }
 
         // ---------- Guardado ----------

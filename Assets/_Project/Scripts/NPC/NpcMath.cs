@@ -43,6 +43,16 @@ namespace GTAChiraq
         public static float ArmedChance(float daylight) => Mathf.Lerp(0.85f, 0.45f, Mathf.Clamp01(daylight));
 
         /// <summary>
+        /// Probabilidad de que un NPC lleve chaleco antibalas: los civiles nunca; los pandilleros armados, el 20 %;
+        /// los desarmados, el 5 %; los que vienen a una incursión, el 40 %.
+        /// </summary>
+        public static float VestChance(NpcRole role, bool armed, bool raider) =>
+            role != NpcRole.Gang ? 0f : raider ? 0.4f : armed ? 0.2f : 0.05f;
+
+        /// <summary>Lo que trae el chaleco de un NPC (el máximo): con él aguanta unos cinco tiros de 9 mm en el pecho en vez de dos.</summary>
+        public const float VestArmor = 100f;
+
+        /// <summary>
         /// Probabilidad de incursión rival en cada tirada (una por minuto): ~4 % de día (una cada ~25 min) y ~22 % de
         /// noche (una cada ~4–5 min); con lluvia o nieve, algo menos.
         /// </summary>

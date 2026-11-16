@@ -8,6 +8,7 @@ Lo que en el juego sale al azar (árboles del césped, basura, montones de nieve
 como zona o se indica en la leyenda; no se puede reproducir la posición exacta porque usa System.Random de C#.
 Norte (z+) arriba, este (x+) a la derecha. Unidades: metros.
 """
+import math
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -64,6 +65,14 @@ NE_SIDEWALKS = [(120, 245.5, 207, 248), (120, 258, 207, 260.5), (204.5, 202, 207
 NE_LAWNS = [(120, 214, 207, 248), (120, 258, 207, 288), (217, 214, 250, N_MAX_Z)]
 NW_ROADS = [(-103, 248, 103, 258), (3, 224, 13, 248), (-103, 288, 103, 298)]   # F, B' (sigue), H oeste
 NW_ROAD_NAMES = [("F", -60, 253), ("F", 50, 253), ("H", -60, 293), ("H", 50, 293), ("B'", 8, 236)]
+# Nombres de las calles (PrototypeSceneBuilder.StreetDetail.cs, NamedStreets; inventados).
+STREET_NAMES = {"A": "W Larkin St", "B": "S Tenney Ave", "C": "W Hollis St", "A'": "W Dunmore St", "B'": "S Briscoe Ave",
+                "C'": "W Crowell St", "D": "W Dorsey St", "E": "W Embry St", "F": "W Fenwick St", "Fe": "W Fenwick St",
+                "G": "S Tenney Ave", "H": "W Harland St", "J": "S Judson Ave"}
+MAIN_NAMES = {"norte": "W Braxton St", "sur": "W Ashgrove St", "avenida": "S Marlow Ave", "oeste": "S Calder Ave",
+              "viviendas": "W Kessler Ct"}
+SIGNAL_CORNER = 7.9          # postes de semáforo en las esquinas de los cruces de las calles grandes (x = ±110, z = ±80)
+MAIN_POLE_STEP = 34          # postes de madera con cables en la acera de fuera de las calles norte, sur y oeste
 NW_ALLEYS = [(-42, 260.5, -37, 285.5)]
 NW_SIDEWALKS = [(-103, 226, -100.5, 288), (-100.5, 245.5, 100, 248), (-100.5, 258, 100, 260.5), (0.5, 224, 3, 245.5),
                 (13, 224, 15.5, 245.5), (-100.5, 285.5, 100, 288)]
@@ -71,7 +80,7 @@ NW_LAWNS = [(-100.5, 226, 3, 248), (13, 226, 100, 248), (-100.5, 258, 100, 288)]
 
 # ---------- Dibujo ----------
 S = 4                                    # píxeles por metro
-X0, X1, Z0, Z1 = -305, 262, -228, 302    # zona del mundo que se dibuja
+X0, X1, Z0, Z1 = -305, 302, -302, 506    # zona del mundo que se dibuja (al norte, hasta el terraplén)
 
 # ---------- Barrio de casas (PrototypeSceneBuilder.Houses.cs), rectángulos (x0, z0, x1, z1) ----------
 H_ROADS = [(117, 117, 207, 127), (207, 92, 217, 202), (117, 183, 173, 193), (163, 171, 207, 181), (163, 181, 173, 183)]
@@ -136,6 +145,10 @@ def dot(x, z, r_px, fill, outline=None):
     d.ellipse([cx - r_px, cy - r_px, cx + r_px, cy + r_px], fill=fill, outline=outline)
 
 
+def street_label(name):
+    return f"calle {name}" + chr(10) + STREET_NAMES.get(name, "")
+
+
 def label(x, z, text, f=F_S, fill=None, anchor="mm", halo=True):
     p = px(x, z)
     if halo:
@@ -193,23 +206,69 @@ box(far_x - 1.5, D_ROAD / 2, far_x + 1.5, Z1, C["sidewalk"])                    
 box(far_x - 1.5, -D_ROAD / 2, far_x + 1.5, Z0, C["sidewalk"])
 
 # ---------- Cocheras del tren (PrototypeSceneBuilder.RailYard.cs), constantes ----------
-YARD_MIN_X, YARD_MAX_X, YARD_NORTH_Z, YARD_SOUTH_Z = -74, 100, -91.5, -222
+YARD_MIN_X, YARD_WEST_X, YARD_WEST_STEP_Z, YARD_MAX_X, YARD_NORTH_Z, YARD_SOUTH_Z = -74, -99, -112, 100, -91.5, -296
 YARD_GATE = (-1, 7)
-SHED = (-34, -160, -6, -104)
-SHED_TRACKS = [-28, -20, -12]
-STORAGE_TRACKS = [8, 13.5, 19, 24.5, 30, 35.5, 41, 46.5, 52, 57.5]
-STORAGE_NORTH_Z = -100
-LADDER_E, LADDER_W = (78, -206), (-30, -214.2)
-YARD_LEAD = [(105.5, -92), (90, -130), (84, -178), LADDER_E]
-CONTAINER_COLS = [-70.6, -68.1, -65.6, -58.1, -55.6, -53.1, -45.6, -43.1]
-CONTAINER_FIRST_Z, CONTAINER_STEP, CONTAINER_ROWS = -104.1, 15.2, 7
-YARD_TRAINS = [(8, -140, 4), (13.5, -168, 4), (24.5, -132, 4), (30, -176, 2), (41, -128, 4), (46.5, -158, 4), (57.5, -170, 2), (-20, -128, 2)]
-YARD_FLOODS = [(-37.5, -112), (-37.5, -190), (66, -112), (66, -195)]
+YARD_ANGLE = 15                                     # eje de la playa girado (u hacia el NNE, v hacia el ESE)
+RAMP_START, RAMP_TOP_R, RAMP_LEN, LOOP_R = (106.5, -92), 60, 185, 25
+LADDER_SPLIT_U, LADDER_ANGLE, TURNOUT_R = 4, 22, 40
+STORAGE_V = [-13.5, -9, -4.5, 0, 4.5, 9, 13.5, 18, 22.5, 27, 31.5, 36]
+YARD_BUMPER_Z = -97
+SHED_U0, SHED_U1, SHED_V0, SHED_V1 = 100, 148, -38, -17
+SHED_V = [-21, -27.5, -34]
+ROAD_V, ROAD_END_U, ROAD_W = -46, 6, 7
+CONTAINER_COLS = [-95.6, -93.1, -90.6, -83.1, -80.6, -78.1, -70.6, -68.1]
+CONTAINER_FIRST_Z, CONTAINER_STEP, CONTAINER_ROWS = -120, 15.2, 11
+# (vía v, vagones, hueco hasta el tope, en la nave)
+YARD_TRAINS = [(-13.5, 6, 1.5, 0), (-4.5, 4, 1.5, 0), (0, 8, 1.5, 0), (9, 4, 22, 0), (13.5, 6, 1.5, 0), (22.5, 2, 1.5, 0),
+               (27, 4, 1.5, 0), (31.5, 4, 24, 0), (36, 2, 1.5, 0), (-27.5, 2, 12, 1)]
+
+_th = math.radians(YARD_ANGLE)
+Y_DIR, Y_SIDE = (math.sin(_th), math.cos(_th)), (math.cos(_th), -math.sin(_th))
+RAMP_CURVE_END = (RAMP_START[0] - RAMP_TOP_R + RAMP_TOP_R * Y_SIDE[0], RAMP_START[1] + RAMP_TOP_R * Y_SIDE[1])
+_straight = RAMP_LEN - RAMP_TOP_R * _th
+RAMP_FOOT = (RAMP_CURVE_END[0] - _straight * Y_DIR[0], RAMP_CURVE_END[1] - _straight * Y_DIR[1])
+YARD_O = (RAMP_FOOT[0] - 2 * LOOP_R * Y_SIDE[0], RAMP_FOOT[1] - 2 * LOOP_R * Y_SIDE[1])
 
 
-def ladder_z(x):
-    t = min(1, max(0, (x - LADDER_W[0]) / (LADDER_E[0] - LADDER_W[0])))
-    return LADDER_W[1] + (LADDER_E[1] - LADDER_W[1]) * t
+def yardp(u, v):
+    return (YARD_O[0] + u * Y_DIR[0] + v * Y_SIDE[0], YARD_O[1] + u * Y_DIR[1] + v * Y_SIDE[1])
+
+
+def storage_end_u(v):
+    return (YARD_BUMPER_Z - YARD_O[1] + v * math.sin(_th)) / math.cos(_th)
+
+
+def turnout(v):
+    a, s = math.radians(LADDER_ANGLE), (1 if v > 0 else -1)
+    vt = abs(v) - TURNOUT_R * (1 - math.cos(a))
+    t = (LADDER_SPLIT_U + vt / math.tan(a), s * vt)
+    return t, (t[0] + TURNOUT_R * math.sin(a), v)
+
+
+def turnout_curve(v, steps=5):
+    a, s = math.radians(LADDER_ANGLE), (1 if v > 0 else -1)
+    t = turnout(v)[0]
+    out = []
+    for i in range(steps + 1):
+        phi = a * (1 - i / steps)
+        out.append((t[0] + TURNOUT_R * (math.sin(a) - math.sin(phi)), t[1] + s * TURNOUT_R * (math.cos(phi) - math.cos(a))))
+    return out
+
+
+def loop_curve(steps=24):
+    c = (RAMP_FOOT[0] - LOOP_R * Y_SIDE[0], RAMP_FOOT[1] - LOOP_R * Y_SIDE[1])
+    out = []
+    for i in range(steps + 1):
+        p = math.pi * i / steps
+        out.append((c[0] + LOOP_R * (math.cos(p) * Y_SIDE[0] - math.sin(p) * Y_DIR[0]),
+                    c[1] + LOOP_R * (math.cos(p) * Y_SIDE[1] - math.sin(p) * Y_DIR[1])))
+    return out
+
+
+def ramp_path():
+    c = (RAMP_START[0] - RAMP_TOP_R, RAMP_START[1])
+    pts = [(c[0] + RAMP_TOP_R * math.cos(-_th * i / 10), c[1] + RAMP_TOP_R * math.sin(-_th * i / 10)) for i in range(11)]
+    return pts + [RAMP_FOOT]
 
 
 # ---------- Manzana central: conjunto de torres (PrototypeSceneBuilder.Towers.cs) ----------
@@ -460,7 +519,7 @@ for x in range(D_MIN_X + 5, D_MAX_X - 3, 11):                                   
     for side in (1, -1):
         rect(x + (3 if side < 0 else 0), side * (half_road + 0.55), 2.2, 0.9, C["snow"] + (220,))
 
-label(185, 0, "BARRIO DE VIVIENDAS (texturizado, zona avanzada)", F_M)
+label(185, 0, "BARRIO DE VIVIENDAS (texturizado, zona avanzada) · " + MAIN_NAMES["viviendas"], F_M)
 label(185, 84.5, "maleza: franja del fondo", F_S)
 label(185, -84.5, "maleza: franja del fondo", F_S)
 label(246, 32, "maleza\nfinal\ncalle", F_S)
@@ -496,7 +555,8 @@ footprints = Path(__file__).with_name("edificios_casas.json")
 if footprints.exists():
     import json
     kind_color = {"casa": C["brick"], "apartamentos": C["tower"], "garaje": C["garage"], "porche": C["porch"],
-                  "tienda": C["store"], "solar": C["weeds"], "cancha": C["court"], "gasolinera": (225, 225, 220)}
+                  "tienda": C["store"], "solar": C["weeds"], "cancha": C["court"], "gasolinera": (225, 225, 220),
+                  "edificio": (150, 150, 155), "torre": C["tower"], "iglesia": (120, 60, 80), "centro": (120, 120, 118)}
     for e in json.loads(footprints.read_text(encoding="utf-8"))["edificios"]:
         pts = [px(x, z) for x, z in e["esquinas"]]
         if e["tipo"] == "solar":
@@ -506,7 +566,7 @@ if footprints.exists():
 else:
     label(185, 160, "casas: construye la escena en Unity\ny vuelve a ejecutar este script", F_M)
 for name, x, z in H_ROAD_NAMES:
-    label(x, z, f"calle {name}", F_S)
+    label(x, z, street_label(name), F_S)
 label(185, 205, "BARRIO DE CASAS (casas bajas, apartamentos de 3 pisos, callejones)", F_M)
 
 # ---------- Copia oeste del barrio de casas (girada 180°: mundo = (220 − x, 316 − z)) ----------
@@ -538,7 +598,7 @@ for g0, g1 in WX_FENCE_GAPS_LOCAL + [(214, 214)]:
 for z in (201.4,):                                                                 # B' sigue hacia el norte hasta F
     box(HW_X - 216.8, HW_Z - z - 0.3, HW_X - 207.2, HW_Z - z + 0.3, (200, 200, 195))
 for name, x, z in H_ROAD_NAMES:
-    label(HW_X - x, HW_Z - z, f"calle {name}'", F_S)
+    label(HW_X - x, HW_Z - z, street_label(name + "'"), F_S)
 # Acera oeste de la avenida (x 100–103), cortada donde entran A' y C1'.
 z_prev = 90
 cuts = sorted([(west(r)[1], west(r)[3]) for r in H_ROADS if r[0] < 118] + [(r[1], r[3]) for r in (NW_ROADS[0], NW_ROADS[2])])
@@ -558,7 +618,7 @@ for r in WX_ALLEYS:
 for r in WX_ROADS:                                                                  # barrera del fondo
     box(r[2] - 0.9, r[1] + 0.2, r[2] - 0.3, r[3] - 0.2, (200, 200, 195))
 for name, x, z in WX_ROAD_NAMES:
-    label(x, z, f"calle {name}", F_S)
+    label(x, z, street_label(name), F_S)
 for r in NW_LAWNS:                                                                  # ampliación norte (oeste)
     box(*r, C["lawn_d"])
 for r in NW_ROADS:
@@ -605,7 +665,7 @@ if footprints.exists() and not any(min(x for x, _ in e["esquinas"]) < 100 and mi
 label(35, 216, "BARRIO DE CASAS OESTE (el mismo, girado 180°)", F_M)
 label(-66, 216, "AMPLIACIÓN OESTE", F_M)
 for name, x, z in NE_ROAD_NAMES + NW_ROAD_NAMES:
-    label(x, z, f"calle {name}", F_S)
+    label(x, z, street_label(name), F_S)
 label(0, 276, "AMPLIACIÓN NORTE (oeste)", F_M)
 # Detalles del oeste lejano encima de las huellas.
 box(*FW_CANOPY, (225, 225, 220), outline=(160, 30, 25), width=2)
@@ -624,7 +684,7 @@ label(cx, cz, "cancha", F_S, fill=(255, 255, 255), halo=False)
 wx0, wz0, wx1, wz1 = FW_WASTELAND
 label((wx0 + wx1) / 2, (wz0 + wz1) / 2, "DESCAMPADO" + chr(10) + "(barro, escombros," + chr(10) + "coche, bidón)", F_S)
 for name, x, z in FW_ROAD_NAMES:
-    label(x, z, f"calle {name}", F_S)
+    label(x, z, street_label(name), F_S)
 label(-200, 270, "OESTE LEJANO", F_M)
 label(-205, 76, "negocios: 7 alitas · 8 empeños · 9 belleza · 10 neumáticos · 11 lavandería", F_S)
 label(160, 276, "AMPLIACIÓN NORTE (este)", F_M)
@@ -769,9 +829,24 @@ label(110, -25, "tren\nelevado", F_S)
 # ---------- Cocheras del tren (PrototypeSceneBuilder.RailYard.cs) ----------
 YARD_C = dict(gravel=(122, 116, 106), track=(84, 66, 52), shed=(132, 140, 132), container=(150, 80, 60), train=(176, 178, 182))
 box(YARD_MIN_X, YARD_SOUTH_Z, YARD_MAX_X, YARD_NORTH_Z, YARD_C["gravel"])
+box(YARD_WEST_X, YARD_SOUTH_Z, YARD_MIN_X, YARD_WEST_STEP_Z, YARD_C["gravel"])
 box(100, Z0, 103, -90, C["sidewalk"])
 box(-103, Z0, -100, -110, C["sidewalk"])
-box(-5.5, -200, 5, YARD_NORTH_Z, C["asphalt"])                                     # camino de servicio
+
+
+def ypoly(corners, fill, outline=None, width=1):
+    d.polygon([px(*yardp(u, v)) for u, v in corners], fill=fill, outline=outline, width=width)
+
+
+def thick(a, b, w, fill):
+    d.line([px(*a), px(*b)], fill=fill, width=max(1, int(w * S)))
+
+
+# Camino de servicio: de la entrada al eje del camino y por él hasta el fondo, con explanada.
+_bend = yardp(storage_end_u(ROAD_V) - 6, ROAD_V)
+thick(((YARD_GATE[0] + YARD_GATE[1]) / 2, YARD_NORTH_Z), _bend, ROAD_W + 1, C["asphalt"])
+thick(_bend, yardp(ROAD_END_U, ROAD_V), ROAD_W, C["asphalt"])
+ypoly([(ROAD_END_U - 6, ROAD_V - 4), (ROAD_END_U + 10, ROAD_V - 4), (ROAD_END_U + 10, ROAD_V + 8), (ROAD_END_U - 6, ROAD_V + 8)], C["asphalt"])
 
 
 def track(a, b):
@@ -779,52 +854,199 @@ def track(a, b):
     d.line([px(*a), px(*b)], fill=(200, 200, 205), width=1)
 
 
-for x in STORAGE_TRACKS:
-    track((x, STORAGE_NORTH_Z), (x, ladder_z(x)))
-    rect(x, STORAGE_NORTH_Z - 0.7, 2.4, 0.6, (160, 30, 25))
-for x in SHED_TRACKS:
-    track((x, SHED[3] - 1), (x, ladder_z(x)))
-track(LADDER_W, LADDER_E)
+def ytrack(pts):
+    for a, b in zip(pts, pts[1:]):
+        track(yardp(*a), yardp(*b))
+
+
+def bumper(u, v):
+    ypoly([(u - 0.6, v - 1.2), (u, v - 1.2), (u, v + 1.2), (u - 0.6, v + 1.2)], (160, 30, 25))
+
+
+lp = loop_curve()
+for a, b in zip(lp, lp[1:]):
+    track(a, b)
+ytrack([(0, 0), (storage_end_u(0), 0)])
+bumper(storage_end_u(0), 0)
+for last in (max(STORAGE_V), min(SHED_V)):
+    ytrack([(LADDER_SPLIT_U, 0), turnout(last)[0]])
+for v in STORAGE_V + SHED_V:
+    if v == 0:
+        continue
+    end = SHED_U1 - 1.5 if v in SHED_V else storage_end_u(v)
+    ytrack(turnout_curve(v) + [(end, v)])
+    bumper(end, v)
 # Rampa desde el elevado: viaducto arriba y terraplén abajo.
-for a, b in zip(YARD_LEAD, YARD_LEAD[1:]):
-    d.line([px(*a), px(*b)], fill=(70, 80, 76), width=int(4.4 * S))
-    d.line([px(*a), px(*b)], fill=YARD_C["track"], width=int(2.6 * S))
-label(93, -150, "rampa" + chr(10) + "del elevado", F_S)
-# Nave de mantenimiento, oficina, caseta y coche.
-box(*SHED, YARD_C["shed"], outline=(40, 44, 40), width=2)
-for x in SHED_TRACKS:
-    box(x - 2.5, SHED[1] - 0.4, x + 2.5, SHED[1] + 0.4, YARD_C["track"])           # portones
-label(-20, -132, "NAVE DE" + chr(10) + "MANTENIMIENTO", F_S)
+rp = ramp_path()
+for a, b in zip(rp, rp[1:]):
+    thick(a, b, 4.4, (70, 80, 76))
+    track(a, b)
+label(*yardp(95, 60), "rampa" + chr(10) + "del elevado", F_S)
+label(*yardp(-14, 25), "bucle", F_S)
+label(*yardp(40, 6), "escalera" + chr(10) + "de agujas", F_S)
+# Nave de mantenimiento, oficina, caseta de vía y de vigilante, y coche.
+ypoly([(SHED_U0, SHED_V0), (SHED_U1, SHED_V0), (SHED_U1, SHED_V1), (SHED_U0, SHED_V1)], YARD_C["shed"], outline=(40, 44, 40), width=2)
+for v in SHED_V:
+    ypoly([(SHED_U0 - 0.4, v - 2.5), (SHED_U0 + 0.4, v - 2.5), (SHED_U0 + 0.4, v + 2.5), (SHED_U0 - 0.4, v + 2.5)], YARD_C["track"])  # portones
+for v, cars, gap, shed in YARD_TRAINS:
+    end = SHED_U1 - 1.4 if shed else storage_end_u(v)
+    u1 = end - gap
+    u0 = u1 - cars * 15.2 + 0.6
+    ypoly([(u0, v - 1.45), (u1, v - 1.45), (u1, v + 1.45), (u0, v + 1.45)], YARD_C["train"], outline=(60, 60, 64))
+    for k in range(1, cars):
+        uu = u0 + k * 15.2 - 0.3
+        d.line([px(*yardp(uu, v - 1.45)), px(*yardp(uu, v + 1.45))], fill=(60, 60, 64), width=1)
+label(*yardp((SHED_U0 + SHED_U1) / 2 - 12, (SHED_V0 + SHED_V1) / 2), "NAVE DE" + chr(10) + "MANTENIMIENTO", F_S)
 box(-25, -98.5, -15, -95.5, (205, 203, 195), outline=(60, 60, 60))
 label(-20, -101.5, "oficina", F_S)
 box(8.7, -96.6, 10.9, -94.4, (205, 203, 195), outline=(60, 60, 60))
-rect(-30, -97.5, 4.5, 1.9, C["car"])
-# Trenes aparcados (vagones de 14.6 m con fuelle de 0.6 m).
-for x, zc, cars in YARD_TRAINS:
-    half = (cars * 15.2 - 0.6) / 2
-    box(x - 1.45, zc - half, x + 1.45, zc + half, YARD_C["train"], outline=(60, 60, 64))
-    for k in range(1, cars):
-        zz = zc - half + k * 15.2 - 0.3
-        d.line([px(x - 1.45, zz), px(x + 1.45, zz)], fill=(60, 60, 64), width=1)
+ypoly([(27.5, ROAD_V + 4.5), (32.5, ROAD_V + 4.5), (32.5, ROAD_V + 7.5), (27.5, ROAD_V + 7.5)], (205, 203, 195), outline=(60, 60, 60))
+rect(-31, -98, 4.5, 1.9, C["car"])
 # Patio de contenedores: pilas de 0–3 alturas al azar (se dibuja el hueco de cada pila).
 for row in range(CONTAINER_ROWS):
     z = CONTAINER_FIRST_Z - row * CONTAINER_STEP
     for x in CONTAINER_COLS:
         box(x - 1.22, z - 6.1, x + 1.22, z + 6.1, YARD_C["container"] + (150,), outline=(70, 40, 30))
-label(-57, -96.5, "CONTENEDORES", F_S)
-# Valla con concertina (huecos: entrada, agujeros al oeste y al sur).
+label(-82, -108, "CONTENEDORES", F_S)
+# Valla con lona de ocultación y concertina (huecos: entrada, agujeros al oeste y al sur).
 fence_runs = [((YARD_MIN_X, YARD_NORTH_Z), (YARD_GATE[0], YARD_NORTH_Z)), ((YARD_GATE[1], YARD_NORTH_Z), (YARD_MAX_X, YARD_NORTH_Z)),
-              ((YARD_MIN_X, YARD_NORTH_Z), (YARD_MIN_X, -112)), ((YARD_MIN_X, -114), (YARD_MIN_X, YARD_SOUTH_Z)),
-              ((YARD_MIN_X, YARD_SOUTH_Z), (28, YARD_SOUTH_Z)), ((30.2, YARD_SOUTH_Z), (YARD_MAX_X, YARD_SOUTH_Z)),
+              ((YARD_MIN_X, YARD_NORTH_Z), (YARD_MIN_X, YARD_WEST_STEP_Z)), ((YARD_MIN_X, YARD_WEST_STEP_Z), (-84, YARD_WEST_STEP_Z)),
+              ((-86, YARD_WEST_STEP_Z), (YARD_WEST_X, YARD_WEST_STEP_Z)), ((YARD_WEST_X, YARD_WEST_STEP_Z), (YARD_WEST_X, YARD_SOUTH_Z)),
+              ((YARD_WEST_X, YARD_SOUTH_Z), (-20, YARD_SOUTH_Z)), ((-17.8, YARD_SOUTH_Z), (YARD_MAX_X, YARD_SOUTH_Z)),
               ((YARD_MAX_X, YARD_SOUTH_Z), (YARD_MAX_X, YARD_NORTH_Z))]
 for a, b in fence_runs:
-    d.line([px(*a), px(*b)], fill=C["fence"], width=2)
+    d.line([px(*a), px(*b)], fill=(30, 52, 36), width=4)
 for x in YARD_GATE:
     rect(x, YARD_NORTH_Z, 0.8, 0.8, C["fence"])
 label(3, YARD_NORTH_Z + 2.5, "entrada", F_S)
-for x, z in YARD_FLOODS:
-    dot(x, z, 5, (255, 240, 170), outline=(60, 60, 60))
-label(20, -217, "COCHERAS DEL TREN ELEVADO", F_M)
+for p in [(-74.5, -150), (-74.5, -250), yardp(92, ROAD_V + 5), yardp(40, ROAD_V + 5), yardp(-12, LOOP_R), yardp(70, 42.5), yardp(150, 42.5)]:
+    dot(*p, 5, (255, 240, 170), outline=(60, 60, 60))
+label(20, -292, "COCHERAS DEL TREN ELEVADO", F_M)
+
+# ---------- Barrio norte (PrototypeSceneBuilder.North.cs / NorthBuildings.cs), z 298…500 ----------
+import math
+BLVD_Z, BLVD_HALF, BLVD_MED = 395, 11, 6
+PRESCOTT = (486, 496)
+NORTH_WALL = 499.5
+DIAG_C, DIAG_HALF = 421, 5
+
+
+def diag(a):
+    return DIAG_C + a * math.sqrt(2)
+
+
+l1, l2, ls, ln = diag(-DIAG_HALF), diag(DIAG_HALF), diag(-DIAG_HALF - 3), diag(DIAG_HALF + 3)
+
+
+def poly(pts, fill, outline=None, width=1):
+    d.polygon([px(x, z) for x, z in pts], fill=fill, outline=outline, width=width)
+
+
+box(250, Z0, X1, 298, C["lawn"])                                                     # al este de las casas: suelo sin nada
+NB_LAWNS = [(-300, 298, -264.5, NORTH_WALL), (-249.5, 300.5, -120, 381), (-249.5, 409, -120, 483.5),
+            (-100.5, 300.5, -47.5, 381), (-32.5, 300.5, ls - 381, 381), (-100.5, 409, -47.5, 483.5),
+            (120, 300.5, 204.5, 381), (219.5, 298, 299.5, 381), (219.5, 409, 299.5, 483.5), (120, 409, 204.5, 483.5)]
+NB_SIDEWALKS = [(-249.5, 298, -120, 300.5), (-264.5, 298, -262, 498.5), (-252, 298, -249.5, 384), (-252, 406, -249.5, 486),
+                (-249.5, 381, -120, 384), (-249.5, 406, -120, 409), (-249.5, 483.5, -120, 486), (-264.5, 496, -120, 498.5),
+                (-103, 298, -100.5, 384), (-103, 406, -100.5, 486), (-103, 496, -100.5, NORTH_WALL),
+                (-100.5, 298, 100, 300.5), (-47.5, 300.5, -45, 381), (-35, 300.5, -32.5, 381), (-47.5, 409, -45, 483.5),
+                (-35, 409, -32.5, 483.5), (-100.5, 381, l1 - 384, 384), (l2 - 381, 381, 100, 384), (-100.5, 406, 100, 409),
+                (-100.5, 483.5, 100, 486), (-100.5, 496, 100, 498.5), (100, 300, 103, NORTH_WALL),
+                (120, 298, 204.5, 300.5), (204.5, 298, 207, 384), (217, 298, 219.5, 384), (204.5, 406, 207, 486),
+                (217, 406, 219.5, 486), (120, 381, 299.5, 384), (120, 406, 299.5, 409), (120, 483.5, 299.5, 486),
+                (120, 496, 299.5, 498.5), (152.5, 452, 155, 483.5), (165, 452, 167.5, 483.5)]
+NB_ALLEYS = [(-252, 338, -120, 343), (-252, 444, -120, 449), (-103, 338, -45, 343), (-35, 338, 22, 343), (120, 338, 207, 343)]
+for r in NB_LAWNS:
+    box(*r, C["lawn_d"])
+box(225, 302, 290, 320, C["lot"])                                                    # aparcamiento de la torre suelta
+box(217, 307, 225, 314, C["asphalt"])
+for r in NB_SIDEWALKS:
+    box(*r, C["sidewalk"])
+for r in NB_ALLEYS:
+    box(*r, C["alley"])
+# Las aceras de las calles grandes se cortan en el bulevar, Prescott y la entrada del centro comercial.
+for x0_, x1_ in ((-120, -116.5), (100, 103), (117, 120)):
+    cuts = [(BLVD_Z - BLVD_HALF + 3, BLVD_Z + BLVD_HALF - 3), PRESCOTT] + ([(436, 443)] if x0_ == 100 else [])
+    for z0_, z1_ in cuts:
+        box(x0_, z0_, x1_, z1_, C["asphalt"])
+# Bulevar: dos calzadas de un sentido (flechas) y mediana con árboles; se abre en los cruces.
+for x0_, x1_ in ((-249.5, -120), (-100.5, -47.5), (-32.5, 100), (120, 204.5), (219.5, 296)):
+    box(x0_, BLVD_Z - BLVD_MED / 2, x1_, BLVD_Z + BLVD_MED / 2, C["sidewalk"])
+    box(x0_ + 0.3, BLVD_Z - BLVD_MED / 2 + 0.3, x1_ - 0.3, BLVD_Z + BLVD_MED / 2 - 0.3, C["lawn_d"])
+    for x in range(int(x0_) + 6, int(x1_) - 3, 12):
+        dot(x, BLVD_Z, 3, C["tree"])
+for x in range(-240, 280, 40):
+    if abs(abs(x) - 110) > 12 and abs(abs(x + 20) - 110) > 12:
+        label(x, BLVD_Z - 6.5, "→", F_S, fill=(230, 230, 230), halo=False)
+        label(x + 20, BLVD_Z + 6.5, "←", F_S, fill=(230, 230, 230), halo=False)
+# Diagonal S HALDANE AVE con sus aceras, la cuña de césped y el edificio en cuña.
+poly([(103, l1 - 103), (103, l2 - 103), (l2 - 384, 384), (l1 - 384, 384)], C["asphalt"])
+poly([(100, ls - 100), (100, l1 - 100), (l1 - 381, 381), (ls - 381, 381)], C["sidewalk"])
+poly([(100, l2 - 100), (100, ln - 100), (ln - 381, 381), (l2 - 381, 381)], C["sidewalk"])
+poly([(ls - 381, 300.5), (100, 300.5), (100, ls - 100), (ls - 381, 381)], C["lawn_d"])
+poly([(100, 362), (100, 381), (ln - 381, 381), (ln - 362, 362)], C["alley"])
+poly([(100, ln - 100), (100, 334.6), (ln - 334.6, 334.6)], C["sidewalk"])
+# Rotonda de S MERRIN CT.
+cx_, cy_ = px(160, 440)
+for r_, col in ((14.5, C["sidewalk"]), (12, C["asphalt"]), (3.5, C["lawn_d"])):
+    d.ellipse([cx_ - r_ * S, cy_ - r_ * S, cx_ + r_ * S, cy_ + r_ * S], fill=col)
+box(155, 446, 165, 455, C["asphalt"])
+# KINGSLEY PLAZA: aparcamiento, acera cubierta, entradas y plazas pintadas.
+box(-32.5, 409, 100, 483.5, C["lot"])
+box(40, 406, 47, 409, C["asphalt"])
+box(-35, 478.5, -32.5, 483.5, C["asphalt"])
+box(-26, 459, 62, 462, C["path"])
+box(-10, 418, -7, 452, C["path"])
+for k, z0_ in enumerate((412, 424.5, 430, 443, 448.5)):
+    for i in range(37):
+        x = -5 + i * 2.7
+        if 39 < x < 48 or (k == 0 and x > 66):
+            continue
+        box(x - 0.06, z0_, x + 0.06, z0_ + 5.5, (200, 200, 190))
+rect(96.5, 452, 3, 0.6, (160, 30, 25))
+# HOLLOWAY PARK: camino en diagonal, cancha, juegos.
+d.line([px(-99, 410.5), px(-49, 482)], fill=C["path"], width=int(2.4 * S))
+box(-62 - 7.5, 426 - 11.5, -62 + 7.5, 426 + 11.5, C["court"], outline=(230, 230, 230), width=2)
+box(-63, 448, -53, 456, (150, 80, 60))
+# Torre suelta: camino, cancha y juegos.
+box(237 - 7.5, 362 - 11.5, 237 + 7.5, 362 + 11.5, C["court"], outline=(230, 230, 230), width=2)
+box(219.5, 338.5, 248.5, 341.5, C["path"])
+box(280, 359, 288, 369, (150, 80, 60))
+# Terraplén del tren de mercancías con los dos pasos inferiores de las calles grandes.
+for x0_, x1_ in ((-305, -122), (-98, 98), (122, 305)):
+    box(x0_, NORTH_WALL, x1_, Z1, (122, 116, 106), outline=(60, 55, 50), width=2)
+for x in (-110, 110):
+    box(x - 12, NORTH_WALL, x + 12, Z1, (25, 25, 28))
+# Huellas del norte (casas, locales, cuña, torre, iglesia, centro comercial) encima del suelo.
+if footprints.exists():
+    for e in json.loads(footprints.read_text(encoding="utf-8"))["edificios"]:
+        if min(z for _, z in e["esquinas"]) < 297.5:
+            continue
+        pts = [px(x, z) for x, z in e["esquinas"]]
+        if e["tipo"] == "solar":
+            d.polygon(pts, fill=C["weeds"] + (110,), outline=C["weeds"])
+        elif e["tipo"] != "aparcamiento":
+            d.polygon(pts, fill=kind_color.get(e["tipo"], C["house"]), outline=(40, 20, 15))
+for x in (-110, 110):                                                                # semáforos del bulevar
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            dot(x + sx * 8.5, BLVD_Z + sz * 12.5, 4, (40, 200, 90), outline=(20, 20, 20))
+label(-30, BLVD_Z, "W KINGSLEY BLVD (bulevar, mediana con árboles)", F_S)
+label(-190, 491, "W PRESCOTT ST", F_S, fill=(255, 255, 255), halo=False)
+label(-257, 420, "S JUDSON" + chr(10) + "AVE", F_S)
+label(-40, 325, "S WEBLEY", F_S)
+label(212, 440, "S TENNEY", F_S)
+label(160, 470, "S MERRIN CT" + chr(10) + "(sin salida)", F_S)
+label(62, 372, "S HALDANE AVE" + chr(10) + "(diagonal)", F_S)
+label(91, 348, "cuña" + chr(10) + "SOUL FOOD", F_S)
+label(34, 437, "KINGSLEY PLAZA" + chr(10) + "(mini centro comercial)", F_M)
+label(-74, 470, "HOLLOWAY PARK", F_S)
+label(-143.5, 368, "bloque" + chr(10) + "con patio", F_S)
+label(262, 326, "torre suelta (13 pl.)", F_S)
+label(250, 476, "iglesia", F_S)
+label(0, 503, "TERRAPLÉN DEL TREN DE MERCANCÍAS (muro de 5.8 m) · pasos inferiores en x = ±110", F_S, fill=(255, 255, 255), halo=False)
+label(-185, 425, "BARRIO NORTE (oeste)", F_M)
+label(160, 395 - 22, "BARRIO NORTE (este)", F_M)
 
 # ---------- Spawns ----------
 for x in (-8.5, -7, -5.5, -4, -2.5, -1):                                             # objetos para recoger (Training.cs)
@@ -836,13 +1058,28 @@ rect(-16, -BLOCK_HALF_Z - SIDEWALK - 3, 4.5, 2, (200, 40, 40), outline=(255, 255
 label(-13, -BLOCK_HALF_Z - 12, "inicio: jugador + coche", F_S)
 
 # ---------- Etiquetas de calles ----------
-label(60, road_z, "calle E–O  z = 80", F_S)
-label(60, -road_z, "calle E–O  z = −80", F_S)
-label(road_x, -55, "avenida principal\nx = 110", F_S)
-label(-road_x, 30, "calle\nx = −110", F_S)
+label(60, road_z, MAIN_NAMES["norte"] + "  (z = 80)", F_S)
+label(60, -road_z, MAIN_NAMES["sur"] + "  (z = −80)", F_S)
+label(road_x, -55, "avenida principal\n" + MAIN_NAMES["avenida"] + "\nx = 110", F_S)
+label(-road_x, 30, MAIN_NAMES["oeste"] + "\nx = −110", F_S)
+
+# ---------- Detalle vial (StreetDetail.cs) ----------
+for cx in (-road_x, road_x):                                                        # semáforos
+    for cz in (-road_z, road_z):
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                dot(cx + sx * SIGNAL_CORNER, cz + sz * SIGNAL_CORNER, 4, (40, 200, 90), outline=(20, 20, 20))
+pole_off = ROAD / 2 + 0.45                                                          # postes con cables (aprox.)
+for t in range(-296, int(road_x - ROAD / 2 - 12) + 1, MAIN_POLE_STEP):
+    if abs(t + road_x) > ROAD / 2 + 3.5:
+        dot(t, road_z + pole_off, 3, C["pole"], outline=(40, 25, 10))
+        dot(t, -road_z - pole_off, 3, C["pole"], outline=(40, 25, 10))
+for t in range(-296, 297, MAIN_POLE_STEP):
+    if min(abs(t - road_z), abs(t + road_z)) > ROAD / 2 + 3.5:
+        dot(-road_x - pole_off, t, 3, C["pole"], outline=(40, 25, 10))
 
 # ---------- Cuadrícula y ejes ----------
-for gx in range(-300, 261, 20):
+for gx in range(-300, X1, 20):
     x_, _ = px(gx, 0)
     d.line([(x_, px(0, Z1)[1]), (x_, px(0, Z0)[1])], fill=C["grid"] + (40,), width=1)
     d.text((x_, px(0, Z0)[1] + 6), str(gx), font=F_S, fill=C["text"], anchor="mt")
@@ -900,6 +1137,7 @@ legend("rect", C["court"], "cancha de baloncesto con malla")
 legend("rect", C["dumpster"], "contenedores (sofá, colchón)")
 legend("dot", C["light"], "farola de sodio")
 legend("dot", C["pole"], "poste de madera con cables")
+legend("dot", (40, 200, 90), "semáforo (cruces de las calles grandes)", outline=(20, 20, 20))
 legend("dot", C["bollard"], "pilonas rojas (fin de calle)")
 legend("rect", C["bus"], "parada de bus")
 legend("dot", C["tree"], "árbol de acera (posición aprox.)")
@@ -910,7 +1148,7 @@ legend("line", C["wood"], "valla de madera")
 legend("rect", C["garage"], "garaje")
 legend("rect", C["porch"], "porche trasero de madera")
 legend("rect", C["train"], "tren elevado (tablero y pórticos)")
-legend("rect", (122, 116, 106), "cocheras: grava, vías y rampa del elevado")
+legend("rect", (122, 116, 106), "cocheras: grava, vías, bucle y rampa del elevado")
 legend("rect", (176, 178, 182), "tren aparcado en las cocheras", outline=(60, 60, 64))
 legend("rect", (150, 80, 60), "pila de contenedores (0–3 de alto, al azar)")
 legend("dot", (255, 240, 170), "torre de focos", outline=(60, 60, 60))

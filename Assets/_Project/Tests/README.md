@@ -23,6 +23,10 @@
   - Nunca supera la velocidad máxima.
   - Después de la estación llega al final, espera y vuelve a empezar.
   - Si empieza pasada la estación, no vuelve atrás.
+- `TrafficSignalTests`
+  - Nunca hay verde o ámbar en las dos direcciones a la vez, y entre una y otra hay un momento todo en rojo.
+  - Verde, ámbar y rojo en orden; el ciclo se repite.
+  - Los peatones solo pueden cruzar con el verde de los coches que van en paralelo, y la mano parpadea antes de que acabe.
 - `WeatherTests`
   - A mediodía y en seco, `DayCycleMath.Look` da la luz original del mundo (sol, ambiente, niebla 25–260 m) y las farolas están apagadas.
   - 20 minutos reales son un día (una hora de juego, 50 s).
@@ -35,6 +39,11 @@
   - Los coches de la autopista avanzan y, al pasar el final, vuelven al principio.
   - Una distancia inicial mayor que el recorrido se ajusta, y nunca se sale de [0, largo).
   - Un recorrido de largo 0 se queda en 0.
+- `DamageModelTests`
+  - Con la 9 mm: 1 tiro en la cabeza, 2 en el pecho y 6 en brazos o piernas.
+  - El chaleco solo alarga el pecho (4–5 tiros con 100, 3 con 50); no protege cabeza ni miembros.
+  - Más daño, menos tiros (y al revés); el puño en la cabeza y las caídas no matan por la zona.
+  - `Health.ZoneAt` reconoce cabeza, pecho, brazo y pierna con un esqueleto con los nombres del modelo; sin huesos cuenta como tronco.
 - `CharacterSystemsTests`
   - El chaleco absorbe el 70 % hasta gastarse; las caídas no las para, la cura no pasa del máximo y muerto no se cura.
   - La energía deja agotado a 0 hasta el 30 %, se recupera solo tras el retraso y más rápido con la bebida.

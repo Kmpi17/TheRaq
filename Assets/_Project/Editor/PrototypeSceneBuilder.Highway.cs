@@ -115,7 +115,7 @@ namespace GTAChiraq.Editor
         {
             var group = new GameObject("Tunel").transform;
             group.SetParent(root, false);
-            float roofZ0 = HighwayBridgeNorth.yMin, roofZ1 = 300f;
+            float roofZ0 = HighwayBridgeNorth.yMin, roofZ1 = WorldNorthZ;
             Box("Techo", group, new Vector3((HighwayMinX + HighwayMaxX) / 2f, -HighwayDeck / 2f, (roofZ0 + roofZ1) / 2f),
                 new Vector3(HighwayMaxX - HighwayMinX, HighwayDeck, roofZ1 - roofZ0), concrete);
 

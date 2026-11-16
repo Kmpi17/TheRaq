@@ -1,0 +1,7 @@
+# Gente: `PrototypeSceneBuilder.Npc.cs`
+Se llama al final de `Build()` (`BuildNpcs(world, player)`), cuando ya está todo el mundo, porque la malla de navegación tiene que verlo:
+- **Sitios** (`NpcSpot`, bajo `Mundo/SitiosNPC`): las esquinas habituales de cada facción (`HabitualSpots`, con coordenadas del mundo sacadas de `NPCS.md` y del plano), los sitios de paso de los civiles en las aceras (`CivilianSpots`) y el memorial. `ScanProps` recorre el mundo y pone uno en cada `Banco` (sentarse; en la `ParadaBus`, esperar a cubierto) y en el `Bidon` con `Brasas` del descampado (calentarse, Crestline).
+- **Locales:** `Storefront` llama a `ShopLife`: `ShopHours` (el OPEN pasa a llamarse `NeonOpen`; se añade una `PersianaCerrada` entera, oculta), un sitio de recado en la puerta (solo abierto) y, en la FOOD & LIQUOR, una esquina de venta del grupo del barrio (Ash Block en la franja de negocios).
+- **Malla de navegación:** `NavMeshSurface` sobre los colliders de todo (sin las capas 2 y 7), vóxel de 0.2 m; se guarda en `Scenes/Prototype_NavMesh.asset` (no se versiona). Tarda unos segundos.
+- **Plantilla y población:** `PlantillaNPC` (inactiva) copia el `Modelo` del jugador con la pistola, y lleva cápsula de 1.5 m, esfera `Cabeza`, `NavMeshAgent`, `Health`, `PlayerOutfit` (copiado del jugador con `persist` apagado), `NpcAnimator` y `NpcBrain`; todo en la capa 7 `Personaje` (`ProjectSettings/TagManager.asset`). Cuelga de `Poblacion` (`NpcPopulation`).
+- El asmdef del editor referencia `Unity.AI.Navigation`.

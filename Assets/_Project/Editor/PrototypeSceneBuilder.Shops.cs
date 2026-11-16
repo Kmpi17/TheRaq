@@ -30,8 +30,9 @@ namespace GTAChiraq.Editor
         static readonly Rect AvenueWestSidewalk = Rect.MinMaxRect(100f, 90f, 103f, 300f);
 
         // Los últimos son de la zona del oeste lejano (PrototypeSceneBuilder.FarWest.cs): alitas, casa de empeños,
-        // tienda de belleza, neumáticos y la tienda de la gasolinera.
-        enum ShopKind { Church, Laundry, Barber, Chicken, Checks, Market, Wings, Pawn, Beauty, Tires, GasMart }
+        // tienda de belleza, neumáticos y la tienda de la gasolinera. Los cuatro del final son del barrio norte
+        // (PrototypeSceneBuilder.North.cs): todo a un dólar, móviles, pizzería y gestoría de impuestos.
+        enum ShopKind { Church, Laundry, Barber, Chicken, Checks, Market, Wings, Pawn, Beauty, Tires, GasMart, Dollar, Phones, Pizza, Tax }
 
         // De oeste a este. floors: 1 o 2 plantas.
         static readonly (ShopKind kind, float x0, float x1, int floors)[] Shops =
@@ -155,6 +156,10 @@ namespace GTAChiraq.Editor
                 ShopKind.Beauty => (Mat("FrenteBelleza", new Color(0.55f, 0.2f, 0.38f)), "BEAUTY SUPPLY", new Color(0.95f, 0.85f, 0.92f), new Color(0.6f, 0.1f, 0.4f)),
                 ShopKind.Tires => (Mat("FrenteNeumaticos", new Color(0.22f, 0.22f, 0.24f)), "TIRE SHOP", new Color(0.92f, 0.9f, 0.85f), new Color(0.1f, 0.1f, 0.12f)),
                 ShopKind.GasMart => (Mat("FrenteGasolinera", new Color(0.75f, 0.74f, 0.7f)), "FOOD MART", new Color(0.7f, 0.08f, 0.06f), new Color(0.97f, 0.95f, 0.9f)),
+                ShopKind.Dollar => (Mat("FrenteDolar", new Color(0.12f, 0.32f, 0.2f)), "DOLLAR & MORE", new Color(0.1f, 0.45f, 0.22f), new Color(1f, 0.92f, 0.3f)),
+                ShopKind.Phones => (Mat("FrenteMoviles", new Color(0.1f, 0.12f, 0.2f)), "CELL PHONES", new Color(0.05f, 0.2f, 0.55f), new Color(0.95f, 0.95f, 0.95f)),
+                ShopKind.Pizza => (Mat("FrentePizza", new Color(0.5f, 0.1f, 0.07f)), "PIZZA", new Color(0.95f, 0.92f, 0.82f), new Color(0.15f, 0.45f, 0.15f)),
+                ShopKind.Tax => (Mat("FrenteImpuestos", new Color(0.55f, 0.55f, 0.52f)), "TAX SERVICE", new Color(0.95f, 0.95f, 0.92f), new Color(0.1f, 0.25f, 0.6f)),
                 _ => (Mat("FrenteTienda", new Color(0.15f, 0.3f, 0.18f)), "FOOD & LIQUOR", new Color(0.95f, 0.93f, 0.85f), new Color(0.72f, 0.08f, 0.06f)),
             };
             Box("Frente", root, new Vector3(0f, 2.05f, -0.04f), new Vector3(w, 4.1f, 0.08f), paint, collider: false);
@@ -171,7 +176,7 @@ namespace GTAChiraq.Editor
             Box("MarcoPuerta", root, new Vector3(doorX, 2.45f, f - 0.05f), new Vector3(1.3f, 0.1f, 0.1f), ironMat, collider: false);
 
             // Rejas delante del cristal (cambio de cheques, tienda, pollo) o persiana medio bajada (barbería, lavandería).
-            if (kind is ShopKind.Checks or ShopKind.Market or ShopKind.Chicken or ShopKind.Pawn or ShopKind.Wings or ShopKind.GasMart)
+            if (kind is ShopKind.Checks or ShopKind.Market or ShopKind.Chicken or ShopKind.Pawn or ShopKind.Wings or ShopKind.GasMart or ShopKind.Phones or ShopKind.Dollar)
             {
                 for (float x = winX0 + 0.15f; x < winX1; x += 0.3f)
                     Box("Reja", root, new Vector3(x, 1.75f, f - 0.12f), new Vector3(0.03f, 2.3f, 0.03f), ironMat, collider: false);
@@ -207,7 +212,7 @@ namespace GTAChiraq.Editor
             }
 
             // Toldo inclinado.
-            if (kind is ShopKind.Laundry or ShopKind.Barber or ShopKind.Chicken or ShopKind.Beauty or ShopKind.Wings)
+            if (kind is ShopKind.Laundry or ShopKind.Barber or ShopKind.Chicken or ShopKind.Beauty or ShopKind.Wings or ShopKind.Pizza)
             {
                 var awningMat = kind switch
                 {
@@ -215,6 +220,7 @@ namespace GTAChiraq.Editor
                     ShopKind.Barber => Mat("ToldoNegro", new Color(0.08f, 0.08f, 0.09f)),
                     ShopKind.Beauty => Mat("ToldoRosa", new Color(0.6f, 0.22f, 0.42f)),
                     ShopKind.Wings => Mat("ToldoNaranja", new Color(0.7f, 0.35f, 0.08f)),
+                    ShopKind.Pizza => Mat("ToldoVerde", new Color(0.1f, 0.32f, 0.14f)),
                     _ => Mat("ToldoRojo", new Color(0.5f, 0.08f, 0.06f)),
                 };
                 var awning = Box("Toldo", root, new Vector3(winC, 3.08f, f - 0.65f), new Vector3(winW + 0.4f, 0.06f, 1.3f), awningMat, collider: false);

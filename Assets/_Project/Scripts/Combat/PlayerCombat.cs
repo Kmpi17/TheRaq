@@ -23,7 +23,6 @@ namespace GTAChiraq
         [SerializeField] LayerMask mask = ~(1 << 2);
         [SerializeField] float[] punchDamage = { 12f, 12f, 24f };
         [SerializeField] float punchStamina = 7f;
-        [SerializeField] float headshotMultiplier = 2.5f;
 
         PlayerMovement movement;
         PlayerAnimator animator;
@@ -170,8 +169,8 @@ namespace GTAChiraq
             bool blocked = Physics.Linecast(chest, origin, out hit, mask, QueryTriggerInteraction.Ignore);
             if (blocked || Physics.Raycast(origin, dir, out hit, weapon.Range, mask, QueryTriggerInteraction.Ignore))
             {
-                float damage = weapon.Damage * (hit.collider.name == "Cabeza" ? headshotMultiplier : 1f);
-                ApplyHit(hit.collider, hit.rigidbody, hit.point, dir, damage, DamageKind.Bullet, 4f);
+                // La zona (cabeza, tronco, brazo o pierna) la decide Health con el punto de impacto (DamageModel).
+                ApplyHit(hit.collider, hit.rigidbody, hit.point, dir, weapon.Damage, DamageKind.Bullet, 4f);
                 BulletHole(hit);
             }
             // Los NPC lo oyen: los civiles huyen y los grupos responden (a quien se apuntaba, aunque se fallara).

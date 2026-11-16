@@ -33,6 +33,10 @@ namespace GTAChiraq.Editor
         const float DistrictMaxX = 250f;
         const float DistrictHalfZ = 88f;
         const float DistrictRoadWidth = 12f;
+
+        // Borde norte del mundo: el barrio norte (North.cs) llega hasta el terraplén del tren de mercancías. Los otros
+        // bordes siguen en ±300 hasta que se amplíen (docs/estructuras/pendiente.md).
+        const float WorldNorthZ = 500f;
         const float DistrictLawnInner = DistrictRoadWidth / 2f + SidewalkWidth; // donde acaba la acera y empieza el césped
         const float DistrictWalkupZ = DistrictLawnInner + 14f;
         const float DistrictTowerZ = 62f;
@@ -64,6 +68,7 @@ namespace GTAChiraq.Editor
             BuildProjectsDistrict(world);
             BuildHousesDistrict(world); // PrototypeSceneBuilder.Houses.cs (después del barrio: usa sus materiales)
             BuildTowersBlock(world);    // PrototypeSceneBuilder.Towers.cs: la manzana central (usa los materiales de los dos barrios)
+            BuildNorthBand(world);      // PrototypeSceneBuilder.North.cs: barrio norte, z 298…500 (usa los materiales de casas, negocios y torres)
             BuildHighway(world);        // PrototypeSceneBuilder.Highway.cs: autopista hundida en el borde oeste (el tráfico va fuera de "Mundo")
             BuildSchool(world);         // PrototypeSceneBuilder.School.cs: instituto entre la autopista y la calle x = −110
             BuildElevatedTrain(world);  // PrototypeSceneBuilder.Train.cs (los trenes quedan fuera de "Mundo": se mueven)
@@ -71,6 +76,7 @@ namespace GTAChiraq.Editor
             BuildStreetLights(world);
             BuildSnow(world);
             BuildMainRoadDetails(world); // PrototypeSceneBuilder.MainRoads.cs: alcantarillas, sumideros, nieve y manchas
+            BuildStreetDetail(world);    // PrototypeSceneBuilder.StreetDetail.cs: nombres de calle, semáforos, STOP, pasos de cebra, flechas, cables y alcantarillado
             BuildWeather(world);         // PrototypeSceneBuilder.Weather.cs: día y noche, lluvia y nieve (las luces de "Mundo" llevan NightLight)
             BuildDrivableParkedCars();   // PrototypeSceneBuilder.Cars.cs: los aparcados salen de "Mundo" y se pueden robar
             MarkStatic(world);
@@ -153,7 +159,7 @@ namespace GTAChiraq.Editor
 
             // El suelo acaba en la autopista hundida (x −300…−275): ahí ponen el suelo los puentes y el techo del túnel (Highway.cs).
             // Lleva un hueco para la escalera del estudio del sótano de T1 (Studio.cs).
-            foreach (var r in RectMinus(Rect.MinMaxRect(HighwayMaxX, -300f, 300f, 300f), new List<Rect> { StudioStairwell }))
+            foreach (var r in RectMinus(Rect.MinMaxRect(HighwayMaxX, -300f, 300f, WorldNorthZ), new List<Rect> { StudioStairwell }))
                 Box("Suelo", world, new Vector3(r.center.x, -0.1f, r.center.y), new Vector3(r.width, 0.2f, r.height), asphalt);
 
             // El césped y la acera de la manzana central los pone BuildTowersBlock (PrototypeSceneBuilder.Towers.cs).
@@ -163,7 +169,7 @@ namespace GTAChiraq.Editor
             float farZ = outerZ + RoadWidth + SidewalkWidth / 2f, farX = outerX + RoadWidth + SidewalkWidth / 2f;
             // Las de enfrente se cortan donde las cruza la otra calle grande (la avenida y la calle x = −110 para las del
             // norte y sur; las calles z = ±80 para la del oeste): si no, quedaría un bordillo atravesando la calzada.
-            var avenueCuts = new List<Rect> { Rect.MinMaxRect(outerX, -300f, outerX + RoadWidth, 300f), Rect.MinMaxRect(-outerX - RoadWidth, -300f, -outerX, 300f) };
+            var avenueCuts = new List<Rect> { Rect.MinMaxRect(outerX, -300f, outerX + RoadWidth, WorldNorthZ), Rect.MinMaxRect(-outerX - RoadWidth, -300f, -outerX, WorldNorthZ) };
             // La del norte se corta también en la entrada del aparcamiento de los negocios y en el pasaje al callejón (Shops.cs).
             var northStrip = Rect.MinMaxRect(-300f, farZ - SidewalkWidth / 2f, 300f, farZ + SidewalkWidth / 2f);
             var northCuts = new List<Rect>(avenueCuts) { ShopsLotDriveway, ShopsAlleyLink };
@@ -179,6 +185,7 @@ namespace GTAChiraq.Editor
             float north = cut;
             var avenueRoads = new List<Rect>(HousesRoads);
             avenueRoads.AddRange(NorthAvenueRoadsEast);
+            avenueRoads.AddRange(NorthBandAvenueCutsEast); // bulevar y calle del borde norte (North.cs)
             avenueRoads.Sort((p, q) => p.yMin.CompareTo(q.yMin));
             foreach (var r in avenueRoads)
             {
@@ -186,12 +193,13 @@ namespace GTAChiraq.Editor
                 Box("AceraEnfrente_E_N", world, new Vector3(farX, 0.075f, (north + r.yMin) / 2f), new Vector3(SidewalkWidth, 0.15f, r.yMin - north), concrete);
                 north = r.yMax;
             }
-            Box("AceraEnfrente_E_N", world, new Vector3(farX, 0.075f, (north + 300f) / 2f), new Vector3(SidewalkWidth, 0.15f, 300f - north), concrete);
+            Box("AceraEnfrente_E_N", world, new Vector3(farX, 0.075f, (north + WorldNorthZ) / 2f), new Vector3(SidewalkWidth, 0.15f, WorldNorthZ - north), concrete);
             Box("AceraEnfrente_E_S", world, new Vector3(farX, 0.075f, -cut - half), new Vector3(SidewalkWidth, 0.15f, half * 2f), concrete);
-            var westStrip = Rect.MinMaxRect(-farX - SidewalkWidth / 2f, -300f, -farX + SidewalkWidth / 2f, 300f);
+            var westStrip = Rect.MinMaxRect(-farX - SidewalkWidth / 2f, -300f, -farX + SidewalkWidth / 2f, WorldNorthZ);
             var crossStreets = new List<Rect> { Rect.MinMaxRect(-300f, outerZ, 300f, outerZ + RoadWidth), Rect.MinMaxRect(-300f, -outerZ - RoadWidth, 300f, -outerZ) };
             crossStreets.AddRange(FarWestWestSidewalkCuts); // calles D, E, F, H del oeste lejano y entrada de la gasolinera
             crossStreets.AddRange(SchoolDriveways);         // salidas del aparcamiento del instituto (School.cs)
+            crossStreets.AddRange(NorthBandAvenueCutsWest); // bulevar, callejón y calle del borde norte (North.cs)
             foreach (var piece in StripMinus(westStrip, crossStreets))
                 Box("AceraEnfrente_O", world, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
 

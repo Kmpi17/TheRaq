@@ -70,7 +70,7 @@ namespace GTAChiraq
             Add("zapatillas_negras", "Zapatillas negras", ClothingSlot.Feet, ClothingStyle.Sneakers, new Color(0.05f, 0.05f, 0.06f));
             Add("botas_trabajo", "Botas de trabajo", ClothingSlot.Feet, ClothingStyle.Boots, new Color(0.62f, 0.45f, 0.22f));
 
-            // Colores de grupo (NPCS.md): granate Kessler, mostaza Dunmore, verde oscuro Larkin; y ropa de civil.
+            // Colores de grupo (docs/npcs/facciones.md): granate Kessler, mostaza Dunmore, verde oscuro Larkin; y ropa de civil.
             Add("gorra_blanca", "Gorra blanca", ClothingSlot.Head, ClothingStyle.Cap, new Color(0.88f, 0.88f, 0.86f));
             Add("gorra_granate", "Gorra granate", ClothingSlot.Head, ClothingStyle.Cap, new Color(0.38f, 0.07f, 0.1f));
             Add("gorra_verde", "Gorra verde oscuro", ClothingSlot.Head, ClothingStyle.Cap, new Color(0.1f, 0.22f, 0.13f));

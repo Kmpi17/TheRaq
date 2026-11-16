@@ -4,6 +4,9 @@ namespace GTAChiraq
 {
     public enum DamageKind { Melee, Bullet, Fall }
 
+    /// <summary>Dónde da un golpe o un disparo en un personaje. <see cref="Unknown"/>: sin huesos (dianas) o una caída.</summary>
+    public enum BodyZone { Unknown, Head, Torso, Arm, Leg }
+
     /// <summary>Un golpe, un disparo o una caída: cuánto daño, de qué tipo, dónde y desde dónde.</summary>
     public struct DamageInfo
     {
@@ -12,6 +15,7 @@ namespace GTAChiraq
         public Vector3 Point;
         public Vector3 Direction;
         public GameObject Source;
+        public BodyZone Zone; // la pone Health al recibirlo (si no venía ya)
 
         public DamageInfo(float amount, DamageKind kind, Vector3 point, Vector3 direction, GameObject source)
         {
@@ -20,6 +24,7 @@ namespace GTAChiraq
             Point = point;
             Direction = direction;
             Source = source;
+            Zone = BodyZone.Unknown;
         }
     }
 
@@ -59,6 +64,14 @@ namespace GTAChiraq
             float before = Current;
             Current = Mathf.Max(0f, Current - toHealth);
             return before - Current;
+        }
+
+        /// <summary>Deja la vida a 0 (un tiro en la cabeza) y devuelve cuánta se ha perdido. El chaleco no cuenta.</summary>
+        public float Kill()
+        {
+            float before = Current;
+            Current = 0f;
+            return before;
         }
 
         /// <summary>Cura (sin pasar del máximo) y devuelve lo curado. Muerto no se cura.</summary>
@@ -159,6 +172,108 @@ namespace GTAChiraq
             float t = Mathf.Tan(Mathf.Clamp(angle, 0f, 89f) * Mathf.Deg2Rad);
             disc = Vector2.ClampMagnitude(disc, 1f);
             return (Quaternion.LookRotation(direction) * new Vector3(disc.x * t, disc.y * t, 1f)).normalized;
+        }
+    }
+
+    /// <summary>
+    /// Daño por zonas (lógica pura), igual para el jugador y para todos los NPC. El daño de un arma es lo que hace
+    /// una bala en el pecho: con la 9 mm (50) y 100 de vida, un tiro en la cabeza mata, dos en el pecho matan y en
+    /// brazos y piernas hacen falta seis. Con otra arma las cuentas salen solas de su daño. El chaleco solo protege el
+    /// tronco; la cabeza y los miembros van al descubierto.
+    /// </summary>
+    public static class DamageModel
+    {
+        public const float LimbBulletFactor = 0.34f; // 9 mm: 17 por tiro → 6 tiros en brazos o piernas
+        public const float HeadMeleeFactor = 1.5f;   // un puñetazo en la cara duele más, pero no mata de uno
+        public const float LimbMeleeFactor = 0.6f;
+
+        public struct Result
+        {
+            public float Amount;
+            public bool ArmorProtects;
+            public bool Lethal; // mata sin más (bala en la cabeza)
+        }
+
+        public static Result Resolve(float amount, DamageKind kind, BodyZone zone)
+        {
+            switch (kind)
+            {
+                case DamageKind.Fall:
+                    return new Result { Amount = amount };
+                case DamageKind.Bullet:
+                    if (zone == BodyZone.Head) return new Result { Amount = amount, Lethal = true };
+                    if (zone is BodyZone.Arm or BodyZone.Leg) return new Result { Amount = amount * LimbBulletFactor };
+                    return new Result { Amount = amount, ArmorProtects = true };
+                default:
+                    if (zone == BodyZone.Head) return new Result { Amount = amount * HeadMeleeFactor };
+                    if (zone is BodyZone.Arm or BodyZone.Leg) return new Result { Amount = amount * LimbMeleeFactor };
+                    return new Result { Amount = amount, ArmorProtects = true };
+            }
+        }
+
+        /// <summary>Aplica un golpe a la vida y devuelve cuánta se ha perdido.</summary>
+        public static float Apply(HealthPool pool, float amount, DamageKind kind, BodyZone zone)
+        {
+            if (pool.IsDead) return 0f;
+            var r = Resolve(amount, kind, zone);
+            return r.Lethal ? pool.Kill() : pool.Damage(r.Amount, r.ArmorProtects);
+        }
+
+        /// <summary>Cuántas balas de <paramref name="damage"/> hacen falta en esa zona (para tests y documentación).</summary>
+        public static int ShotsToKill(float damage, BodyZone zone, float health = 100f, float armor = 0f)
+        {
+            var pool = new HealthPool(health, armor);
+            int shots = 0;
+            while (!pool.IsDead && shots < 1000)
+            {
+                Apply(pool, damage, DamageKind.Bullet, zone);
+                shots++;
+            }
+            return shots;
+        }
+    }
+
+    /// <summary>Segmento del cuerpo (entre dos articulaciones) con su grosor, para saber a qué zona da un impacto.</summary>
+    public struct BodySegment
+    {
+        public BodyZone Zone;
+        public Vector3 A, B;
+        public float Radius;
+
+        public BodySegment(BodyZone zone, Vector3 a, Vector3 b, float radius)
+        {
+            Zone = zone;
+            A = a;
+            B = b;
+            Radius = radius;
+        }
+    }
+
+    public static class HitZoneMath
+    {
+        public static float SegmentDistance(Vector3 p, Vector3 a, Vector3 b)
+        {
+            var ab = b - a;
+            float len = ab.sqrMagnitude;
+            float t = len < 1e-8f ? 0f : Mathf.Clamp01(Vector3.Dot(p - a, ab) / len);
+            return Vector3.Distance(p, a + ab * t);
+        }
+
+        /// <summary>La zona del segmento más cercano al punto (contando su grosor).</summary>
+        public static BodyZone Classify(Vector3 point, System.Collections.Generic.IReadOnlyList<BodySegment> segments)
+        {
+            var best = BodyZone.Unknown;
+            float bestDist = float.MaxValue;
+            foreach (var s in segments)
+            {
+                float d = SegmentDistance(point, s.A, s.B) - s.Radius;
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    best = s.Zone;
+                }
+            }
+            return best;
         }
     }
 }

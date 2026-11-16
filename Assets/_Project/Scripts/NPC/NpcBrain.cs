@@ -27,7 +27,8 @@ namespace GTAChiraq
         [SerializeField] Transform muzzle;
         [SerializeField] GameObject pistolModel;
         [SerializeField] float walkSpeed = 1.35f, runSpeed = 4.6f;
-        [SerializeField] float bulletDamage = 9f;
+        // El daño de la bala lo pone la pistola (la misma 9 mm que el jugador); la zona la decide Health.
+        static float BulletDamage => ItemCatalog.Get(ItemCatalog.Pistol)?.Damage ?? 50f;
         [SerializeField] int magazine = 12;
 
         public Faction Faction { get; private set; }
@@ -599,8 +600,7 @@ namespace GTAChiraq
                 var h = hit.collider.GetComponentInParent<Health>();
                 if (h && h != health && !h.IsDead)
                 {
-                    float dmg = bulletDamage * (hit.collider.name == "Cabeza" ? 2f : 1f);
-                    h.TakeDamage(new DamageInfo(dmg, DamageKind.Bullet, hit.point, dir, gameObject));
+                    h.TakeDamage(new DamageInfo(BulletDamage, DamageKind.Bullet, hit.point, dir, gameObject));
                 }
                 if (hit.rigidbody && !hit.rigidbody.isKinematic) hit.rigidbody.AddForceAtPosition(dir * 3f, hit.point, ForceMode.Impulse);
             }

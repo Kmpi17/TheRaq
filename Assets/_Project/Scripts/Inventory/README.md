@@ -11,7 +11,7 @@
   | `botiquin` | Botiquín | 3 | +50 de vida |
   | `alitas` | Alitas fritas | 5 | +15 de vida, +40 de energía |
   | `bebida_energetica` | Bebida energética | 5 | Energía llena y recuperación ×2.5 durante 20 s |
-  | `chaleco` | Chaleco | 2 | +50 de chaleco |
+  | `chaleco` | Chaleco | 2 | +50 de chaleco (solo protege el tronco) |
   | `dinero` | (no es un objeto) | — | Va a `PlayerInventory.Money` |
 
 - `Inventory`: casillas fijas. `Add` llena primero los montones abiertos y luego las casillas vacías, y devuelve cuántos han cabido. Además: `Remove` (empieza por las últimas casillas), `RemoveAt`, `Count`, `Has`, `SpaceFor`, `Weapons()` y el evento `Changed`.

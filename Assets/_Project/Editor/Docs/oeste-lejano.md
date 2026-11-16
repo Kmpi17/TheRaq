@@ -1,0 +1,9 @@
+# Oeste lejano: `PrototypeSceneBuilder.FarWest.cs`
+`BuildFarWest` (objeto `Barrio_Oeste_Lejano`), llamado al final de `BuildHousesDistrict`, **después de `BuildShopsStrip`** (usa `Storefront` y sus materiales). x de `FarWestMinX` (−300) a `FarWestMaxX` (−120), z 90–298, en coordenadas del mundo con `BuildHousesPatch` (semilla 2011):
+- `FarWestRoads`: J (`FarWestJ`, x −262…−252, z 87–298) y D, E, F, H de x −252 a −117 (siguen las de la ampliación oeste y la norte). `FarWestAlleys` siguen n2 y n3. `FarWestSidewalks`, `FarWestLawns` y `FarWestRows` (al oeste de J, filas con yaw 270: la parcela hacia −X).
+- `FarWestStreetLife`: negocios (`FarWestShopsStrip`: `FarWestShops` con `Storefront` en la misma línea de fachada `ShopsFront`, solar `FarWestShopsVacant`), gasolinera (`GasStation`), cancha (`Court` en `FarWestCourtCenter`, puerta hacia D), descampado (`Wasteland` en `FarWestWasteland`), farolas, postes con cables, coches y valla del borde del mundo.
+- `GasStation`: `GasLot` (x −160…−120, z 90–124) a `LotTop`, entradas `GasDriveways`, marquesina con colisión, islas, surtidores, tienda (`ShopKind.GasMart` en un marco desplazado para que la fachada quede en z 113 mirando a −Z), poste de precios girado −45° hacia el cruce.
+- `BuildStreets` corta las aceras de enfrente con `FarWestNorthSidewalkCuts` (J y las entradas de la gasolinera) y `FarWestWestSidewalkCuts` (D, E, F, H y la entrada desde x = −110); `MainRoadMouths` incluye `FarWestRoads` y `GasDriveways`.
+- `ShopKind` tiene los tipos nuevos `Wings`, `Pawn`, `Beauty`, `Tires` y `GasMart` (letreros, toldos, rejas y detalles propios en `Storefront`).
+- `Court(parent, center, gateSide)` y `Wreck(parent, ground, yaw, rng)` (StreetProps.cs) son la cancha y el coche abandonado del barrio de viviendas, ahora con posición como parámetro.
+- Huellas para el plano: `cancha`, `gasolinera`, `tienda` y `solar` (el descampado). Capturas: elemento `oeste_lejano`.

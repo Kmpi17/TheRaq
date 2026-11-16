@@ -1,0 +1,8 @@
+# Capturas in-game: `IngameScreenshots.cs`
+Saca capturas de 1920×1080 de las distintas zonas, **agrupadas por elemento y por versión**. Todas salen a mediodía y sin lluvia (`WeatherSystem.Preview`), salvo el elemento `tiempo`, que captura cada vista con cada estado de `Weathers` (mediodía, atardecer, noche, lluvia y nieve de día y de noche). El primer fotograma se renderiza y se descarta, porque sale quemado. Usa una cámara temporal con los ajustes de la `Main Camera` (niebla, fondo, 60° de FOV) y `Camera.Render()` sobre un RenderTexture; los trenes salen donde los deja el generador, porque no se entra en Play.
+
+- **Carpetas:** `ingame/<elemento>/vNN_<cambio>/`, con las imágenes y un `cambio.txt` (fecha y descripción). Cada vez que se cambia un elemento se capturan sus vistas en una versión nueva (NN = la última + 1), sin tocar las anteriores, para poder compararlas.
+- **Elementos** (los define la primera columna de `Views`): `manzana_central`, `avenida_tren`, `estacion`, `barrio_viviendas`, `barrio_casas`, `negocios`, `barrio_casas_oeste`, `oeste_lejano`, `calles_grandes`, `autopista`, `instituto` y `aereas`. Para una zona nueva basta con añadir filas con otro nombre de elemento.
+- Las vistas a pie van a ~2 m de alto, como la cámara en tercera persona.
+- Menú *GTAChiraq > Capturas in-game (todas)*: una versión nueva de todos los elementos, con la escena guardada.
+- Terminal (editor cerrado): `Unity.exe -batchmode -projectPath E:\gtachiraq -executeMethod GTAChiraq.Editor.IngameScreenshots.BuildAndCapture -capturar estacion,negocios -cambio "escaleras transitables" -quit` regenera la escena y captura solo esos elementos. Sin `-capturar`, todos. `CaptureFromCommandLine` hace lo mismo sin regenerar.

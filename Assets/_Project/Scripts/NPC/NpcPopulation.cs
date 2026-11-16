@@ -260,6 +260,7 @@ namespace GTAChiraq
             if (agent && !agent.isOnNavMesh && NavMesh.SamplePosition(position, out var hit, 4f, NavMesh.AllAreas)) agent.Warp(hit.position);
             brain.Owner = this;
             brain.Init(faction, role, armed, raider, raidGoal);
+            if (rng.NextDouble() < NpcMath.VestChance(role, armed, raider)) go.GetComponent<Health>().AddArmor(NpcMath.VestArmor);
             active.Add(brain);
             return brain;
         }

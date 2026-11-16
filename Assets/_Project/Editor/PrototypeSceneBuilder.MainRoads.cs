@@ -12,7 +12,7 @@ namespace GTAChiraq.Editor
     public static partial class PrototypeSceneBuilder
     {
         const float MainRoadTop = 0.01f;          // por debajo de las calles de barrio (RoadTop = 0.02), que tapan la boca
-        const float MainRoadHalfLength = 300f;    // de borde a borde del mundo
+        const float MainRoadHalfLength = 300f;    // del borde sur (y oeste) del mundo al centro; las norte–sur siguen hasta WorldNorthZ
 
         static float MainRoadZ => BlockHalfZ + SidewalkWidth + RoadWidth / 2f; // 80: calles norte y sur
         static float MainRoadX => BlockHalfX + SidewalkWidth + RoadWidth / 2f; // 110: avenida y calle del oeste
@@ -28,8 +28,8 @@ namespace GTAChiraq.Editor
             float avenueEast = MainRoadX + RoadWidth / 2f;
             yield return ("Norte", true, MainRoadZ, crossX, avenueEast);
             yield return ("Sur", true, -MainRoadZ, crossX, avenueEast);
-            yield return ("Avenida", false, MainRoadX, crossZ, MainRoadHalfLength);
-            yield return ("Oeste", false, -MainRoadX, crossZ, MainRoadHalfLength);
+            yield return ("Avenida", false, MainRoadX, crossZ, WorldNorthZ);
+            yield return ("Oeste", false, -MainRoadX, crossZ, WorldNorthZ);
         }
 
         /// <summary>
@@ -45,6 +45,7 @@ namespace GTAChiraq.Editor
             foreach (var r in NorthEastRoads) Add(r);
             foreach (var r in NorthWestRoads) Add(r);
             foreach (var r in FarWestRoads) Add(r);
+            foreach (var r in NorthBandMouths()) Add(r);
             foreach (var r in GasDriveways) Add(r);
             foreach (var r in SchoolDriveways) Add(r);
             foreach (var r in TowersDriveways) Add(r);

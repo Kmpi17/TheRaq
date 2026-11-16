@@ -17,7 +17,7 @@ namespace GTAChiraq.Editor
         const float TrainColumnHeight = 6.6f;                  // gálibo libre bajo la viga
         const float TrainRailTop = 8.66f;                      // altura de la cara superior del raíl
         const float TrainBentSpacing = 15f;
-        const float TrainTrackStartZ = -340f, TrainTrackEndZ = 340f; // más allá de la niebla (fin a 260 m)
+        const float TrainTrackStartZ = -340f, TrainTrackEndZ = 540f; // más allá de la niebla (fin a 260 m); al norte, por encima del terraplén
         static readonly float[] TrainTracksX = { 106.5f, 113.5f };   // vía sur (oeste) y vía norte (este)
 
         // Estación: andenes laterales de z StationZ0 a StationZ1.
@@ -25,7 +25,7 @@ namespace GTAChiraq.Editor
         static float StationCenterZ => (StationZ0 + StationZ1) / 2f;
 
         // Calles que pasan por debajo (centro z, media anchura): ahí no se ponen pórticos.
-        static readonly (float z, float half)[] TrainCrossings = { (80f, 7f), (-80f, 7f), (0f, 6f), (122f, 5f), (188f, 5f), (128f, 5f), (194f, 5f), (253f, 5f), (293f, 5f) }; // 128 y 194: calles C1 y A de la copia oeste; 253 y 293: F/Fe y H de la ampliación norte
+        static readonly (float z, float half)[] TrainCrossings = { (80f, 7f), (-80f, 7f), (0f, 6f), (122f, 5f), (188f, 5f), (128f, 5f), (194f, 5f), (253f, 5f), (293f, 5f), (318f, 8f), (395f, 11.5f), (439.5f, 4.5f), (491f, 5f) }; // 128 y 194: calles C1 y A de la copia oeste; 253 y 293: F/Fe y H de la ampliación norte; 318, 395 y 491: diagonal, bulevar y calle del borde del barrio norte; 439.5: entrada del centro comercial
 
         static void BuildElevatedTrain(Transform world)
         {
@@ -44,7 +44,7 @@ namespace GTAChiraq.Editor
 
             // Pórticos.
             int bent = 0;
-            for (float z = -292.5f; z <= 292.5f; z += TrainBentSpacing)
+            for (float z = -292.5f; z <= 492.5f; z += TrainBentSpacing)
             {
                 if (UnderCrossing(z)) continue;
                 var root = new GameObject("Portico").transform;

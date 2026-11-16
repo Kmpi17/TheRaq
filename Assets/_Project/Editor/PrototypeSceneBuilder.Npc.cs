@@ -58,7 +58,7 @@ namespace GTAChiraq.Editor
             return s;
         }
 
-        // Esquinas y sitios habituales de cada grupo (NPCS.md, sección 4), en coordenadas del mundo (y = suelo).
+        // Esquinas y sitios habituales de cada grupo (docs/npcs/facciones.md), en coordenadas del mundo (y = suelo).
         static readonly (string name, Vector3 pos, NpcActivity activity, int capacity, Faction faction, bool covered)[] HabitualSpots =
         {
             // Ash Block: zona de reunión, canasta, memorial, portales de las torres y el aparcamiento P2.
@@ -102,6 +102,11 @@ namespace GTAChiraq.Editor
             new(-101.5f, 0f, -30f), new(-118.5f, 0f, 40f), new(-118.5f, 0f, 150f), new(-101.5f, 0f, 250f),
             new(-200f, 0f, 76f), new(-40f, 0f, 0f), new(30f, 0f, -20f), new(170f, 0f, 0f), new(200f, 0f, -30f),
             new(30f, 0f, 150f), new(-40f, 0f, 230f), new(170f, 0f, 140f), new(200f, 0f, 230f), new(-170f, 0f, 200f),
+            // Barrio norte (North.cs): aceras del bulevar (z 382.5 y 407.5) y de las calles grandes, la acera cubierta del
+            // centro comercial, el camino del parque, el patio del bloque, el atrio de la iglesia y el camino de la torre suelta.
+            new(-200f, 0f, 382.5f), new(-70f, 0f, 407.5f), new(60f, 0f, 382.5f), new(160f, 0f, 407.5f), new(260f, 0f, 382.5f),
+            new(102f, 0f, 350f), new(118f, 0f, 440f), new(-101.5f, 0f, 330f), new(-118.5f, 0f, 450f),
+            new(5f, 0f, 460.3f), new(35f, 0f, 460.3f), new(-8.5f, 0f, 432f), new(-74f, 0f, 446f), new(-143.5f, 0f, 370f), new(225f, 0f, 459f), new(237f, 0f, 340f),
         };
 
         static void BuildNpcs(Transform world, GameObject player)

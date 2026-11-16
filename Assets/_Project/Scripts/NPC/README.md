@@ -34,7 +34,8 @@ ficticio: ni los grupos, ni los nombres, ni la ropa copian bandas o personas rea
   (ellos y los de su bando que lo vean). Defienden su zona: disparan a los enemigos que entren en su territorio, a los
   de una incursión y a los que ya estén peleando cerca, y ayudan si un enemigo te dispara cerca de ellos.
 - **Combate:** armados, se paran a disparar si te ven a menos de 20 m (si no, van a donde te vieron); ráfagas de 2–4
-  tiros, cargador de 12 y 2.2 s de recarga, 9 de daño (×2 en la cabeza); dispersión según distancia, movimiento y
+  tiros, cargador de 12 y 2.2 s de recarga, con el daño de la 9 mm (50 en el pecho; la zona la decide `Health`, ver
+  `Combat/README`, *Vida realista por zonas*); dispersión según distancia, movimiento y
   pericia. Sin arma, puñetazos de 7. A los 10 s sin verte lo dejan. Muy heridos, a veces huyen. Al morir sueltan a
   veces balas.
 - **Incursiones:** cada minuto, si estás en un barrio de tu bando, se tira `NpcMath.RaidChance` (~4 % de día, ~22 % de
@@ -68,3 +69,6 @@ ficticio: ni los grupos, ni los nombres, ni la ropa copian bandas o personas rea
 - PlayMode `NpcPlayTests` (malla hecha en el momento): el enemigo en su barrio mira y luego dispara; el aliado no; el
   enemigo fuera de su barrio no; el civil huye de un disparo; disparar a un aliado le da rencor.
 - PlayMode `NpcCapturePlayTests` (`[Explicit]`): capturas en la escena real a `ingame/npc/<GTACHIRAQ_CAPTURA>/`.
+
+## Vida y chaleco
+Los NPC usan el mismo daño por zonas que el jugador (`DamageModel`): un tiro en la cabeza los mata, dos en el pecho también, y en brazos o piernas aguantan seis. Al aparecer, `NpcPopulation.Spawn` les pone a veces chaleco antibalas (`NpcMath.VestChance`: civiles nunca, pandilleros armados 20 %, desarmados 5 %, en incursión 40 %), con `NpcMath.VestArmor` = 100, así que aguantan unos 5 tiros en el pecho. El chaleco todavía no se ve en el modelo.
