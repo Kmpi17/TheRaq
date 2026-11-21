@@ -138,7 +138,7 @@ namespace GTAChiraq
         {
             if (amount <= 0f) return;
             Current = Mathf.Min(Max, Current + amount);
-            if (Current >= Max * RecoverFraction) Exhausted = false;
+            if (Current >= Max * RecoverFraction - 0.001f) Exhausted = false; // margen: 100 × 0.3f da 30.0000012
         }
 
         /// <summary>Recuperación más rápida durante <paramref name="seconds"/> (bebida energética).</summary>

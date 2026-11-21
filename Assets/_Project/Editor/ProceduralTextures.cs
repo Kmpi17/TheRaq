@@ -1709,6 +1709,27 @@ namespace GTAChiraq.Editor
             return Save("Copo", S, S, px, alpha: true, clamp: true);
         }
 
+        /// <summary>
+        /// Bocanada de vapor o de humo: círculo blanco de bordes muy suaves con algo de ruido dentro, para que las
+        /// partículas no se vean como discos (64 px, transparente).
+        /// </summary>
+        public static Texture2D Puff()
+        {
+            const int S = 64;
+            var px = new Color[S * S];
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float u = (x + 0.5f) / S, v = (y + 0.5f) / S;
+                    float dx = u - 0.5f, dy = v - 0.5f;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy) * 2f;
+                    float noise = Mathf.PerlinNoise(u * 5f + 3.1f, v * 5f + 7.7f) * 0.6f + Mathf.PerlinNoise(u * 11f + 1.3f, v * 11f + 4.2f) * 0.4f;
+                    float a = Mathf.Clamp01(1f - Mathf.SmoothStep(0.15f, 1f, r)) * Mathf.Lerp(0.55f, 1f, noise);
+                    px[y * S + x] = new Color(1f, 1f, 1f, a);
+                }
+            return Save("Bocanada", S, S, px, alpha: true, clamp: true);
+        }
+
         // ---------- Señales y marcas viales ----------
 
         /// <summary>

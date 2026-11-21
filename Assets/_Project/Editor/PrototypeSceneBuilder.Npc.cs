@@ -107,6 +107,12 @@ namespace GTAChiraq.Editor
             new(-200f, 0f, 382.5f), new(-70f, 0f, 407.5f), new(60f, 0f, 382.5f), new(160f, 0f, 407.5f), new(260f, 0f, 382.5f),
             new(102f, 0f, 350f), new(118f, 0f, 440f), new(-101.5f, 0f, 330f), new(-118.5f, 0f, 450f),
             new(5f, 0f, 460.3f), new(35f, 0f, 460.3f), new(-8.5f, 0f, 432f), new(-74f, 0f, 446f), new(-143.5f, 0f, 370f), new(225f, 0f, 459f), new(237f, 0f, 340f),
+            // Polígono industrial del sur (South.cs): aceras de W GANTRY ST (z −312.75 y −325.25), de J, de S WHARF RD y de las
+            // calles grandes junto a la estación sur, la entrada del desguace y el paseo del muelle.
+            new(-220f, 0f, -312.75f), new(-60f, 0f, -325.25f), new(40f, 0f, -312.75f), new(200f, 0f, -325.25f),
+            new(-250.75f, 0f, -150f), new(-263.25f, 0f, -300f), new(-46.25f, 0f, -355f), new(60f, 0f, -403.75f),
+            new(101.5f, 0f, -375f), new(118.5f, 0f, -345f), new(-101.5f, 0f, -400f), new(-194f, 0f, -327.5f),
+            new(-200f, 0f, -482.5f), new(-40f, 0f, -482.5f), new(180f, 0f, -482.5f),
         };
 
         static void BuildNpcs(Transform world, GameObject player)

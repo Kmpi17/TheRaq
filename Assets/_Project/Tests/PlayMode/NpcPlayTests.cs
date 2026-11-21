@@ -104,6 +104,41 @@ namespace GTAChiraq.Tests
             Assert.AreNotEqual(NpcBrain.State.Combat, npc.Current);
         }
 
+        /// <summary>
+        /// Petición del usuario (2026-11-17): al morir, el cuerpo se queda y lo que llevaba no se tira al suelo, se
+        /// registra como un inventario. Muerto un armado, se le saca la pistola, las balas y el dinero con F.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator DeadNpcLeavesABodyToSearch()
+        {
+            var center = new Vector3(0f, 0f, -150f);
+            World(center);
+            var inventory = player.AddComponent<PlayerInventory>();
+            var npc = Npc(center + new Vector3(0f, 0f, 1.2f), Faction.Larkin, NpcRole.Gang, armed: true);
+            yield return null;
+            int pickupsBefore = Object.FindObjectsByType<ItemPickup>(FindObjectsSortMode.None).Length;
+            npc.Health.TakeDamage(new DamageInfo(500f, DamageKind.Bullet, npc.transform.position + Vector3.up, Vector3.forward, player));
+            yield return null;
+
+            Assert.IsTrue(npc.Dead);
+            var body = npc.GetComponent<CorpseLoot>();
+            Assert.IsNotNull(body, "el cuerpo se puede registrar");
+            Assert.AreEqual(pickupsBefore, Object.FindObjectsByType<ItemPickup>(FindObjectsSortMode.None).Length, "no tira nada al suelo");
+            Assert.AreEqual(1, body.Contents.Items.Count(ItemCatalog.Pistol), "lleva su pistola");
+
+            int money = inventory.Money, pistols = inventory.Items.Count(ItemCatalog.Pistol), bodyMoney = body.Contents.Money;
+            int ammo = inventory.Items.Count(ItemCatalog.Ammo9mm), bodyAmmo = body.Contents.Items.Count(ItemCatalog.Ammo9mm);
+            Assert.AreSame(body, Interactable.FindNearest(player.transform.position, Interactable.All), "F lo registra");
+            body.TakeAll(inventory);
+            Assert.AreEqual(money + bodyMoney, inventory.Money, "el dinero pasa al jugador");
+            Assert.AreEqual(pistols + 1, inventory.Items.Count(ItemCatalog.Pistol), "y la pistola");
+            Assert.AreEqual(ammo + bodyAmmo, inventory.Items.Count(ItemCatalog.Ammo9mm), "y las balas");
+            Assert.IsTrue(body.Empty, "el cuerpo se queda vacío");
+
+            yield return new WaitForSeconds(15f); // a ×4: un minuto
+            Assert.IsTrue(npc, "el cuerpo no desaparece");
+        }
+
         [UnityTest]
         public IEnumerator CivilianRunsFromAGunshot()
         {

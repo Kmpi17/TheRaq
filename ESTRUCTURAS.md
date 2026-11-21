@@ -35,6 +35,7 @@ Una ficha por zona. Al lado, el archivo de `Assets/_Project/Editor/Docs/` que ex
 | Autopista hundida | [autopista.md](docs/estructuras/zonas/autopista.md) | [autopista.md](Assets/_Project/Editor/Docs/autopista.md) |
 | Instituto | [instituto.md](docs/estructuras/zonas/instituto.md) | [instituto.md](Assets/_Project/Editor/Docs/instituto.md) |
 | Barrio norte: bulevar, diagonal, mini centro comercial, parque, terraplén (z 298…500) | [barrio-norte.md](docs/estructuras/zonas/barrio-norte.md) | [norte.md](Assets/_Project/Editor/Docs/norte.md) |
+| Polígono industrial del sur: fábrica y chimenea, desguace, almacenes, vía de mercancías, calle curva, canal y puentes (z −90…−485) | [sur-industrial.md](docs/estructuras/zonas/sur-industrial.md) | [sur.md](Assets/_Project/Editor/Docs/sur.md) |
 
 Gente y facciones de cada zona: [NPCS.md](NPCS.md).
 

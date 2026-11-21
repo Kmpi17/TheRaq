@@ -150,13 +150,26 @@ namespace GTAChiraq.Editor
 
             int posts = Mathf.Max(1, Mathf.CeilToInt(length / postSpacing));
             float postHeight = height + 0.1f;
+            var postList = new List<Transform>();
             for (int i = 0; i <= posts; i++)
             {
                 var p = Vector3.Lerp(a, b, (float)i / posts);
-                Primitive(PrimitiveType.Cylinder, "Poste", parent, p + Vector3.up * (postHeight / 2f), new Vector3(postSize, postHeight / 2f, postSize), post, keepCollider: false);
+                postList.Add(Primitive(PrimitiveType.Cylinder, "Poste", parent, p + Vector3.up * (postHeight / 2f), new Vector3(postSize, postHeight / 2f, postSize), post, keepCollider: false).transform);
             }
-            if (topRail) Strut("Barandilla", parent, a + Vector3.up * height, b + Vector3.up * height, 0.05f, post, cylinder: true);
+            var rail = topRail ? Strut("Barandilla", parent, a + Vector3.up * height, b + Vector3.up * height, 0.05f, post, cylinder: true) : null;
+
+            // Un coche la rompe (BreakableFence), salvo en el borde del mundo, donde la valla hace de límite.
+            if (FenceOnWorldEdge(parent.TransformPoint(a)) && FenceOnWorldEdge(parent.TransformPoint(b))) return;
+            var kind = panel.name.Contains("Madera") ? BreakableFence.Kind.Wood
+                : panel.name.Contains("Malla") ? BreakableFence.Kind.Chain : BreakableFence.Kind.Iron;
+            var fence = wall.AddComponent<BreakableFence>();
+            fence.Configure(tile, true, postList.ToArray(), rail ? rail.transform : null, kind);
+            if (kind != BreakableFence.Kind.Wood) fence.SetStrength(5f, 0.8f);
         }
+
+        /// <summary>¿Está este punto de una valla en el borde del mundo (donde la valla no se puede romper)?</summary>
+        static bool FenceOnWorldEdge(Vector3 world)
+            => Mathf.Abs(world.x) > 297f || world.z > NorthWallZ - 3f || world.z < SouthQuayZ + 1f;
 
         // ---------- Cancha de baloncesto ----------
 
@@ -887,6 +900,7 @@ namespace GTAChiraq.Editor
             // Mira hacia −Z local: el respaldo queda en +Z.
             var root = new GameObject("Banco").transform;
             root.SetParent(parent, false);
+            root.gameObject.AddComponent<BreakableProp>().Configure(BreakableProp.Kind.Wood, 80f);
             root.localPosition = position;
             root.localRotation = Quaternion.Euler(0f, yaw, 0f);
             foreach (float x in new[] { -0.75f, 0.75f })

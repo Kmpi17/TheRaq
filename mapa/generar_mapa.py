@@ -80,7 +80,7 @@ NW_LAWNS = [(-100.5, 226, 3, 248), (13, 226, 100, 248), (-100.5, 258, 100, 288)]
 
 # ---------- Dibujo ----------
 S = 4                                    # píxeles por metro
-X0, X1, Z0, Z1 = -305, 302, -302, 506    # zona del mundo que se dibuja (al norte, hasta el terraplén)
+X0, X1, Z0, Z1 = -305, 302, -514, 506    # zona del mundo que se dibuja (del canal del sur al terraplén del norte)
 
 # ---------- Barrio de casas (PrototypeSceneBuilder.Houses.cs), rectángulos (x0, z0, x1, z1) ----------
 H_ROADS = [(117, 117, 207, 127), (207, 92, 217, 202), (117, 183, 173, 193), (163, 171, 207, 181), (163, 181, 173, 183)]
@@ -556,7 +556,9 @@ if footprints.exists():
     import json
     kind_color = {"casa": C["brick"], "apartamentos": C["tower"], "garaje": C["garage"], "porche": C["porch"],
                   "tienda": C["store"], "solar": C["weeds"], "cancha": C["court"], "gasolinera": (225, 225, 220),
-                  "edificio": (150, 150, 155), "torre": C["tower"], "iglesia": (120, 60, 80), "centro": (120, 120, 118)}
+                  "edificio": (150, 150, 155), "torre": C["tower"], "iglesia": (120, 60, 80), "centro": (120, 120, 118),
+                  "nave": (150, 158, 166), "fabrica": (118, 64, 50), "chimenea": (70, 30, 25), "caseta": (180, 180, 170),
+                  "oficina": (170, 170, 160), "sal": (232, 232, 228)}
     for e in json.loads(footprints.read_text(encoding="utf-8"))["edificios"]:
         pts = [px(x, z) for x, z in e["esquinas"]]
         if e["tipo"] == "solar":
@@ -720,7 +722,7 @@ label(232, 128.5, "pasaje", F_S)
 # ---------- Autopista hundida (PrototypeSceneBuilder.Highway.cs), borde oeste x −300…−275 ----------
 HW_X0, HW_X1, HW_WALL = -300, -275, 1                # caras exteriores de los muros
 HW_MEDIAN = -287.5
-HW_OPEN = [(Z0, -90), (-70, 70)]                     # tramos al aire libre (entre puentes y al sur)
+HW_OPEN = [(-440, -90), (-70, 70)]                   # tramos al aire libre (entre puentes y al sur, hasta el túnel sur)
 HW_BRIDGES = [(70, 90), (-90, -70)]                  # puentes de las calles z = ±80
 HW_TUNNEL = (90, 130)                                # túnel bajo el oeste lejano
 for z0_, z1_ in HW_OPEN:
@@ -801,28 +803,141 @@ d.line([px(-120.6, 4), px(-120.6, -69.4), px(-274.6, -69.4)], fill=C["fence"], w
 dot(-203, 65, 3, (40, 40, 160))
 label(cx, cz, "CAMPO DE FÚTBOL AMERICANO" + chr(10) + "con pista", F_S, fill=(255, 255, 255), halo=False)
 
+# ---------- Polígono industrial del sur (PrototypeSceneBuilder.South.cs / SouthBuildings.cs), z −90…−485 ----------
+QUAY, CANAL_FAR = -485, -510
+GANTRY, DOCK, FREIGHT, SIDING_Z = -319, -475, -460, -434.5
+SB_LAWNS = [(-275, -454, -264.5, -90), (-275, QUAY, -264.5, -466), (-249.5, -112, -122, -90), (-166, -280, -122, -112),
+            (-100.5, -311.5, 100, -296.5), (120, -311.5, 300, -108), (196, -108, 300, -90)]
+SB_LOTS = [((-247, -300, -170, -118), C["lot"]), ((-247, -452, -122, -329), (112, 100, 86)),
+           ((-100.5, -454, -47.5, -326.5), (104, 100, 94)), ((25, -451, 97, -421), (110, 106, 100))]
+SB_SIDEWALKS = [(-103, QUAY, -100.5, -300), (100, QUAY, 103, -300), (-264.5, QUAY, -262, -90), (-252, -470, -249.5, -90),
+                (-47.5, -365, -45, -326.5), (-35, -365, -32.5, -326.5), (5, -405, 100, -402.5), (5, -417.5, 100, -415),
+                (-120, QUAY, -117, -90), (117, QUAY, 120, -90)]
+for x0_, x1_ in ((-249.5, -120), (-100.5, 100), (120, 300)):
+    SB_SIDEWALKS += [(x0_, GANTRY + 5, x1_, GANTRY + 7.5), (x0_, GANTRY - 7.5, x1_, GANTRY - 5), (x0_, DOCK + 5, x1_, DOCK + 7.5),
+                     (-262 if x0_ == -249.5 else x0_, QUAY, x1_, DOCK - 5)]
+SB_ROADS = [(-262, -480, -252, -87), (-45, -365, -35, -324), (5, -415, 103, -405)]
+for x0_, x1_ in ((-252, -117), (-103, 103), (117, 300)):
+    SB_ROADS += [(x0_, GANTRY - 5, x1_, GANTRY + 5), (x0_, DOCK - 5, x1_, DOCK + 5)]
+for r in SB_LAWNS:
+    box(*r, C["lawn_d"])
+for r, col in SB_LOTS:
+    box(*r, col)
+for r in SB_SIDEWALKS:
+    box(*r, C["sidewalk"])
+for r in SB_ROADS:
+    box(*r, C["asphalt"])
+# S WHARF RD: cuarto de círculo de 45 m de radio alrededor de (5, −365) (en la imagen, de 90° a 180°).
+wcx, wcy = px(5, -365)
+for r_, col in ((52.5, C["sidewalk"]), (50, C["asphalt"]), (40, C["sidewalk"]), (37.5, (84, 84, 88))):
+    d.pieslice([wcx - r_ * S, wcy - r_ * S, wcx + r_ * S, wcy + r_ * S], 90, 180, fill=col)
+d.arc([wcx - 45 * S, wcy - 45 * S, wcx + 45 * S, wcy + 45 * S], 90, 180, fill=C["line"], width=1)
+# Vía de mercancías (lecho, dos vías, pasos a nivel) y apartadero de la fábrica.
+for x0_, x1_ in ((-300, -264.5), (-249.5, -120), (-100, 100), (120, 300)):
+    box(x0_, FREIGHT - 6, x1_, FREIGHT + 6, (122, 116, 106))
+for tz in (-457.5, -462.5):
+    d.line([px(-300, tz), px(300, tz)], fill=(84, 66, 52), width=4)
+siding = [(-97, SIDING_Z), (-45, SIDING_Z), (-30, -436.5), (-15, -441), (0, -447), (15, -452.5), (30, -456.4), (45, -457.5)]
+d.line([px(x, z) for x, z in siding], fill=(84, 66, 52), width=4)
+for x in (-257, -110, 110):                                                          # pasos a nivel
+    for sz, sx in ((1, -1), (-1, 1)):
+        dot(x + sx * 7.5, FREIGHT + sz * 7.4, 3, (220, 40, 30), outline=(20, 20, 20))
+for k in range(7):                                                                   # mercancías parado y cisternas
+    rect(-240 + k * 16.2, -462.5, 15, 3.1, (150, 80, 60), outline=(40, 20, 15))
+for k in range(4):
+    rect(140 + k * 16.5, -462.5, 14, 3, (30, 30, 34))                                  # en la vía sur: la norte es la del tren que pasa
+rect(-80, SIDING_Z, 15, 3.1, (150, 80, 60), outline=(40, 20, 15))
+box(-95, -432.5, -55, -430, (170, 170, 165))                                          # muelle de carga
+# Canal y puentes.
+box(X0, CANAL_FAR, X1, QUAY, (60, 84, 96))
+box(X0, Z0, X1, CANAL_FAR, (150, 150, 148))
+d.line([px(X0, QUAY), px(X1, QUAY)], fill=(30, 30, 30), width=3)                    # barandilla y muro del muelle
+for z0_, z1_ in ((QUAY - 0.5, QUAY - 4.5), (CANAL_FAR + 0.5, CANAL_FAR + 4.5)):        # hojas levantadas (vistas en planta)
+    box(-120, min(z0_, z1_), -100, max(z0_, z1_), (70, 92, 108), outline=(20, 20, 20), width=2)
+box(100, CANAL_FAR, 120, QUAY, C["asphalt"], outline=(20, 20, 20), width=2)           # puente fijo de S MARLOW AVE
+box(100, CANAL_FAR, 120, CANAL_FAR + 2.5, (200, 120, 40))                             # cortado por obras
+box(102.2, CANAL_FAR - 1, 117.8, QUAY + 1, C["train"] + (120,))       # celosía del elevado
+# Autopista: túnel sur bajo la vía de mercancías, Dock y el canal.
+tx0, ty0 = px(HW_X0 + HW_WALL, -440)
+tx1, ty1 = px(HW_X1 - HW_WALL, QUAY)
+for k in range(0, int(ty1 - ty0), 10):
+    for x_ in (tx0, tx1):
+        d.line([(x_, ty0 + k), (x_, ty0 + k + 5)], fill=(30, 30, 30), width=2)
+d.line([(tx0, ty0), (tx1, ty0)], fill=(30, 30, 30), width=2)
+label(-287.5, -462, "túnel" + chr(10) + "sur", F_S)
+# Huellas del sur (naves, fábrica, chimenea, casetas, montón de sal).
+if footprints.exists():
+    for e in json.loads(footprints.read_text(encoding="utf-8"))["edificios"]:
+        if max(z for _, z in e["esquinas"]) > -108:
+            continue
+        pts = [px(x, z) for x, z in e["esquinas"]]
+        d.polygon(pts, fill=kind_color.get(e["tipo"], C["house"]), outline=(40, 20, 15))
+for x in (-232, -222, -212, -202, -192):                                             # autobuses escolares
+    for z in (-215, -262):
+        rect(x, z, 2.5, 11, (225, 160, 20))
+for x, z in ((-128, -230), (-150, -284), (-270, -150), (-270, -270), (-270, -395)):    # vallas publicitarias
+    rect(x, z, 3, 3, (200, 170, 40), outline=(40, 30, 10))
+for x, z in ((-165, -410), (-138, -432)):                                            # grúa del desguace y prensa
+    rect(x, z, 4, 5, (220, 150, 30), outline=(40, 30, 10))
+label(-210, -308, "W GANTRY ST", F_S, fill=(255, 255, 255), halo=False)
+label(200, -319, "W GANTRY ST", F_S, fill=(255, 255, 255), halo=False)
+label(-190, -475, "W DOCK ST", F_S, fill=(255, 255, 255), halo=False)
+label(200, -475, "W DOCK ST", F_S, fill=(255, 255, 255), halo=False)
+label(-257, -200, "S JUDSON" + chr(10) + "AVE", F_S)
+label(-12, -392, "S WHARF RD" + chr(10) + "(curva)", F_S)
+label(60, -410, "S WHARF RD", F_S, fill=(255, 255, 255), halo=False)
+label(-0, -497, "CANAL · puente levadizo levantado en S Calder Ave · puente fijo cortado en S Marlow Ave", F_S, fill=(255, 255, 255), halo=False)
+label(-200, -460, "vía de mercancías", F_S, fill=(255, 255, 255), halo=False)
+label(-210, -145, "cocheras de" + chr(10) + "autobuses escolares", F_S)
+label(-144, -200, "solar", F_S)
+label(-138, -297, "taller", F_S)
+label(-185, -385, "DESGUACE", F_M)
+label(-75, -380, "FÁBRICA" + chr(10) + "ABANDONADA", F_M)
+label(-60, -452, "chimenea 45 m", F_S)
+label(52, -365, "almacén" + chr(10) + "(muelles)", F_S)
+label(60, -436, "tubos y perfiles", F_S)
+label(190, -382, "FRIGORÍFICO", F_M)
+label(272, -422, "sal", F_S)
+label(210, -210, "descampado (fase 3: el este)", F_S)
+label(0, -505, "POLÍGONO INDUSTRIAL DEL SUR", F_M)
+label(30, -470, "tren de mercancías: pasa por la vía norte cada pocos minutos", F_S)
+
+# ---------- Autobús 52 (PrototypeSceneBuilder.Traffic.cs): vuelta a la manzana central por el carril de la derecha ----------
+BUS_BLUE = (40, 90, 200)
+bus_loop = [(-111.9, -81.9), (111.9, -81.9), (111.9, 81.9), (-111.9, 81.9), (-111.9, -81.9)]
+for (ax, az), (bx, bz) in zip(bus_loop, bus_loop[1:]):
+    for k in range(0, 100, 2):                                                         # a trazos
+        t0, t1 = k / 100, (k + 1) / 100
+        d.line([px(ax + (bx - ax) * t0, az + (bz - az) * t0), px(ax + (bx - ax) * t1, az + (bz - az) * t1)], fill=BUS_BLUE, width=3)
+for sx, sz in ((-30, -88.3), (118.3, -20), (30, 88.3), (-118.3, 20)):                 # paradas (aprox.: el generador busca sitio)
+    dot(sx, sz, 6, BUS_BLUE, outline=(255, 255, 255))
+label(-70, -85.5, "autobús 52 →", F_S)
+
 # ---------- Tren elevado (PrototypeSceneBuilder.Train.cs) sobre la avenida x = 110 ----------
 TRAIN_W, TRAIN_E = 101.8, 118.2
-TRAIN_CROSSINGS = [(80, 7), (-80, 7), (0, 6), (122, 5), (188, 5), (128, 5), (194, 5), (253, 5), (293, 5)]
+TRAIN_CROSSINGS = [(80, 7), (-80, 7), (0, 6), (122, 5), (188, 5), (128, 5), (194, 5), (253, 5), (293, 5),
+                   (-319, 5), (-410, 7.5), (-460, 6), (-477.5, 7.5), (-497.5, 12.5)]
+TRAIN_EXTRA_BENTS = [-467, -484, -511]                                          # sur: vía de mercancías y estribos del canal
 STATION_Z0, STATION_Z1 = 4, 68
 box(TRAIN_W + 0.4, Z0, TRAIN_E - 0.4, Z1, C["train"] + (95,))                     # tablero (semitransparente)
 for tx in (106.5, 113.5):                                                          # vías
     box(tx - 1.3, Z0, tx + 1.3, Z1, (90, 70, 55, 150))
     for dx in (-0.72, 0.72):
         d.line([px(tx + dx, Z0), px(tx + dx, Z1)], fill=(210, 210, 215), width=1)
-z = -292.5
-while z <= 292.5:                                                                  # pórticos
-    if all(abs(z - cz) >= half + 1.5 for cz, half in TRAIN_CROSSINGS) and Z0 < z < Z1:
+bents = [z for z in (-547.5 + 15 * k for k in range(70)) if z <= 492.5 and all(abs(z - cz) >= half + 1.5 for cz, half in TRAIN_CROSSINGS)]
+for z in bents + TRAIN_EXTRA_BENTS:                                                # pórticos
+    if Z0 < z < Z1:
         d.line([px(TRAIN_W, z), px(TRAIN_E, z)], fill=C["train"], width=2)
         for x in (TRAIN_W, TRAIN_E):
             rect(x, z, 0.8, 0.8, (40, 45, 42))
-    z += 15
-for side, track in ((-1, 106.5), (1, 113.5)):                                     # andenes y escaleras
-    inner, outer = track + side * 1.55, track + side * 5.4
-    box(min(inner, outer), STATION_Z0, max(inner, outer), STATION_Z1, (190, 186, 175), outline=(90, 90, 90))
-    sx = outer + side * 0.65
-    box(sx - 0.6, STATION_Z0 + 6, sx + 0.6, STATION_Z0 + 6 + 9.45 * 1.25, (120, 125, 120))
+for z0_st, z1_st in ((STATION_Z0, STATION_Z1), (-390, -330)):                   # las dos estaciones
+    for side, track in ((-1, 106.5), (1, 113.5)):                                 # andenes y escaleras
+        inner, outer = track + side * 1.55, track + side * 5.4
+        box(min(inner, outer), z0_st, max(inner, outer), z1_st, (190, 186, 175), outline=(90, 90, 90))
+        sx = outer + side * 0.65
+        box(sx - 0.6, z0_st + 6, sx + 0.6, z0_st + 6 + 9.45 * 1.25, (120, 125, 120))
 label(110, 50, "ESTACIÓN", F_S)
+label(110, -345, "ESTACIÓN" + chr(10) + "SUR", F_S)
 label(110, 150, "tren\nelevado", F_S)
 label(110, -25, "tren\nelevado", F_S)
 
@@ -830,8 +945,8 @@ label(110, -25, "tren\nelevado", F_S)
 YARD_C = dict(gravel=(122, 116, 106), track=(84, 66, 52), shed=(132, 140, 132), container=(150, 80, 60), train=(176, 178, 182))
 box(YARD_MIN_X, YARD_SOUTH_Z, YARD_MAX_X, YARD_NORTH_Z, YARD_C["gravel"])
 box(YARD_WEST_X, YARD_SOUTH_Z, YARD_MIN_X, YARD_WEST_STEP_Z, YARD_C["gravel"])
-box(100, Z0, 103, -90, C["sidewalk"])
-box(-103, Z0, -100, -110, C["sidewalk"])
+box(100, -300, 103, -90, C["sidewalk"])
+box(-103, -300, -100, -110, C["sidewalk"])
 
 
 def ypoly(corners, fill, outline=None, width=1):
@@ -942,7 +1057,7 @@ def poly(pts, fill, outline=None, width=1):
     d.polygon([px(x, z) for x, z in pts], fill=fill, outline=outline, width=width)
 
 
-box(250, Z0, X1, 298, C["lawn"])                                                     # al este de las casas: suelo sin nada
+box(250, -90, X1, 298, C["lawn"])                                                    # al este de las casas: suelo sin nada
 NB_LAWNS = [(-300, 298, -264.5, NORTH_WALL), (-249.5, 300.5, -120, 381), (-249.5, 409, -120, 483.5),
             (-100.5, 300.5, -47.5, 381), (-32.5, 300.5, ls - 381, 381), (-100.5, 409, -47.5, 483.5),
             (120, 300.5, 204.5, 381), (219.5, 298, 299.5, 381), (219.5, 409, 299.5, 483.5), (120, 409, 204.5, 483.5)]
@@ -1074,8 +1189,8 @@ for t in range(-296, int(road_x - ROAD / 2 - 12) + 1, MAIN_POLE_STEP):
     if abs(t + road_x) > ROAD / 2 + 3.5:
         dot(t, road_z + pole_off, 3, C["pole"], outline=(40, 25, 10))
         dot(t, -road_z - pole_off, 3, C["pole"], outline=(40, 25, 10))
-for t in range(-296, 297, MAIN_POLE_STEP):
-    if min(abs(t - road_z), abs(t + road_z)) > ROAD / 2 + 3.5:
+for t in range(-477, 297, MAIN_POLE_STEP):
+    if min(abs(t - k) for k in (road_z, -road_z, -319, -460, -475)) > ROAD / 2 + 3.5:
         dot(-road_x - pole_off, t, 3, C["pole"], outline=(40, 25, 10))
 
 # ---------- Cuadrícula y ejes ----------
@@ -1083,7 +1198,7 @@ for gx in range(-300, X1, 20):
     x_, _ = px(gx, 0)
     d.line([(x_, px(0, Z1)[1]), (x_, px(0, Z0)[1])], fill=C["grid"] + (40,), width=1)
     d.text((x_, px(0, Z0)[1] + 6), str(gx), font=F_S, fill=C["text"], anchor="mt")
-for gz in range(-220, Z1 - 1, 20):
+for gz in range(-500, Z1 - 1, 20):
     _, y_ = px(0, gz)
     d.line([(px(X0, 0)[0], y_), (px(X1, 0)[0], y_)], fill=C["grid"] + (40,), width=1)
     d.text((px(X0, 0)[0] - 6, y_), str(gz), font=F_S, fill=C["text"], anchor="rm")
@@ -1140,6 +1255,7 @@ legend("dot", C["pole"], "poste de madera con cables")
 legend("dot", (40, 200, 90), "semáforo (cruces de las calles grandes)", outline=(20, 20, 20))
 legend("dot", C["bollard"], "pilonas rojas (fin de calle)")
 legend("rect", C["bus"], "parada de bus")
+legend("line", (40, 90, 200), "autobús 52 (vuelta a la manzana) y sus paradas")
 legend("dot", C["tree"], "árbol de acera (posición aprox.)")
 legend("rect", C["snow"], "restos de nieve")
 legend("hatch", C["weeds"], "maleza alta / solar vacío")

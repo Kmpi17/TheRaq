@@ -26,6 +26,7 @@ if (input.Interact.WasPressedThisFrame()) { ... }
 | `Cover` | Button | Q, rightShoulder | `PlayerCover` |
 | `Crouch` | Button | C, leftStickPress (pulsar el stick izquierdo) | `PlayerMovement` (agacharse o levantarse, alterna) |
 | `Inventory` | Button | Tab, select | `PlayerInventory` |
+| `Horn` | Button | H, rightStickPress | `VehicleController` (claxon, mientras se mantiene) |
 | `WeaponScroll` | Axis | rueda del ratón, cruceta ← → | `PlayerInventory` |
 
 Algunas comparten tecla porque no se usan a la vez: `Climb` y `Handbrake` (a pie / en coche) y `Cover` y `Handbrake` en el mando. `Interact` (F) también sirve para grabar en el estudio.

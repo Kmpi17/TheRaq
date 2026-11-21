@@ -18,6 +18,6 @@
 
 Para no meter árboles ni basura dentro de los edificios, `DistrictOccupiedAreas` devuelve los rectángulos ocupados (edificios, caminos, cancha, plaza, contenedores, coche) y `RandomLawnPoint` busca un punto libre en el césped.
 
-Helpers: `EmissiveMat`, `PlaceLitter`, `FenceSegment` (tramo de valla entre dos puntos con postes y barandilla), `Bench`, `TrashCan`, `Dumpster`, `GarbageBag`, `Decal` (quad horizontal transparente), `WallGraffiti`, `Strut` (barra entre dos puntos), `CutoutMat` y `TransparentMat`.
+Helpers: `EmissiveMat`, `PlaceLitter`, `FenceSegment` (tramo de valla entre dos puntos con postes y barandilla; el panel lleva `BreakableFence` con sus postes y barandilla, para que un coche lo rompa, salvo en el borde del mundo, `FenceOnWorldEdge`), `Bench` (con `BreakableProp`), `Bench`, `TrashCan`, `Dumpster`, `GarbageBag`, `Decal` (quad horizontal transparente), `WallGraffiti`, `Strut` (barra entre dos puntos), `CutoutMat` y `TransparentMat`.
 
 Los números aleatorios usan semillas fijas (`System.Random(7/42/77/99/123/314/315/808/909/2012)`), así que regenerar la escena da siempre el mismo resultado.

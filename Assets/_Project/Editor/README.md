@@ -11,6 +11,8 @@ Este README es el **índice**: arriba va lo general (archivos, orden de `Build()
 - `PrototypeSceneBuilder.HousesNorth.cs`: ampliación de los barrios de casas hacia el norte (z hasta 298), a los dos lados de la avenida.
 - `PrototypeSceneBuilder.North.cs` y `.NorthBuildings.cs`: barrio norte (z 298…500): bulevar, diagonal, mini centro comercial, parque, edificio en cuña, iglesia, torre suelta y terraplén del tren de mercancías con el horizonte detrás.
 - `PrototypeSceneBuilder.FarWest.cs`: oeste lejano, al otro lado de la calle x = −110 (casas, gasolinera, negocios, cancha y descampado).
+- `PrototypeSceneBuilder.South.cs` y `.SouthBuildings.cs`: polígono industrial del sur (z −90…−485): fábrica abandonada con chimenea, desguace, cocheras de autobuses, almacén, frigorífico, vía de mercancías con pasos a nivel, la calle curva S WHARF RD (`ArcStrip`) y el canal con los puentes.
+- `PrototypeSceneBuilder.Traffic.cs`, `.Freight.cs` y `.Ambient.cs`: lo que se mueve (fuera de `Mundo`): la red de calles y los coches del tráfico, el autobús 52 con sus paradas, el tren de mercancías y la parte viva de los pasos a nivel, y el vapor y el humo.
 - `PrototypeSceneBuilder.Highway.cs`: autopista hundida en el borde oeste (x −300…−275), con puentes, túnel y tráfico.
 - `PrototypeSceneBuilder.School.cs`: instituto entre la autopista y la calle x = −110.
 - `PrototypeSceneBuilder.Training.cs`: zona de prácticas junto al inicio (dianas y objetos para recoger).
@@ -92,6 +94,8 @@ Menú **GTAChiraq > Construir escena prototipo**. Genera `Assets/_Project/Scenes
 | [oeste-lejano.md](Docs/oeste-lejano.md) | Oeste lejano: `FarWest.cs` |
 | [norte.md](Docs/norte.md) | Barrio norte: `North.cs`, `NorthBuildings.cs` (incluye `Prism`, para formas no alineadas con los ejes) |
 | [autopista.md](Docs/autopista.md) | Autopista hundida: `Highway.cs` |
+| [trafico.md](Docs/trafico.md) | Tráfico de la ciudad, tren de mercancías y ambiente: `Traffic.cs`, `Freight.cs`, `Ambient.cs` |
+| [sur.md](Docs/sur.md) | Polígono industrial del sur: `South.cs`, `SouthBuildings.cs` (incluye `ArcStrip`, para calles y aceras curvas, y `Semi`, camiones) |
 | [instituto.md](Docs/instituto.md) | Instituto: `School.cs` |
 | [tiempo.md](Docs/tiempo.md) | Hora y tiempo: `Weather.cs` |
 | [capturas.md](Docs/capturas.md) | Capturas in-game: `IngameScreenshots.cs` |

@@ -30,6 +30,8 @@ namespace GTAChiraq
         /// <summary>Agacharse o levantarse (alterna).</summary>
         public readonly InputAction Crouch;
         public readonly InputAction Inventory;
+        /// <summary>Claxon del coche.</summary>
+        public readonly InputAction Horn;
         /// <summary>Eje: positivo, arma siguiente; negativo, la anterior (rueda del ratón o cruceta).</summary>
         public readonly InputAction WeaponScroll;
 
@@ -59,11 +61,12 @@ namespace GTAChiraq
             Cover = Button("Cover", "<Keyboard>/q", "<Gamepad>/rightShoulder");
             Crouch = Button("Crouch", "<Keyboard>/c", "<Gamepad>/leftStickPress");
             Inventory = Button("Inventory", "<Keyboard>/tab", "<Gamepad>/select");
+            Horn = Button("Horn", "<Keyboard>/h", "<Gamepad>/rightStickPress");
             WeaponScroll = new InputAction("WeaponScroll", InputActionType.Value, expectedControlType: "Axis");
             WeaponScroll.AddBinding("<Mouse>/scroll/y");
             WeaponScroll.AddCompositeBinding("1DAxis").With("Positive", "<Gamepad>/dpad/right").With("Negative", "<Gamepad>/dpad/left");
 
-            all = new[] { Move, LookMouse, LookStick, Climb, Sprint, Interact, Handbrake, Attack, Aim, Reload, Cover, Crouch, Inventory, WeaponScroll };
+            all = new[] { Move, LookMouse, LookStick, Climb, Sprint, Interact, Handbrake, Attack, Aim, Reload, Cover, Crouch, Inventory, Horn, WeaponScroll };
             foreach (var action in all) action.Enable();
         }
 

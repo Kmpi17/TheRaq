@@ -11,3 +11,4 @@ La avenida que separa la manzana central de los barrios es la avenida principal.
 - **Trenes:** dos trenes de 4 vagones de acero plateado con franja granate y sin logotipos.
   - Uno va hacia el norte por la vía este y el otro hacia el sur por la vía oeste.
   - Cada uno se para unos 10 s en la estación, sigue hasta perderse en la niebla y vuelve a pasar al rato.
+- **Estación sur** (2026-11-17) entre z = −390 y −330, en el polígono industrial: igual que la otra, con sus escaleras a las aceras de S MARLOW AVE. Los trenes paran en las dos. Al sur, el elevado cruza el canal con celosías de acero junto al puente fijo cortado y sigue hasta perderse en la niebla.

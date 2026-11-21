@@ -48,8 +48,8 @@ namespace GTAChiraq.Editor
             float h = RoadWidth / 2f, avenueEast = MainRoadX + h;
             AddMain(Rect.MinMaxRect(-MainRoadHalfLength, MainRoadZ - h, avenueEast, MainRoadZ + h), "W BRAXTON ST");    // norte, z = 80
             AddMain(Rect.MinMaxRect(-MainRoadHalfLength, -MainRoadZ - h, avenueEast, -MainRoadZ + h), "W ASHGROVE ST"); // sur, z = −80
-            AddMain(Rect.MinMaxRect(MainRoadX - h, -MainRoadHalfLength, MainRoadX + h, WorldNorthZ), "S MARLOW AVE");   // avenida
-            AddMain(Rect.MinMaxRect(-MainRoadX - h, -MainRoadHalfLength, -MainRoadX + h, WorldNorthZ), "S CALDER AVE"); // oeste, x = −110
+            AddMain(Rect.MinMaxRect(MainRoadX - h, SouthQuayZ, MainRoadX + h, WorldNorthZ), "S MARLOW AVE");   // avenida
+            AddMain(Rect.MinMaxRect(-MainRoadX - h, SouthQuayZ, -MainRoadX + h, WorldNorthZ), "S CALDER AVE"); // oeste, x = −110
 
             // Barrio de casas este (Larkin): A, B y C (C1 y C2; el quiebro Cq no cuenta).
             AddLocal(HousesRoads[0], "W LARKIN ST");
@@ -80,6 +80,7 @@ namespace GTAChiraq.Editor
             // Barrio norte (North.cs): bulevar, calle del borde, J, G, la nueva norte–sur y la calle sin salida. La diagonal no
             // es un rectángulo: su detalle lo pone BuildNorthStreetDetail.
             foreach (var (r, n, sidewalk) in NorthBandStreets()) AddLocal(r, n, sidewalk);
+            foreach (var (r, n, sidewalk) in SouthBandStreets()) AddLocal(r, n, sidewalk); // polígono industrial (South.cs)
             return list;
         }
 
@@ -149,6 +150,7 @@ namespace GTAChiraq.Editor
             BuildSpeedLimitSigns(group, streets, rng);
             BuildLocalSewers(group, streets, rng);
             BuildNorthStreetDetail(group); // la diagonal y los semáforos del bulevar (North.cs)
+            BuildSouthStreetDetail(group); // pasos a nivel, la curva y los puentes levadizos (South.cs)
         }
 
         static Material CullBack(Material m)
@@ -233,6 +235,7 @@ namespace GTAChiraq.Editor
             var right = new Vector3(facing.z, 0f, -facing.x);
             NameBlades(root, Vector3.up * 3.12f, right, street.Name);   // a lo largo de su calle
             NameBlades(root, Vector3.up * 3.36f, facing, cross.Name);   // a lo largo de la otra
+            root.gameObject.AddComponent<BreakableProp>().Configure(BreakableProp.Kind.Metal, 30f);
         }
 
         /// <summary>Placa verde de nombre de calle a doble cara, a lo largo de la dirección perpendicular a <paramref name="normal"/>.</summary>
@@ -259,7 +262,12 @@ namespace GTAChiraq.Editor
             Primitive(PrimitiveType.Sphere, "Tapa", root, Vector3.up * 0.72f, new Vector3(0.24f, 0.16f, 0.24f), sdHydrant, keepCollider: false);
             Primitive(PrimitiveType.Cylinder, "Boca", root, Vector3.up * 0.45f, new Vector3(0.1f, 0.22f, 0.1f), sdHydrant, keepCollider: false)
                 .transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            if (!sdSpray) sdSpray = ParticleMat("Vapor", ProceduralTextures.Puff());
+            root.gameObject.AddComponent<BreakableProp>().Configure(BreakableProp.Kind.Hydrant, 90f, sdSpray);
         }
+
+        /// <summary>Material del chorro de agua de las bocas de incendio rotas (el mismo que el vapor).</summary>
+        static Material sdSpray;
 
         // ---------- Semáforos ----------
 
@@ -268,8 +276,12 @@ namespace GTAChiraq.Editor
         /// para cada dirección (mirando a los coches que llegan desde el otro lado), semáforos de peatones y, en dos
         /// esquinas, las placas con los nombres. Cada cruce lleva un <see cref="TrafficLight"/>; van fuera de "Mundo".
         /// </summary>
+        /// <summary>Cruces con semáforo (centro y su <see cref="TrafficLight"/>), para el tráfico (Traffic.cs).</summary>
+        static readonly List<(Vector2 center, TrafficLight light)> signalJunctions = new List<(Vector2, TrafficLight)>();
+
         static void BuildTrafficSignals(List<Street> streets)
         {
+            signalJunctions.Clear();
             var all = new GameObject("Semaforos").transform;
             float h = RoadWidth / 2f;
             int index = 0;
@@ -289,7 +301,9 @@ namespace GTAChiraq.Editor
                         SignalPost(junction, p, sx, sz, sx == sz ? (xName, zName) : default);
                         break;
                     }
-                junction.gameObject.AddComponent<TrafficLight>().Configure(index * 11.5f);
+                var light = junction.gameObject.AddComponent<TrafficLight>();
+                light.Configure(index * 11.5f);
+                signalJunctions.Add((new Vector2(x, z), light));
                 index++;
             }
         }
@@ -299,6 +313,7 @@ namespace GTAChiraq.Editor
             var root = new GameObject("PosteSemaforo").transform;
             root.SetParent(junction, false);
             root.localPosition = ground;
+            root.gameObject.AddComponent<BreakableProp>().Configure(BreakableProp.Kind.Metal, 140f);
             Primitive(PrimitiveType.Cylinder, "Poste", root, new Vector3(0f, 2.3f, 0f), new Vector3(0.13f, 2.3f, 0.13f), sdSignalBody, keepCollider: true);
             Primitive(PrimitiveType.Cylinder, "Base", root, new Vector3(0f, 0.15f, 0f), new Vector3(0.3f, 0.15f, 0.3f), sdSignalBody, keepCollider: false);
 
@@ -411,7 +426,7 @@ namespace GTAChiraq.Editor
             {
                 (true, MainRoadZ, 1f, new[] { -MainRoadX }, -MainRoadHalfLength + 4f, MainRoadX - h - 12f),
                 (true, -MainRoadZ, -1f, new[] { -MainRoadX }, -MainRoadHalfLength + 4f, MainRoadX - h - 12f),
-                (false, -MainRoadX, -1f, new[] { -MainRoadZ, MainRoadZ, BoulevardZ }, -MainRoadHalfLength + 4f, NorthWallZ - 6f),
+                (false, -MainRoadX, -1f, new[] { SouthDockZ, SouthFreightZ, GantryZ, -MainRoadZ, MainRoadZ, BoulevardZ }, SouthQuayZ + 8f, NorthWallZ - 6f),
             };
             foreach (var (alongX, center, side, crossings, t0, t1) in lines)
             {
@@ -464,7 +479,7 @@ namespace GTAChiraq.Editor
             float h = RoadWidth / 2f;
             foreach (var (_, alongX, center, crossings, end) in MainRoadsList())
                 foreach (float side in new[] { 1f, -1f })
-                    for (float t = -MainRoadHalfLength + 30f + (side > 0 ? 0f : 60f); t < end - 20f; t += 120f)
+                    for (float t = MainRoadStart(alongX) + 30f + (side > 0 ? 0f : 60f); t < end - 20f; t += 120f)
                     {
                         bool near = false;
                         foreach (float k in crossings) if (Mathf.Abs(t - k) < h + 25f) near = true;
@@ -475,6 +490,7 @@ namespace GTAChiraq.Editor
                         var root = new GameObject("LimiteVelocidad").transform;
                         root.SetParent(group, false);
                         root.localPosition = p;
+                        root.gameObject.AddComponent<BreakableProp>().Configure(BreakableProp.Kind.Metal, 20f);
                         Primitive(PrimitiveType.Cylinder, "Poste", root, Vector3.up * 1.3f, new Vector3(0.06f, 1.3f, 0.06f), sdGalvanized, keepCollider: true);
                         Box("Trasera", root, Vector3.up * 2.15f + normal * 0.04f, new Vector3(0.62f, 0.51f, 0.015f), sdSignBack, collider: false)
                             .transform.localRotation = Quaternion.LookRotation(normal);

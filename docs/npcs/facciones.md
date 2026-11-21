@@ -30,7 +30,7 @@ Todo es inventado: los nombres de los grupos y de los complejos no corresponden 
 - **Avenida y estación:** zona segura entre Ash Block y Kessler (ya no es frontera).
 - **Instituto** (x −275…−120, z −70…70): neutral, coinciden chavales de todos los barrios. A la salida, por la tarde, hay roces con los de Dunmore.
 - **Cocheras** (al sur de z −80): tierra de nadie; escondite, atajo y sitio para pintar trenes, con grafitis de todos.
-- **Sur** (two-flats de la calle sur y el suroeste vacío) y **las zonas nuevas**: libres para las facciones que vengan con la ampliación. El **barrio norte** (z 298…500: bulevar, KINGSLEY PLAZA, HOLLOWAY PARK, bloque con patio, torre suelta) ya está construido y sin facción; de momento solo tiene sitios de paso para civiles.
+- **Sur** (two-flats de la calle sur y el suroeste vacío) y **las zonas nuevas**: libres para las facciones que vengan con la ampliación. El **barrio norte** (z 298…500: bulevar, KINGSLEY PLAZA, HOLLOWAY PARK, bloque con patio, torre suelta) ya está construido y sin facción; de momento solo tiene sitios de paso para civiles. Lo mismo el **polígono industrial del sur** (z −90…−485: fábrica abandonada, desguace, almacenes, muelle), que además tiene poca gente a propósito.
 
 **Esquinas y lugares habituales** (los `ActivitySpot` con preferencia de cada grupo):
 - **Ash Block:** zona de reunión (barbacoa y canasta), memorial, portal de T2, aparcamiento P2 y la puerta de la tienda de licores (de noche).

@@ -1,12 +1,13 @@
 # World: hora, tiempo y elementos decorativos que se mueven
 
 ## `ElevatedTrain`
-Tren elevado decorativo, sin colisiones y sin poderse usar. Mueve su `GameObject` en línea recta de `start` a `end`, mirando en esa dirección. Lo crea y configura `PrototypeSceneBuilder.Train.cs` con `Configure(from, to, station, initialDistance)`.
+Tren elevado decorativo, sin colisiones y sin poderse usar. Mueve su `GameObject` en línea recta de `start` a `end`, mirando en esa dirección. Lo crea y configura `PrototypeSceneBuilder.Train.cs` con `Configure(from, to, station, initialDistance, params moreStations)`.
 
 | Campo | Por defecto | Qué hace |
 |---|---|---|
 | `start`, `end` | — | Extremos del recorrido, en coordenadas del mundo. Tienen que quedar más allá de la niebla. |
 | `stationDistance` | 100 | Distancia desde `start` a la que se para el centro del tren. |
+| `extraStations` | vacío | Otras estaciones del recorrido (distancias desde `start`); para en todas, en orden. |
 | `maxSpeed` | 16 m/s | Velocidad de crucero. |
 | `acceleration` | 1.1 m/s² | Se usa para arrancar y para frenar. |
 | `dwellSeconds` | 10 s | Tiempo parado en la estación. |
@@ -20,7 +21,7 @@ Coche decorativo de la autopista hundida, sin colisiones. Recorre en línea rect
 
 | Campo | Por defecto | Qué hace |
 |---|---|---|
-| `start`, `end` | — | Extremos del carril. Tienen que quedar fuera de la vista: el sur, en la niebla (z −295); el norte, dentro del túnel (z 124). |
+| `start`, `end` | — | Extremos del carril. Tienen que quedar fuera de la vista: el sur, dentro del túnel sur (z −474); el norte, dentro del túnel (z 124). |
 | `speed` | 22 m/s | Velocidad constante. |
 | `startDistance` | 0 | Dónde empieza, para que los coches de un carril vayan separados. |
 
@@ -29,22 +30,29 @@ Coche decorativo de la autopista hundida, sin colisiones. Recorre en línea rect
 **Limitaciones:** no frenan ni cambian de carril y no se ven entre sí (pueden solaparse si sus velocidades son distintas). El salto del final al principio se hace fuera de la vista.
 
 ## `TrafficLight` y `TrafficSignalMath`
-Semáforos de un cruce de las calles grandes. Los crea `PrototypeSceneBuilder.StreetDetail.cs` (uno por cruce, fuera de `Mundo`, que es estático) y los configura con `Configure(segundosDeDesfase)`. En `Awake` busca entre sus hijos las luces por nombre (`Luz_Roja_X`, `Luz_Ambar_X`, `Luz_Verde_X`, `Peaton_Anda_X`, `Peaton_Mano_X` y lo mismo con `_Z`) y en `Update` activa solo las que tocan (y solo cuando cambian).
+Semáforos de un cruce de las calles grandes. El tráfico (`Scripts/Traffic/`) les pregunta el color con `VehicleColor(alongX, secondsAgo)`. Los crea `PrototypeSceneBuilder.StreetDetail.cs` (uno por cruce, fuera de `Mundo`, que es estático) y los configura con `Configure(segundosDeDesfase)`. En `Awake` busca entre sus hijos las luces por nombre (`Luz_Roja_X`, `Luz_Ambar_X`, `Luz_Verde_X`, `Peaton_Anda_X`, `Peaton_Mano_X` y lo mismo con `_Z`) y en `Update` activa solo las que tocan (y solo cuando cambian).
 
 `TrafficSignalMath` es la lógica pura: con `SignalTiming` (verde 18 s, ámbar 3 s, todo rojo 2 s y 6 s de mano parpadeando, por defecto), `Vehicle(t, alongX)` da el color de cada dirección y `Pedestrian(t, alongX)` el semáforo de los peatones que cruzan en paralelo a ella. Primero va X y luego Z; el ciclo dura 46 s. `FlashOn` da el parpadeo (medio segundo de cada segundo).
 
-**Limitaciones:** solo es decorativo: no hay coches que paren ni NPC que esperen, y el ciclo va con `Time.time` (no con la hora del juego).
+**Limitaciones:** los coches del tráfico paran en rojo, pero los NPC no esperan a cruzar; el ciclo va con `Time.time` (no con la hora del juego).
+
+## `FreightTrain` y `FreightRun`
+Tren de mercancías del polígono del sur (lo crea `PrototypeSceneBuilder.Freight.cs`). Cruza de un borde del mundo al otro por la vía norte (`Configure(from, to, z, y, largo, velocidad, xDeLosPasos)`), espera fuera del mundo 45–120 s y vuelve en sentido contrario (lleva una locomotora en cada punta). Pita (largo, largo, corto, largo: `ProceduralSfx.TrainHorn`) a 90 m de cada paso a nivel. Es cinemático, con una caja de colisión en la capa `Vehiculo`, así que el tráfico frena ante él.
+
+`FreightRun` es la lógica pura: `Waiting`, `Step` (espera, sale desde el extremo contrario, avanza y se para al salir entero) y `Blocks(run, largo, x, aviso, margen)`: si el paso de `x` tiene que estar cerrado (la cabeza a menos de `aviso` m o el tren encima, hasta que la cola lo deja `margen` m atrás). Se testea en `Tests/EditMode/FreightRunTests.cs`.
+
+## `LevelCrossing`
+Paso a nivel que funciona. Pregunta a los trenes (`FreightTrain.Approaching`, 85 m de aviso): cerrado, las luces parpadean alternas, suena la campana (`ProceduralSfx.CrossingBell`) y a los 2.5 s las barreras bajan en 5 s. Cuando la cola pasa 6 m, suben. El tráfico mira `Closed` en los tramos que cruzan la vía; `ArmLowered` sirve para los tests.
 
 ## `TrainMotion` (lógica pura)
 `TrainMotion.Step(state, dt, route)` avanza un `TrainState` y devuelve el nuevo estado. Las fases son:
-- `Running`: el tren arranca a velocidad de crucero y frena con `v = √(2·a·d)` (mínimo 0.6 m/s) hasta pararse justo en la estación.
+- `Running`: el tren arranca a velocidad de crucero y frena con `v = √(2·a·d)` (mínimo 0.6 m/s) hasta pararse justo en la siguiente estación (`StationDistance` y `ExtraStations`; `TrainState.LastStop` guarda la última hecha y las que quedan detrás del punto de salida cuentan como hechas).
 - `Dwelling`: espera en la estación.
 - `Waiting`: espera al final del recorrido y vuelve a empezar en la distancia 0.
 
 No depende de la escena; se testea en `Tests/EditMode/TrainMotionTests.cs`.
 
 **Limitaciones:**
-- Solo hay una estación por recorrido.
 - El recorrido es una línea recta, sin curvas.
 - No hay sonido.
 

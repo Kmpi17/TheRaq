@@ -17,15 +17,20 @@ namespace GTAChiraq.Editor
         const float TrainColumnHeight = 6.6f;                  // gálibo libre bajo la viga
         const float TrainRailTop = 8.66f;                      // altura de la cara superior del raíl
         const float TrainBentSpacing = 15f;
-        const float TrainTrackStartZ = -340f, TrainTrackEndZ = 540f; // más allá de la niebla (fin a 260 m); al norte, por encima del terraplén
+        const float TrainTrackStartZ = -560f, TrainTrackEndZ = 540f; // al sur, más allá del canal; al norte, por encima del terraplén
         static readonly float[] TrainTracksX = { 106.5f, 113.5f };   // vía sur (oeste) y vía norte (este)
 
         // Estación: andenes laterales de z StationZ0 a StationZ1.
         const float StationZ0 = 4f, StationZ1 = 68f, PlatformTop = 9.6f;
         static float StationCenterZ => (StationZ0 + StationZ1) / 2f;
+        // Segunda estación, en el polígono industrial (South.cs): al norte de S WHARF RD, sin tocar W GANTRY ST.
+        const float SouthStationZ0 = -390f, SouthStationZ1 = -330f;
+        static float SouthStationCenterZ => (SouthStationZ0 + SouthStationZ1) / 2f;
+        // Pórticos de más en el sur: entre la vía de mercancías y Dock, y en los dos estribos del canal (la celosía salva el agua).
+        static readonly float[] TrainExtraBents = { -467f, -484f, -511f };
 
         // Calles que pasan por debajo (centro z, media anchura): ahí no se ponen pórticos.
-        static readonly (float z, float half)[] TrainCrossings = { (80f, 7f), (-80f, 7f), (0f, 6f), (122f, 5f), (188f, 5f), (128f, 5f), (194f, 5f), (253f, 5f), (293f, 5f), (318f, 8f), (395f, 11.5f), (439.5f, 4.5f), (491f, 5f) }; // 128 y 194: calles C1 y A de la copia oeste; 253 y 293: F/Fe y H de la ampliación norte; 318, 395 y 491: diagonal, bulevar y calle del borde del barrio norte; 439.5: entrada del centro comercial
+        static readonly (float z, float half)[] TrainCrossings = { (80f, 7f), (-80f, 7f), (0f, 6f), (122f, 5f), (188f, 5f), (128f, 5f), (194f, 5f), (253f, 5f), (293f, 5f), (318f, 8f), (395f, 11.5f), (439.5f, 4.5f), (491f, 5f), (-319f, 5f), (-410f, 7.5f), (-460f, 6f), (-477.5f, 7.5f), (-497.5f, 12.5f) }; // 128 y 194: calles C1 y A de la copia oeste; 253 y 293: F/Fe y H de la ampliación norte; 318, 395 y 491: diagonal, bulevar y calle del borde del barrio norte; 439.5: entrada del centro comercial; −319, −410, −460, −477.5 y −497.5: Gantry, Wharf, vía de mercancías, Dock y canal (South.cs)
 
         static void BuildElevatedTrain(Transform world)
         {
@@ -44,9 +49,11 @@ namespace GTAChiraq.Editor
 
             // Pórticos.
             int bent = 0;
-            for (float z = -292.5f; z <= 492.5f; z += TrainBentSpacing)
+            var bentZ = new List<float>(TrainExtraBents);
+            for (float z = -547.5f; z <= 492.5f; z += TrainBentSpacing)
+                if (!UnderCrossing(z)) bentZ.Add(z);
+            foreach (float z in bentZ)
             {
-                if (UnderCrossing(z)) continue;
                 var root = new GameObject("Portico").transform;
                 root.SetParent(group, false);
                 root.localPosition = new Vector3(0f, 0f, z);
@@ -83,7 +90,9 @@ namespace GTAChiraq.Editor
                     fence, new Vector2(ProceduralTextures.IronFenceWidth, ProceduralTextures.IronFenceHeight), collider: false, sidesOnly: true);
             }
 
-            BuildTrainStation(group, steel, concrete, fence);
+            BuildTrainStation(group, steel, concrete, fence, StationZ0, StationZ1, "Estacion");
+            BuildTrainStation(group, steel, concrete, fence, SouthStationZ0, SouthStationZ1, "Estacion_Sur");
+            BuildCanalTruss(group, steel);
             BuildTrains();
         }
 
@@ -96,9 +105,36 @@ namespace GTAChiraq.Editor
 
         // ---------- Estación ----------
 
-        static void BuildTrainStation(Transform parent, Material steel, Material concrete, Material fence)
+        /// <summary>Celosías de acero a los dos lados del tablero sobre el canal, entre los pórticos de los estribos.</summary>
+        static void BuildCanalTruss(Transform parent, Material steel)
         {
-            var root = new GameObject("Estacion").transform;
+            var root = new GameObject("CelosiaCanal").transform;
+            root.SetParent(parent, false);
+            float z0 = TrainExtraBents[2], z1 = TrainExtraBents[1];
+            float bottom = TrainColumnHeight + 0.7f, top = bottom + 4.2f;
+            foreach (float side in new[] { -1f, 1f })
+            {
+                float x = TrainAxisX + side * 8.3f;
+                Box("CordonInferior", root, new Vector3(x, bottom, (z0 + z1) / 2f), new Vector3(0.5f, 0.6f, z1 - z0), steel, collider: false);
+                Box("CordonSuperior", root, new Vector3(x, top, (z0 + z1) / 2f), new Vector3(0.5f, 0.5f, z1 - z0 - 3f), steel, collider: false);
+                float step = (z1 - z0) / 8f;
+                for (int i = 0; i <= 8; i++)
+                {
+                    float z = z0 + i * step;
+                    float yTop = i == 0 || i == 8 ? bottom + 1f : top;
+                    Strut("Montante", root, new Vector3(x, bottom, z), new Vector3(x, yTop, z), 0.3f, steel);
+                    if (i < 8) Strut("Diagonal", root, new Vector3(x, i % 2 == 0 ? bottom : top, z), new Vector3(x, i % 2 == 0 ? top : bottom, z + step), 0.25f, steel);
+                }
+                Strut("Portico", root, new Vector3(x, bottom, z0), new Vector3(x, top, z0 + 1.5f), 0.3f, steel);
+                Strut("Portico", root, new Vector3(x, bottom, z1), new Vector3(x, top, z1 - 1.5f), 0.3f, steel);
+            }
+            for (float z = z0 + 3f; z < z1 - 2f; z += 5f)
+                Box("Arriostramiento", root, new Vector3(TrainAxisX, top + 0.2f, z), new Vector3(16.6f, 0.25f, 0.3f), steel, collider: false);
+        }
+
+        static void BuildTrainStation(Transform parent, Material steel, Material concrete, Material fence, float z0, float z1, string name)
+        {
+            var root = new GameObject(name).transform;
             root.SetParent(parent, false);
             var platformMat = Mat("AndenHormigon", new Color(0.55f, 0.54f, 0.51f));
             var edge = Mat("BordeAnden", new Color(0.85f, 0.7f, 0.15f));
@@ -106,7 +142,7 @@ namespace GTAChiraq.Editor
             var glow = EmissiveMat("LuzAnden", new Color(1f, 0.92f, 0.75f), 1.5f);
             var wood = Mat("MaderaBanco", new Color(0.36f, 0.24f, 0.14f));
             var sign = Mat("Letrero", new Color(0.1f, 0.25f, 0.6f));
-            float len = StationZ1 - StationZ0, cz = StationCenterZ;
+            float len = z1 - z0, cz = (z0 + z1) / 2f;
 
             foreach (float side in new[] { -1f, 1f })
             {
@@ -116,13 +152,13 @@ namespace GTAChiraq.Editor
                 float px = (inner + outer) / 2f, pw = Mathf.Abs(outer - inner);
                 Box("Anden", root, new Vector3(px, PlatformTop - 0.2f, cz), new Vector3(pw, 0.4f, len), platformMat);
                 Box("BordeAmarillo", root, new Vector3(inner + side * 0.3f, PlatformTop + 0.005f, cz), new Vector3(0.6f, 0.01f, len), edge, collider: false);
-                // Barandilla exterior, abierta junto al rellano de la escalera (z StationZ0 + 3.9 … + 6.1).
-                foreach (var (z0, z1) in new[] { (StationZ0, StationZ0 + 3.9f), (StationZ0 + 6.1f, StationZ1) })
-                    TexturedBox("BarandillaAnden", root, new Vector3(outer - side * 0.05f, PlatformTop + 0.55f, (z0 + z1) / 2f), new Vector3(0.03f, 1.1f, z1 - z0),
+                // Barandilla exterior, abierta junto al rellano de la escalera (z z0 + 3.9 … + 6.1).
+                foreach (var (a, b) in new[] { (z0, z0 + 3.9f), (z0 + 6.1f, z1) })
+                    TexturedBox("BarandillaAnden", root, new Vector3(outer - side * 0.05f, PlatformTop + 0.55f, (a + b) / 2f), new Vector3(0.03f, 1.1f, b - a),
                         fence, new Vector2(ProceduralTextures.IronFenceWidth, ProceduralTextures.IronFenceHeight), sidesOnly: true);
 
                 // Pilares propios del andén y marquesina.
-                for (float z = StationZ0 + 2f; z <= StationZ1 - 2f; z += 8f)
+                for (float z = z0 + 2f; z <= z1 - 2f; z += 8f)
                 {
                     Box("PilarAnden", root, new Vector3(outer - side * 0.2f, (PlatformTop - 0.4f) / 2f, z), new Vector3(0.35f, PlatformTop - 0.4f, 0.35f), steel);
                     Box("PosteMarquesina", root, new Vector3(outer - side * 0.6f, PlatformTop + 1.5f, z), new Vector3(0.15f, 3f, 0.15f), steel, collider: false);
@@ -139,7 +175,7 @@ namespace GTAChiraq.Editor
                 // Pared invisible en el borde de las vías: desde el andén no se puede bajar al tablero (no tiene colisión).
                 ColliderBox(root, "LimiteVias", new Vector3(inner - side * 0.05f, PlatformTop + 1f, cz), new Vector3(0.1f, 2f, len));
 
-                StationStairs(root, outer, side, steel, platformMat, fence);
+                StationStairs(root, outer, side, steel, platformMat, fence, z0);
             }
         }
 
@@ -152,11 +188,11 @@ namespace GTAChiraq.Editor
         /// Escalera de acero hasta la acera, por fuera del andén y bajando hacia el norte, con rellano arriba (se entra
         /// por el hueco de la barandilla del andén, z StationZ0 + 3.9 … + 6.1). Se puede subir a pie.
         /// </summary>
-        static void StationStairs(Transform root, float outer, float side, Material steel, Material platformMat, Material fence)
+        static void StationStairs(Transform root, float outer, float side, Material steel, Material platformMat, Material fence, float stationZ0)
         {
             float stairX = outer + side * (StairWidth / 2f + 0.05f);
             float rise = PlatformTop - SidewalkTop;
-            var top = new Vector3(stairX, PlatformTop, StationZ0 + 6f);
+            var top = new Vector3(stairX, PlatformTop, stationZ0 + 6f);
             var bottom = new Vector3(stairX, SidewalkTop, top.z + rise * StairRunPerRise);
             var along = (bottom - top).normalized;
             var normal = Vector3.Cross(along, Vector3.Cross(Vector3.up, along)).normalized; // perpendicular a la rampa, hacia arriba
@@ -267,9 +303,9 @@ namespace GTAChiraq.Editor
             var southEnd = new Vector3(southTrack, TrainRailTop, TrainTrackStartZ);
 
             var north = Train("TrenElevado_Norte", body, dark, windows, doors, stripe, headlight);
-            north.AddComponent<ElevatedTrain>().Configure(northStart, northEnd, StationCenterZ - TrainTrackStartZ, 120f);
+            north.AddComponent<ElevatedTrain>().Configure(northStart, northEnd, StationCenterZ - TrainTrackStartZ, 340f, SouthStationCenterZ - TrainTrackStartZ);
             var south = Train("TrenElevado_Sur", body, dark, windows, doors, stripe, headlight);
-            south.AddComponent<ElevatedTrain>().Configure(southStart, southEnd, TrainTrackEndZ - StationCenterZ, 0f);
+            south.AddComponent<ElevatedTrain>().Configure(southStart, southEnd, TrainTrackEndZ - StationCenterZ, 0f, TrainTrackEndZ - SouthStationCenterZ);
         }
 
         static GameObject Train(string name, Material body, Material dark, Material windows, Material doors, Material stripe, Material headlight, int cars = 4)

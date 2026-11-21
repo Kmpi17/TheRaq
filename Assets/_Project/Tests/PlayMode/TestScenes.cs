@@ -19,7 +19,9 @@ namespace GTAChiraq.Tests
             for (int i = SceneManager.sceneCount - 1; i >= 0; i--)
             {
                 var s = SceneManager.GetSceneAt(i);
-                if (s != fresh && s.isLoaded)
+                // La escena del propio Test Runner (InitTestScene…) no se toca: sin ella el test no acaba nunca
+                // (pasaba al lanzar solo un test que empieza por Fresh).
+                if (s != fresh && s.isLoaded && !s.name.StartsWith("InitTestScene"))
                 {
                     var op = SceneManager.UnloadSceneAsync(s);
                     while (op != null && !op.isDone) yield return null;

@@ -37,6 +37,10 @@ namespace GTAChiraq.Editor
         // Borde norte del mundo: el barrio norte (North.cs) llega hasta el terraplén del tren de mercancías. Los otros
         // bordes siguen en ±300 hasta que se amplíen (docs/estructuras/pendiente.md).
         const float WorldNorthZ = 500f;
+        // Borde sur: el polígono industrial (South.cs) llega hasta el canal; el suelo acaba en el muelle (SouthQuayZ) y el
+        // agua y la otra orilla siguen hasta WorldSouthZ y más allá, sin colisiones.
+        const float WorldSouthZ = -500f;
+        const float SouthQuayZ = -485f;
         const float DistrictLawnInner = DistrictRoadWidth / 2f + SidewalkWidth; // donde acaba la acera y empieza el césped
         const float DistrictWalkupZ = DistrictLawnInner + 14f;
         const float DistrictTowerZ = 62f;
@@ -73,6 +77,7 @@ namespace GTAChiraq.Editor
             BuildSchool(world);         // PrototypeSceneBuilder.School.cs: instituto entre la autopista y la calle x = −110
             BuildElevatedTrain(world);  // PrototypeSceneBuilder.Train.cs (los trenes quedan fuera de "Mundo": se mueven)
             BuildRailYard(world);       // PrototypeSceneBuilder.RailYard.cs: cocheras al sur de la calle z = −80 (usa los materiales del tren)
+            BuildSouthBand(world);      // PrototypeSceneBuilder.South.cs: polígono industrial y canal, z −90…−500 (usa los materiales de las cocheras)
             BuildStreetLights(world);
             BuildSnow(world);
             BuildMainRoadDetails(world); // PrototypeSceneBuilder.MainRoads.cs: alcantarillas, sumideros, nieve y manchas
@@ -86,6 +91,9 @@ namespace GTAChiraq.Editor
             BuildCamera(player);
             BuildTrainingArea(); // PrototypeSceneBuilder.Training.cs: dianas y objetos junto al inicio (fuera de "Mundo")
             BuildNpcs(world, player); // PrototypeSceneBuilder.Npc.cs: malla de navegación, sitios, plantilla y población (al final: la malla ve todo)
+            BuildFreightTraffic();    // PrototypeSceneBuilder.Freight.cs: tren de mercancías que pasa y pasos a nivel que se cierran
+            BuildCityTraffic();       // PrototypeSceneBuilder.Traffic.cs: red de calles, coches que circulan y autobús (después de la malla y de los pasos a nivel)
+            BuildAmbient(world);      // PrototypeSceneBuilder.Ambient.cs: vapor de alcantarillas y humo de chimeneas
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddSceneToBuild(ScenePath);
@@ -159,7 +167,7 @@ namespace GTAChiraq.Editor
 
             // El suelo acaba en la autopista hundida (x −300…−275): ahí ponen el suelo los puentes y el techo del túnel (Highway.cs).
             // Lleva un hueco para la escalera del estudio del sótano de T1 (Studio.cs).
-            foreach (var r in RectMinus(Rect.MinMaxRect(HighwayMaxX, -300f, 300f, WorldNorthZ), new List<Rect> { StudioStairwell }))
+            foreach (var r in RectMinus(Rect.MinMaxRect(HighwayMaxX, SouthQuayZ, 300f, WorldNorthZ), new List<Rect> { StudioStairwell }))
                 Box("Suelo", world, new Vector3(r.center.x, -0.1f, r.center.y), new Vector3(r.width, 0.2f, r.height), asphalt);
 
             // El césped y la acera de la manzana central los pone BuildTowersBlock (PrototypeSceneBuilder.Towers.cs).
@@ -169,7 +177,7 @@ namespace GTAChiraq.Editor
             float farZ = outerZ + RoadWidth + SidewalkWidth / 2f, farX = outerX + RoadWidth + SidewalkWidth / 2f;
             // Las de enfrente se cortan donde las cruza la otra calle grande (la avenida y la calle x = −110 para las del
             // norte y sur; las calles z = ±80 para la del oeste): si no, quedaría un bordillo atravesando la calzada.
-            var avenueCuts = new List<Rect> { Rect.MinMaxRect(outerX, -300f, outerX + RoadWidth, WorldNorthZ), Rect.MinMaxRect(-outerX - RoadWidth, -300f, -outerX, WorldNorthZ) };
+            var avenueCuts = new List<Rect> { Rect.MinMaxRect(outerX, SouthQuayZ, outerX + RoadWidth, WorldNorthZ), Rect.MinMaxRect(-outerX - RoadWidth, SouthQuayZ, -outerX, WorldNorthZ) };
             // La del norte se corta también en la entrada del aparcamiento de los negocios y en el pasaje al callejón (Shops.cs).
             var northStrip = Rect.MinMaxRect(-300f, farZ - SidewalkWidth / 2f, 300f, farZ + SidewalkWidth / 2f);
             var northCuts = new List<Rect>(avenueCuts) { ShopsLotDriveway, ShopsAlleyLink };
@@ -177,7 +185,8 @@ namespace GTAChiraq.Editor
             foreach (var piece in StripMinus(northStrip, northCuts))
                 Box("AceraEnfrente_N", world, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
             var southStrip = Rect.MinMaxRect(-300f, -farZ - SidewalkWidth / 2f, 300f, -farZ + SidewalkWidth / 2f);
-            foreach (var piece in StripMinus(southStrip, avenueCuts))
+            var southCuts = new List<Rect>(avenueCuts) { SsJ }; // la calle J del polígono industrial sale de la calle sur (South.cs)
+            foreach (var piece in StripMinus(southStrip, southCuts))
                 Box("AceraEnfrente_S", world, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
             // La acera de enfrente este se corta donde entra la calle del barrio de viviendas.
             float cut = DistrictRoadWidth / 2f, half = (300f - cut) / 2f;
@@ -194,12 +203,15 @@ namespace GTAChiraq.Editor
                 north = r.yMax;
             }
             Box("AceraEnfrente_E_N", world, new Vector3(farX, 0.075f, (north + WorldNorthZ) / 2f), new Vector3(SidewalkWidth, 0.15f, WorldNorthZ - north), concrete);
-            Box("AceraEnfrente_E_S", world, new Vector3(farX, 0.075f, -cut - half), new Vector3(SidewalkWidth, 0.15f, half * 2f), concrete);
-            var westStrip = Rect.MinMaxRect(-farX - SidewalkWidth / 2f, -300f, -farX + SidewalkWidth / 2f, WorldNorthZ);
+            // Al sur, hasta el muelle, cortada por las calles y las vías del polígono industrial (South.cs).
+            foreach (var piece in StripMinus(Rect.MinMaxRect(farX - SidewalkWidth / 2f, SouthQuayZ, farX + SidewalkWidth / 2f, -cut), new List<Rect>(SouthBandAvenueCuts)))
+                Box("AceraEnfrente_E_S", world, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
+            var westStrip = Rect.MinMaxRect(-farX - SidewalkWidth / 2f, SouthQuayZ, -farX + SidewalkWidth / 2f, WorldNorthZ);
             var crossStreets = new List<Rect> { Rect.MinMaxRect(-300f, outerZ, 300f, outerZ + RoadWidth), Rect.MinMaxRect(-300f, -outerZ - RoadWidth, 300f, -outerZ) };
             crossStreets.AddRange(FarWestWestSidewalkCuts); // calles D, E, F, H del oeste lejano y entrada de la gasolinera
             crossStreets.AddRange(SchoolDriveways);         // salidas del aparcamiento del instituto (School.cs)
             crossStreets.AddRange(NorthBandAvenueCutsWest); // bulevar, callejón y calle del borde norte (North.cs)
+            crossStreets.AddRange(SouthBandAvenueCuts);     // calles y vías del polígono industrial (South.cs)
             foreach (var piece in StripMinus(westStrip, crossStreets))
                 Box("AceraEnfrente_O", world, new Vector3(piece.center.x, 0.075f, piece.center.y), new Vector3(piece.width, 0.15f, piece.height), concrete);
 
@@ -439,6 +451,7 @@ namespace GTAChiraq.Editor
             light.intensity = 4f;
             light.shadows = LightShadows.None;
             light.gameObject.AddComponent<NightLight>(); // apagada de día, encendida al anochecer
+            root.gameObject.AddComponent<BreakableProp>().Configure(BreakableProp.Kind.Metal, 180f);
         }
 
         static void BuildSnow(Transform world)
@@ -648,56 +661,8 @@ namespace GTAChiraq.Editor
             return go;
         }
 
-        static Mesh BoxMesh(string name, Vector3 size, Vector2 tile, bool sidesOnly)
-        {
-            var faces = new List<(Vector3 normal, Vector3 up)>
-            {
-                (Vector3.forward, Vector3.up), (Vector3.back, Vector3.up),
-                (Vector3.right, Vector3.up), (Vector3.left, Vector3.up),
-            };
-            if (!sidesOnly)
-            {
-                faces.Add((Vector3.up, Vector3.forward));
-                faces.Add((Vector3.down, Vector3.back));
-            }
-
-            var vertices = new List<Vector3>();
-            var normals = new List<Vector3>();
-            var uvs = new List<Vector2>();
-            var triangles = new List<int>();
-            Vector3 half = size / 2f;
-            foreach (var (normal, up) in faces)
-            {
-                // "right" es la derecha de quien mira la cara desde fuera, para que la textura no salga en espejo.
-                Vector3 right = Vector3.Cross(up, -normal);
-                float hn = Mathf.Abs(Vector3.Dot(half, normal));
-                float hr = Mathf.Abs(Vector3.Dot(half, right));
-                float hu = Mathf.Abs(Vector3.Dot(half, up));
-                float tilesU = Mathf.Max(1f, Mathf.Round(2f * hr / tile.x));
-                float tilesV = Mathf.Max(1f, Mathf.Round(2f * hu / tile.y));
-
-                int start = vertices.Count;
-                for (int i = 0; i < 4; i++) // abajo-izq, abajo-der, arriba-der, arriba-izq
-                {
-                    float su = i == 1 || i == 2 ? 1f : 0f;
-                    float sv = i >= 2 ? 1f : 0f;
-                    vertices.Add(normal * hn + right * ((su * 2f - 1f) * hr) + up * ((sv * 2f - 1f) * hu));
-                    normals.Add(normal);
-                    uvs.Add(new Vector2(su * tilesU, sv * tilesV));
-                }
-                // Sentido horario visto desde fuera (cara frontal en Unity).
-                triangles.AddRange(new[] { start, start + 3, start + 2, start, start + 2, start + 1 });
-            }
-
-            var mesh = new Mesh { name = $"{name}_{size.x:0.#}x{size.y:0.#}x{size.z:0.#}" };
-            mesh.SetVertices(vertices);
-            mesh.SetNormals(normals);
-            mesh.SetUVs(0, uvs);
-            mesh.SetTriangles(triangles, 0);
-            mesh.RecalculateBounds();
-            mesh.RecalculateTangents();
-            return mesh;
-        }
+        // La caja con textura repetida está en el código de juego: la usan también las vallas rotas (BreakableFence).
+        static Mesh BoxMesh(string name, Vector3 size, Vector2 tile, bool sidesOnly) => ProceduralMeshes.Box(name, size, tile, sidesOnly);
 
         static void SetReference(Object component, string property, Object value)
         {
@@ -714,7 +679,15 @@ namespace GTAChiraq.Editor
         static void MarkStatic(Transform root)
         {
             foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            {
+                // Lo que un coche puede tumbar tiene que poder moverse: fuera del static batching.
+                if (t.GetComponentInParent<BreakableProp>(true))
+                {
+                    GameObjectUtility.SetStaticEditorFlags(t.gameObject, 0);
+                    continue;
+                }
                 GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.ContributeGI);
+            }
         }
 
         static void AddSceneToBuild(string path)

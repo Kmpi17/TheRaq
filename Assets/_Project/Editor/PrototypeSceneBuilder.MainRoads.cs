@@ -46,6 +46,7 @@ namespace GTAChiraq.Editor
             foreach (var r in NorthWestRoads) Add(r);
             foreach (var r in FarWestRoads) Add(r);
             foreach (var r in NorthBandMouths()) Add(r);
+            foreach (var r in SouthBandMouths()) Add(r);
             foreach (var r in GasDriveways) Add(r);
             foreach (var r in SchoolDriveways) Add(r);
             foreach (var r in TowersDriveways) Add(r);
@@ -55,6 +56,9 @@ namespace GTAChiraq.Editor
         }
 
         /// <summary>Punto de una calle grande: <paramref name="t"/> a lo largo y <paramref name="across"/> desde el eje.</summary>
+        /// <summary>Donde empiezan las calles grandes: las este–oeste en el borde oeste y las norte–sur en el muelle del canal.</summary>
+        static float MainRoadStart(bool alongX) => alongX ? -MainRoadHalfLength : SouthQuayZ;
+
         static Vector3 MainRoadPoint(bool alongX, float center, float t, float across, float y) =>
             alongX ? new Vector3(t, y, center + across) : new Vector3(center + across, y, t);
 
@@ -75,7 +79,7 @@ namespace GTAChiraq.Editor
 
             foreach (var (name, alongX, center, crossings, end) in MainRoadsList())
             {
-                float t = -MainRoadHalfLength;
+                float t = MainRoadStart(alongX);
                 foreach (float k in crossings)
                 {
                     float arrive = k - half - RoadWidth;
@@ -162,7 +166,7 @@ namespace GTAChiraq.Editor
                 float yaw = alongX ? 90f : 0f;
 
                 // Tapas de alcantarilla en el centro de un carril, cada ~50 m, fuera de los cruces y de los pasos de cebra.
-                for (float t = -MainRoadHalfLength + 20f; t < end - 10f; t += Range(rng, 40f, 60f))
+                for (float t = MainRoadStart(alongX) + 20f; t < end - 10f; t += Range(rng, 40f, 60f))
                 {
                     if (NearCrossing(t, RoadWidth + 2f)) continue;
                     float across = (rng.Next(2) == 0 ? -1f : 1f) * (rng.Next(2) == 0 ? 1.8f : 5.1f);
@@ -173,7 +177,7 @@ namespace GTAChiraq.Editor
 
                 // Sumideros junto a los dos bordillos, con una mancha de suciedad alrededor.
                 foreach (float side in new[] { 1f, -1f })
-                    for (float t = -MainRoadHalfLength + 15f + Range(rng, 0f, 20f); t < end - 5f; t += Range(rng, 35f, 50f))
+                    for (float t = MainRoadStart(alongX) + 15f + Range(rng, 0f, 20f); t < end - 5f; t += Range(rng, 35f, 50f))
                     {
                         if (NearCrossing(t, 1f) || AtMouth(alongX, center, t, side)) continue;
                         var drain = Box("Sumidero", group, MainRoadPoint(alongX, center, t, side * (half - 0.3f), MainRoadTop + 0.006f),
@@ -187,7 +191,7 @@ namespace GTAChiraq.Editor
                 foreach (float side in new[] { 1f, -1f })
                     for (int i = 0; i < 26; i++)
                     {
-                        float t = Range(rng, -MainRoadHalfLength + 5f, end - 5f);
+                        float t = Range(rng, MainRoadStart(alongX) + 5f, end - 5f);
                         if (NearCrossing(t, 3f) || AtMouth(alongX, center, t, side)) continue;
                         float width = Range(rng, 0.35f, 0.8f), height = Range(rng, 0.04f, 0.12f);
                         var bank = Box("NieveBordillo", group, MainRoadPoint(alongX, center, t, side * (half - width / 2f - 0.05f), MainRoadTop + height / 2f),
@@ -199,7 +203,7 @@ namespace GTAChiraq.Editor
                 for (int i = 0; i < 14; i++)
                 {
                     float side = rng.Next(2) == 0 ? 1f : -1f;
-                    float t = Range(rng, -MainRoadHalfLength + 5f, end - 5f);
+                    float t = Range(rng, MainRoadStart(alongX) + 5f, end - 5f);
                     Decal(group, MainRoadPoint(alongX, center, t, side * Range(rng, half - 1.6f, half - 0.6f), DecalY()), yaw + Range(rng, -20f, 20f),
                         new Vector2(Range(rng, 1f, 2f), Range(rng, 1.8f, 4f)), puddle);
                 }
@@ -212,7 +216,7 @@ namespace GTAChiraq.Editor
                         float sign = k + half >= end - 0.01f || rng.Next(2) == 0 ? -1f : 1f;
                         t = k + sign * (half + RoadWidth - Range(rng, 3.5f, 9f)); // donde paran los coches
                     }
-                    else t = Range(rng, -MainRoadHalfLength + 5f, end - 5f);
+                    else t = Range(rng, MainRoadStart(alongX) + 5f, end - 5f);
                     float across = (rng.Next(2) == 0 ? -1f : 1f) * (rng.Next(2) == 0 ? 1.8f : 5.1f) + Range(rng, -0.3f, 0.3f);
                     Decal(group, MainRoadPoint(alongX, center, t, across, DecalY()), Range(rng, 0f, 360f), Vector2.one * Range(rng, 0.7f, 1.6f), oil);
                 }

@@ -104,6 +104,7 @@ namespace GTAChiraq
             if (!player) return;
             if (!cam) cam = Camera.main;
             Despawn();
+            TrimCorpses();
             if (autoSpawn && template) Populate();
             if (raids && template && Time.time >= nextRaidRoll)
             {
@@ -125,10 +126,31 @@ namespace GTAChiraq
                     continue;
                 }
                 float d = Vector3.Distance(b.transform.position, player.position);
-                bool gone = b.Dead ? Time.time - b.DeadSince > 40f && !Visible(b.transform.position)
-                    : d > despawnRadius && !Visible(b.transform.position)
+                // Los cuerpos se quedan hasta que el jugador se va lejos (o hay demasiados: ver TrimCorpses).
+                bool gone = d > despawnRadius && !Visible(b.transform.position)
                       || b.Current == NpcBrain.State.Leave && d > spawnMin && !Visible(b.transform.position);
                 if (gone) Recycle(b, i);
+            }
+        }
+
+        /// <summary>Como mucho <see cref="MaxCorpses"/> cuerpos: se quitan los más viejos que no se vean.</summary>
+        public const int MaxCorpses = 12;
+
+        void TrimCorpses()
+        {
+            int dead = 0;
+            foreach (var b in active) if (b && b.Dead) dead++;
+            while (dead > MaxCorpses)
+            {
+                int oldest = -1;
+                for (int i = 0; i < active.Count; i++)
+                {
+                    var b = active[i];
+                    if (b && b.Dead && !Visible(b.transform.position) && (oldest < 0 || b.DeadSince < active[oldest].DeadSince)) oldest = i;
+                }
+                if (oldest < 0) return;
+                Recycle(active[oldest], oldest);
+                dead--;
             }
         }
 
@@ -151,16 +173,17 @@ namespace GTAChiraq
             float rain = w ? w.Rain : 0f, snow = w ? w.Snow : 0f;
             int civTarget = NpcMath.Civilians(daylight, rain, snow);
             int gangTarget = NpcMath.GangMembers(daylight, rain, snow);
-            int civ = 0, gang = 0;
+            int civ = 0, gang = 0, dead = 0;
             foreach (var b in active)
             {
+                if (b && b.Dead) dead++;
                 if (!b || b.Dead || b.Raider) continue;
                 if (b.Role == NpcRole.Civilian) civ++;
                 else gang++;
             }
             int spawned = 0;
             // Lo que más falta, primero; como mucho dos tandas por segundo para no dar tirones.
-            while (spawned < 2 && active.Count < maxNpcs)
+            while (spawned < 2 && active.Count - dead < maxNpcs) // los cuerpos no cuentan
             {
                 float civNeed = civTarget - civ, gangNeed = gangTarget - gang;
                 if (civNeed <= 0 && gangNeed <= 0) break;

@@ -14,14 +14,17 @@ ficticio: ni los grupos, ni los nombres, ni la ropa copian bandas o personas rea
 | `NpcAlerts.cs` | Disparos (se oyen a 45 m) y golpes (12 m) de los últimos 3 s, con quién y a quién. Los avisan `PlayerCombat` y `NpcBrain`. |
 | `NpcBrain.cs` | La cabeza de un NPC (piensa cada 0.2 s, anda con `NavMeshAgent`). Estados: `Idle`, `Walking`, `AtSpot`, `Flee`, `Cower`, `Stare`, `Confront`, `Combat`, `Raid`, `Leave`, `Dead`. |
 | `NpcAnimator.cs` | Animación procedural sobre el mismo cuerpo que el jugador (`AnimationMath`): paso según la velocidad del agente, peso en una pierna, mirar alrededor o a quien vigila; sentado, corro (brazos cruzados o gesticulando), vendiendo, calentándose en el bidón, agachado con las manos en la cabeza, apuntando con las dos manos, puñetazo y caída al morir. Coloca la pistola. |
+| `NpcLoot.cs` | Lo que lleva encima un NPC (dinero, su pistola y balas, comida, bebida, botiquín, chaleco) según si es civil o pandillero, si iba armado o en incursión. Lógica pura. |
+| `CorpseLoot.cs` | El cuerpo de un NPC muerto: F lo registra y abre un panel con lo que llevaba; se coge casilla a casilla o todo. |
 | `NpcPopulation.cs` | Población alrededor del jugador e incursiones (ver abajo). `NpcPopulation.Instance`; `Spawn(...)` para tests y capturas; `TryRaid(force)`; `Toast(texto)` para el HUD; `TerritoryLabel`/`TerritoryColor`. |
 
 ## Reglas que se cumplen
 
 - **Población** (cada 1 s): civiles ~22 de día y ~2 de madrugada; pandilleros ~8 de día y ~15 de noche; la lluvia y la
   nieve quitan muchos civiles y pocos pandilleros. Salen entre 35 y 110 m, **fuera de la vista**, en un `NpcSpot`
-  (los grupos, de 1 a 3, en un sitio de su barrio y vestidos con su color). Se quitan a más de 140 m sin verse, al irse
-  (`Leave`) en cuanto no se ven, y los muertos a los 40 s. Máximo 40 a la vez, 2 tandas por segundo.
+  (los grupos, de 1 a 3, en un sitio de su barrio y vestidos con su color). Se quitan a más de 140 m sin verse y al irse
+  (`Leave`) en cuanto no se ven. Los **cuerpos se quedan** hasta que el jugador se aleja más de 140 m (y no se ven);
+  como mucho 12 (`MaxCorpses`: sobran, se quita el más viejo que no se vea) y no cuentan para el tope de 40. Máximo 40 a la vez, 2 tandas por segundo.
 - **Elegir sitio** (`NpcMath.SpotScore`): los de su grupo pesan ×3 (habituales ×6); los del enemigo, nunca; con
   precipitación, lo cubierto gana; más lejos y más lleno, menos. Un 15 % de las veces, pasear a un punto al azar.
   Se quedan 60–200 s (grupo), 15–60 s (civiles), 6–14 s (recados). Si la tienda cierra, se van.
@@ -36,8 +39,11 @@ ficticio: ni los grupos, ni los nombres, ni la ropa copian bandas o personas rea
 - **Combate:** armados, se paran a disparar si te ven a menos de 20 m (si no, van a donde te vieron); ráfagas de 2–4
   tiros, cargador de 12 y 2.2 s de recarga, con el daño de la 9 mm (50 en el pecho; la zona la decide `Health`, ver
   `Combat/README`, *Vida realista por zonas*); dispersión según distancia, movimiento y
-  pericia. Sin arma, puñetazos de 7. A los 10 s sin verte lo dejan. Muy heridos, a veces huyen. Al morir sueltan a
-  veces balas.
+  pericia. Sin arma, puñetazos de 7. A los 10 s sin verte lo dejan. Muy heridos, a veces huyen.
+- **Al morir** (petición del usuario, 2026-11-17): el cuerpo se queda y no tira nada al suelo. Lleva un `CorpseLoot`
+  con lo que tenía (`NpcLoot.Roll`): civiles, 70 % con 5–40 $, a veces alitas o una bebida; pandilleros, 85 % con
+  15–120 $ (×1.5 en incursión), a veces balas, una bebida o un botiquín; si iba armado, su pistola y las balas que le
+  quedaban más unas pocas; si le queda la mitad del chaleco, el chaleco. Se registra con F (como la caja fuerte).
 - **Incursiones:** cada minuto, si estás en un barrio de tu bando, se tira `NpcMath.RaidChance` (~4 % de día, ~22 % de
   noche, menos con mal tiempo; mínimo 150 s entre una y otra). Llegan 3–4 armados del enemigo más cercano a 70–90 m,
   desde el lado de su barrio, hacia ti; aviso en el HUD. Se van a los 25 s si no encuentran pelea.
@@ -67,7 +73,9 @@ ficticio: ni los grupos, ni los nombres, ni la ropa copian bandas o personas rea
 - EditMode `NpcTests`: relaciones, territorios, población día/noche y con tiempo, incursiones, horario, puntuación de
   sitios, sospecha, ropa de las facciones y plazas de un sitio.
 - PlayMode `NpcPlayTests` (malla hecha en el momento): el enemigo en su barrio mira y luego dispara; el aliado no; el
-  enemigo fuera de su barrio no; el civil huye de un disparo; disparar a un aliado le da rencor.
+  enemigo fuera de su barrio no; el civil huye de un disparo; disparar a un aliado le da rencor; un armado muerto deja
+  un cuerpo que se registra con F (su pistola, balas y dinero pasan al jugador) y no tira nada al suelo.
+- EditMode `DrivingAndBreakingTests`: lo que llevan encima (`NpcLoot`).
 - PlayMode `NpcCapturePlayTests` (`[Explicit]`): capturas en la escena real a `ingame/npc/<GTACHIRAQ_CAPTURA>/`.
 
 ## Vida y chaleco

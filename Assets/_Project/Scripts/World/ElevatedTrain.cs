@@ -13,6 +13,8 @@ namespace GTAChiraq
         [SerializeField] Vector3 end;
         [Tooltip("Distancia desde el inicio a la que el centro del tren se para en la estación.")]
         [SerializeField] float stationDistance = 100f;
+        [Tooltip("Otras estaciones del recorrido (distancias desde el inicio).")]
+        [SerializeField] float[] extraStations;
         [SerializeField] float maxSpeed = 16f;
         [SerializeField] float acceleration = 1.1f;
         [SerializeField] float dwellSeconds = 10f;
@@ -28,6 +30,7 @@ namespace GTAChiraq
         {
             Length = Vector3.Distance(start, end),
             StationDistance = stationDistance,
+            ExtraStations = extraStations,
             MaxSpeed = maxSpeed,
             Acceleration = acceleration,
             DwellSeconds = dwellSeconds,
@@ -35,11 +38,12 @@ namespace GTAChiraq
         };
 
         /// <summary>Lo usa el generador de la escena para configurar el recorrido.</summary>
-        public void Configure(Vector3 from, Vector3 to, float station, float initialDistance)
+        public void Configure(Vector3 from, Vector3 to, float station, float initialDistance, params float[] moreStations)
         {
             start = from;
             end = to;
             stationDistance = station;
+            extraStations = moreStations;
             startDistance = initialDistance;
             Place(initialDistance);
         }

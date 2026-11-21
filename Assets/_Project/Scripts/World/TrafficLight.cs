@@ -21,6 +21,9 @@ namespace GTAChiraq
 
         public void Configure(float secondsOffset) => offset = secondsOffset;
 
+        /// <summary>Color que ven ahora (o hace <c>secondsAgo</c> s) los coches que van a lo largo de X (o de Z). Lo usa el tráfico (<see cref="TrafficCar"/>).</summary>
+        public SignalColor VehicleColor(bool alongX, float secondsAgo = 0f) => TrafficSignalMath.Vehicle(Time.time - secondsAgo + offset, alongX, timing);
+
         void Awake()
         {
             for (int a = 0; a < 2; a++)

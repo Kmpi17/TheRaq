@@ -40,7 +40,7 @@ Los colores globales (`FogColor`, `SodiumLight`) están arriba del script. Es el
 # Helpers
 - `Building(parent, name, base, size, wall)`: crea los muros, la cornisa y una franja oscura de ventanas por planta (cada 3.2 m).
 - `ProjectBuilding(...)`: edificio del barrio con muros texturizados, tejado con alero (bajo) o cornisa y caseta (torre), portal, marquesina, escalón y camino.
-- `TexturedBox(name, parent, pos, size, material, tile, collider, sidesOnly)`: caja con malla propia (`BoxMesh`) y UVs en metros. Cada cara repite la textura un número **entero** de veces (se redondea), así que las ventanas cuadran en las esquinas; en los laterales la V empieza en el suelo. Las mallas quedan guardadas dentro de la escena.
+- `TexturedBox(name, parent, pos, size, material, tile, collider, sidesOnly)`: caja con malla propia (`BoxMesh`, que llama a `ProceduralMeshes.Box` del código de juego: las vallas rotas rehacen sus trozos con ella) y UVs en metros. Cada cara repite la textura un número **entero** de veces (se redondea), así que las ventanas cuadran en las esquinas; en los laterales la V empieza en el suelo. Las mallas quedan guardadas dentro de la escena.
 - `BareTree(parent, pos, bark, rng, scale[, out height])`: árbol pelado con tronco y 5 ramas. Devuelve la raíz; la sobrecarga con `out` da la altura del tronco (la usa `DistrictTree` para poner la copa).
 - `Box`/`Primitive`: crean primitivas con material y, si se pide, quitan el collider.
-- `SetReference`, `SetLayerRecursively`, `MarkStatic`, `AddSceneToBuild`, `EnsureFolder`.
+- `SetReference`, `SetLayerRecursively`, `MarkStatic` (deja fuera del static batching lo que lleve `BreakableProp`, que tiene que poder caerse), `AddSceneToBuild`, `EnsureFolder`.

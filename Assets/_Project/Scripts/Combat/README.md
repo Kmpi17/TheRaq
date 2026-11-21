@@ -45,7 +45,7 @@ Depende del arma equipada en `PlayerInventory` (null = puños).
   - R recarga desde el inventario (`ReloadSeconds`). Con el cargador vacío, clic y recarga sola. Cambiar de arma cancela la recarga.
   - Agujeros de bala (los 40 últimos) y fogonazo con luz.
 - En cobertura sin apuntar no dispara ni pega.
-- Sonido: `ProceduralSfx`, que es ruido generado en código (provisional).
+- Sonido: `ProceduralSfx`, que es ruido generado en código (provisional). También hace los sonidos de la ciudad: `Horn` (claxon del tráfico), `TrainHorn` (bocina del tren de mercancías: largo, largo, corto, largo) y `CrossingBell` (campana del paso a nivel); los del coche (`EngineLoop`, `SkidLoop`, `Crash`, `HornLoop`, `CarDoor`); los de romper cosas (`MetalClang`, `WoodBreak`, `FenceRattle`, `WaterSpray`) y `Rummage` (registrar un cuerpo). Los bucles duran 1 s con frecuencias enteras, para empalmar sin chasquido.
 
 ## `TrainingDummy.cs`
 Diana de prácticas: se balancea al recibir golpes, cae al morir y se levanta a los 5 s. El generador pone tres junto al inicio (`PrototypeSceneBuilder.Training.cs`).

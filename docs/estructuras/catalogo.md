@@ -50,3 +50,9 @@
 | Iglesia con campanario | Nave 32 × 22 × 9 m (+6.5 de tejado); torre de 7 × 7 × 24 m + chapitel de 9 m | Barrio norte (este) | Ladrillo, rosetón, vidrieras. |
 | Terraplén del tren de mercancías | Muro de 5.8 m; pasos inferiores de 24 m de ancho y 4.8 m de gálibo | Borde norte (z 499.5) | Grafitis, malla, vagones parados encima. |
 | Valla publicitaria | Cara de hasta 10 × 4 m a 10.5 m | Barrio norte | Anuncios genéricos (WE BUY HOUSES, INJURED CALL NOW). |
+| Fábrica abandonada (MIDLAND STEEL CASTINGS) | 45 × 96 m, 8 m + diente de sierra de 3 m | Polígono del sur | Ladrillo, ventanales rotos, lucernarios, muelle de carga con apartadero. |
+| Chimenea de fábrica | 45 m, base de 5.5 m | Polígono del sur, junto a la fábrica | Ladrillo con zunchos de acero; hito del sur. |
+| Nave de chapa | 10–13 m de alto | Polígono del sur (cocheras, almacén, frigorífico) | Portones o muelles con remolques, letrero grande. |
+| Camión / remolque (`Semi`) | Remolque de 13 × 2.55 × 2.7 m | Polígono del sur | Con o sin tractora; algunos frigoríficos. |
+| Puente basculante | Dos hojas de 12.5 × 20 m levantadas 72° | Canal, S CALDER AVE | Barreras, semáforos rojos, caseta del puentero. |
+| Montón de sal | 36 × 30 m, 9 m de alto | Polígono del sur (este) | Bloques de hormigón, lona azul, cinta transportadora al muelle. |

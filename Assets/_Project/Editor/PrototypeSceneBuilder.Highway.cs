@@ -18,7 +18,8 @@ namespace GTAChiraq.Editor
         const float HighwayDepth = 7f;                         // la calzada queda a y = −7
         const float HighwayDeck = 1.2f;                        // grosor del tablero de los puentes y del techo del túnel
         const float HighwayMedianX = -287.5f, HighwayMedianWidth = 0.8f;
-        const float HighwaySouthZ = -300f;                     // borde sur del mundo
+        const float HighwaySouthZ = -480f;                     // fondo oscuro del túnel sur (bajo el canal)
+        const float HighwaySouthTunnelZ = -440f;               // boca del túnel sur: pasa bajo la vía de mercancías, Dock y el canal
         const float HighwayTunnelZ = 90f;                      // boca del túnel, en el borde norte del puente de z = 80
         const float HighwayTunnelEndZ = 130f;                  // fondo oscuro del túnel
         static float HighwayInnerMinX => HighwayMinX + HighwayWall;  // −299
@@ -29,7 +30,7 @@ namespace GTAChiraq.Editor
         static readonly Rect HighwayBridgeNorth = Rect.MinMaxRect(HighwayMinX, 70f, HighwayMaxX, 90f);
         static readonly Rect HighwayBridgeSouth = Rect.MinMaxRect(HighwayMinX, -90f, HighwayMaxX, -70f);
         // Tramos al aire libre (entre puentes y al sur), donde van pretiles y malla.
-        static readonly (float z0, float z1)[] HighwayOpenStretches = { (HighwaySouthZ, -90f), (-70f, 70f) };
+        static readonly (float z0, float z1)[] HighwayOpenStretches = { (HighwaySouthTunnelZ, -90f), (-70f, 70f) };
 
         static void BuildHighway(Transform world)
         {
@@ -108,30 +109,50 @@ namespace GTAChiraq.Editor
         }
 
         /// <summary>
-        /// Túnel al norte del puente de z = 80: el techo es el suelo del oeste lejano. Boca con dintel de hormigón,
-        /// fluorescentes en el techo y un fondo negro donde desaparecen los coches.
+        /// Túneles: al norte del puente de z = 80 (el techo es el suelo del oeste lejano) y al sur de z = −440 (bajo la vía
+        /// de mercancías, W DOCK ST y el canal). Boca con dintel de hormigón, fluorescentes en el techo y un fondo negro
+        /// donde desaparecen los coches. El del sur lleva pretil con malla encima de la boca y en el borde oeste del techo.
         /// </summary>
         static void BuildHighwayTunnel(Transform root, Material concrete)
         {
-            var group = new GameObject("Tunel").transform;
+            BuildHighwayTunnel(root, concrete, "Tunel", HighwayTunnelZ, HighwayTunnelEndZ, HighwayBridgeNorth.yMin, WorldNorthZ);
+            BuildHighwayTunnel(root, concrete, "Tunel_Sur", HighwaySouthTunnelZ, HighwaySouthZ, SouthQuayZ, HighwaySouthTunnelZ);
+            // Encima de la boca sur: pretil con malla (no se cae a la trinchera) y valla en el borde oeste del mundo.
+            float span = HighwayInnerMaxX - HighwayInnerMinX, cx = (HighwayInnerMinX + HighwayInnerMaxX) / 2f;
+            Box("PretilBoca", root, new Vector3(cx, 0.45f, HighwaySouthTunnelZ - 0.2f), new Vector3(span + 2f, 0.9f, 0.4f), concrete);
+            if (chainLink)
+            {
+                FenceSegment(root, new Vector3(HighwayInnerMinX, 0.9f, HighwaySouthTunnelZ - 0.2f), new Vector3(HighwayInnerMaxX, 0.9f, HighwaySouthTunnelZ - 0.2f), 1.8f, chainLink,
+                    Vector2.one * ProceduralTextures.ChainLinkTile, ironMat, 2.5f, 0.05f, topRail: true);
+                FenceSegment(root, new Vector3(HighwayMinX + 0.3f, 0f, HighwaySouthTunnelZ), new Vector3(HighwayMinX + 0.3f, 0f, SouthQuayZ), 2.2f, chainLink,
+                    Vector2.one * ProceduralTextures.ChainLinkTile, ironMat, 3f, 0.05f, topRail: true);
+            }
+            ColliderBox(root, "LimiteMundo", new Vector3(HighwayMinX + 0.1f, 2.5f, (HighwaySouthTunnelZ + SouthQuayZ) / 2f), new Vector3(0.2f, 5f, HighwaySouthTunnelZ - SouthQuayZ));
+        }
+
+        /// <summary>Un túnel: de la boca (<paramref name="mouthZ"/>) al fondo (<paramref name="endZ"/>); techo de roofZ0 a roofZ1.</summary>
+        static void BuildHighwayTunnel(Transform root, Material concrete, string name, float mouthZ, float endZ, float roofZ0, float roofZ1)
+        {
+            var group = new GameObject(name).transform;
             group.SetParent(root, false);
-            float roofZ0 = HighwayBridgeNorth.yMin, roofZ1 = WorldNorthZ;
+            float inward = Mathf.Sign(endZ - mouthZ);
             Box("Techo", group, new Vector3((HighwayMinX + HighwayMaxX) / 2f, -HighwayDeck / 2f, (roofZ0 + roofZ1) / 2f),
                 new Vector3(HighwayMaxX - HighwayMinX, HighwayDeck, roofZ1 - roofZ0), concrete);
 
             float span = HighwayInnerMaxX - HighwayInnerMinX, cx = (HighwayInnerMinX + HighwayInnerMaxX) / 2f;
             var dark = Mat("HormigonOscuro", new Color(0.3f, 0.3f, 0.29f));
-            Box("Dintel", group, new Vector3(cx, -HighwayDeck - 0.6f, HighwayTunnelZ + 0.5f), new Vector3(span, 1.2f, 1f), concrete, collider: false);
-            Box("TechoInterior", group, new Vector3(cx, -HighwayDeck - 0.02f, (HighwayTunnelZ + HighwayTunnelEndZ) / 2f), new Vector3(span, 0.04f, HighwayTunnelEndZ - HighwayTunnelZ), dark, collider: false);
-            Box("Fondo", group, new Vector3(cx, -(HighwayDeck + HighwayDepth) / 2f, HighwayTunnelEndZ - 0.5f), new Vector3(span, HighwayDepth - HighwayDeck, 1f),
+            Box("Dintel", group, new Vector3(cx, -HighwayDeck - 0.6f, mouthZ + inward * 0.5f), new Vector3(span, 1.2f, 1f), concrete, collider: false);
+            Box("TechoInterior", group, new Vector3(cx, -HighwayDeck - 0.02f, (mouthZ + endZ) / 2f), new Vector3(span, 0.04f, Mathf.Abs(endZ - mouthZ)), dark, collider: false);
+            Box("Fondo", group, new Vector3(cx, -(HighwayDeck + HighwayDepth) / 2f, endZ - inward * 0.5f), new Vector3(span, HighwayDepth - HighwayDeck, 1f),
                 Mat("FondoTunel", new Color(0.015f, 0.015f, 0.018f)));
             var lamp = EmissiveMat("LuzTunel", new Color(1f, 0.85f, 0.6f), 2.2f);
+            float length = Mathf.Abs(endZ - mouthZ);
             foreach (float x in new[] { HighwayInnerMinX + HighwayCarriageway / 2f, HighwayInnerMaxX - HighwayCarriageway / 2f })
-                for (float z = HighwayTunnelZ + 3f; z < HighwayTunnelEndZ - 2f; z += 6f)
-                    Box("Fluorescente", group, new Vector3(x, -HighwayDeck - 0.08f, z), new Vector3(0.35f, 0.1f, 2.4f), lamp, collider: false);
+                for (float d = 3f; d < length - 2f; d += 6f)
+                    Box("Fluorescente", group, new Vector3(x, -HighwayDeck - 0.08f, mouthZ + inward * d), new Vector3(0.35f, 0.1f, 2.4f), lamp, collider: false);
             var light = new GameObject("LuzTunel").AddComponent<Light>();
             light.transform.SetParent(group, false);
-            light.transform.localPosition = new Vector3(cx, -HighwayDeck - 1.5f, HighwayTunnelZ + 12f);
+            light.transform.localPosition = new Vector3(cx, -HighwayDeck - 1.5f, mouthZ + inward * 12f);
             light.type = LightType.Point;
             light.color = new Color(1f, 0.8f, 0.55f);
             light.range = 18f;
@@ -167,7 +188,7 @@ namespace GTAChiraq.Editor
             var lamp = Mat("LuzSodio", SodiumLight);
 
             // Farolas de doble brazo sobre la mediana, cada 40 m al aire libre.
-            for (float z = -280f; z < 70f; z += 40f)
+            for (float z = HighwaySouthTunnelZ + 20f; z < 70f; z += 40f)
             {
                 if (HighwayBridgeSouth.yMin - 4f < z && z < HighwayBridgeSouth.yMax + 4f) continue;
                 var p = new Vector3(HighwayMedianX, floorY + 1f, z);
@@ -229,7 +250,7 @@ namespace GTAChiraq.Editor
             for (int i = 0; i < 90; i++)
             {
                 float x = shoulderX[rng.Next(shoulderX.Length)] + Range(rng, -0.3f, 0.3f);
-                var p = new Vector3(x, floorY, Range(rng, -250f, HighwayTunnelZ - 2f));
+                var p = new Vector3(x, floorY, Range(rng, HighwaySouthTunnelZ + 10f, HighwayTunnelZ - 2f));
                 if (i < 40) PlaceLitter(group, rng.Next(2) == 0 ? paper : can, p, rng);
                 else if (i < 70) SnowMound(group, p, new Vector3(Range(rng, 0.4f, 0.8f), Range(rng, 0.1f, 0.3f), Range(rng, 2f, 7f)), Range(rng, -2f, 2f));
                 else GarbageBag(group, p, rng);
@@ -240,7 +261,7 @@ namespace GTAChiraq.Editor
             {
                 float x = Range(rng, HighwayInnerMinX + 1f, HighwayInnerMaxX - 1f);
                 if (Mathf.Abs(x - HighwayMedianX) < 1f) continue;
-                Decal(group, new Vector3(x, floorY + 0.003f + (i % 20) * 0.0002f, Range(rng, -250f, HighwayTunnelZ)), Range(rng, 0f, 360f),
+                Decal(group, new Vector3(x, floorY + 0.003f + (i % 20) * 0.0002f, Range(rng, HighwaySouthTunnelZ + 10f, HighwayTunnelZ)), Range(rng, 0f, 360f),
                     Vector2.one * Range(rng, 0.8f, 2.2f), i % 2 == 0 ? oil : dirt);
             }
 
@@ -259,7 +280,7 @@ namespace GTAChiraq.Editor
             var root = new GameObject("Trafico_Autopista").transform;
             var rng = new System.Random(2017);
             float y = -HighwayDepth;
-            float routeNorth = HighwayTunnelEndZ - 6f, routeSouth = HighwaySouthZ + 5f;
+            float routeNorth = HighwayTunnelEndZ - 6f, routeSouth = HighwaySouthZ + 6f; // de fondo a fondo de los dos túneles
             var styles = new[] { CarStyle.Sedan, CarStyle.Sedan, CarStyle.Coupe, CarStyle.Suv, CarStyle.Suv, CarStyle.Van };
             for (int lane = 0; lane < 3; lane++)
             {

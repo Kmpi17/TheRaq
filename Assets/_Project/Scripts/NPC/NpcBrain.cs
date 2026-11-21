@@ -636,8 +636,9 @@ namespace GTAChiraq
             foreach (var c in GetComponentsInChildren<Collider>()) c.enabled = false;
             if (pistolModel) pistolModel.SetActive(false);
             if (flash) flash.enabled = false;
-            // A veces deja balas en el suelo.
-            if (Armed && Random.value < 0.5f) ItemPickup.Spawn(ItemCatalog.Ammo9mm, Random.Range(6, 13), transform.position + transform.right * 0.6f + Vector3.up * 0.3f);
+            // El cuerpo se queda con lo que llevaba: se registra con F (CorpseLoot), no se tira nada al suelo.
+            var loot = NpcLoot.Roll(Role, Armed, Raider, Armed ? rounds : 0, health.Pool.Armor, new System.Random(Random.Range(0, int.MaxValue)));
+            gameObject.AddComponent<CorpseLoot>().Fill(loot);
             if (Owner) Owner.OnNpcDied(this);
         }
     }

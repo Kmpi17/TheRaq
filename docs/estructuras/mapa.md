@@ -25,7 +25,11 @@
  │ t │   -120]     │ │  x∈[-100,100]        │         │  x∈[120,250]       │
  │ o │ z∈[-70,70]  │ │  z∈[-70,70]          │         │  z∈[-88,88]        │
  └───┴─────────────┘ └──────────────────────┘         └────────────────────┘
- Autopista hundida x∈[-300,-275]: de z −300 a z 90 (túnel debajo del oeste lejano)
+ Autopista hundida x∈[-300,-275]: de z −440 a z 90 (túneles debajo del oeste lejano y, al sur, bajo el canal)
  Cocheras del tren elevado x∈[-99,100] z∈[-296,-91.5]: al sur de la calle z = −80, delante del inicio
+ Polígono industrial del sur, z∈[-485,-90]: W GANTRY ST (z −319), W DOCK ST (z −475), vía de mercancías
+ (z −460), curva S WHARF RD (centro (5,−365), r 45), desguace x∈[-247,-122], fábrica y chimenea x∈[-100,-48],
+ almacén dentro de la curva, frigorífico x∈[140,240], estación sur del elevado z∈[-390,-330]
+ ═══ Canal z∈[-510,-485]: puente levadizo en x = −110, puente fijo cortado en x = 110 ═══
                 z−
 ```

@@ -48,6 +48,22 @@ namespace GTAChiraq.Tests
         }
 
         [Test]
+        public void StopsAtEveryStationInOrder()
+        {
+            var route = Route;
+            route.ExtraStations = new[] { 120f, 450f };
+            var stops = new System.Collections.Generic.List<float>();
+            var s = TrainMotion.Start(0f, route);
+            for (int i = 0; i < 400000 && s.Phase != TrainPhase.Waiting; i++)
+            {
+                var prev = s.Phase;
+                s = TrainMotion.Step(s, 0.02f, route);
+                if (prev != TrainPhase.Dwelling && s.Phase == TrainPhase.Dwelling) stops.Add(s.Distance);
+            }
+            Assert.That(stops, Is.EqualTo(new[] { 120f, 300f, 450f }));
+        }
+
+        [Test]
         public void StartingPastTheStationDoesNotGoBack()
         {
             var s = TrainMotion.Start(450f, Route);
